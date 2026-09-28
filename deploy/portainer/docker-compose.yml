@@ -1,0 +1,44 @@
+# Portainer-Stack für den Vokabeltrainer
+#
+# Portainer → Stacks → Add stack → Web editor: diesen Inhalt einfügen.
+# Darunter unter "Environment variables" → "Load variables from .env file"
+# die Datei stack.env.example (ausgefüllt) laden – oder die Variablen einzeln eintragen.
+#
+# Das Image ist privat, solange das GitHub-Repo privat ist: vorher in Portainer unter
+# Registries → Add registry → "Custom registry" ghcr.io mit GitHub-Benutzername und einem
+# Personal Access Token (Scope: read:packages) anlegen.
+
+services:
+  vokabeltrainer:
+    # Für feste Versionen statt latest einen Tag wie sha-<commit> verwenden.
+    image: ghcr.io/borega/vokabeltrainer:latest
+    container_name: vokabeltrainer
+    restart: unless-stopped
+    ports:
+      # Standard: nur lokal (nginx auf demselben Host). Läuft nginx auf einem anderen Server,
+      # BIND_IP auf die interne IP des Docker-Hosts setzen (siehe deploy/nginx).
+      # Nicht auf 0.0.0.0 öffnen: Der Container spricht unverschlüsseltes HTTP.
+      - "${BIND_IP:-127.0.0.1}:${HOST_PORT:-3000}:3000"
+    volumes:
+      # Benanntes Volume: gehört automatisch dem Benutzer im Container (Bind-Mounts wären root-eigen).
+      - vokabeltrainer-data:/data
+    environment:
+      BASE_URL: ${BASE_URL:?BASE_URL fehlt}
+      OIDC_ISSUER: ${OIDC_ISSUER:?OIDC_ISSUER fehlt}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:?OIDC_CLIENT_ID fehlt}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:?OIDC_CLIENT_SECRET fehlt}
+      OIDC_SCOPES: ${OIDC_SCOPES:-openid profile iserv:groups iserv:roles}
+      OIDC_GROUPS_CLAIM: ${OIDC_GROUPS_CLAIM:-iserv:groups}
+      OIDC_ROLES_CLAIM: ${OIDC_ROLES_CLAIM:-iserv:roles}
+      OIDC_LOG_CLAIMS: ${OIDC_LOG_CLAIMS:-false}
+      TEACHER_ROLES: ${TEACHER_ROLES:-ROLE_TEACHER,teacher,lehrer}
+      TEACHER_GROUPS: ${TEACHER_GROUPS:-lehrer}
+      HIDDEN_GROUPS: ${HIDDEN_GROUPS:-alle,lehrer,schueler,schüler}
+      APP_NAME: ${APP_NAME:-Vokabeltrainer}
+      LOGIN_LABEL: ${LOGIN_LABEL:-Mit IServ anmelden}
+      SESSION_DAYS: ${SESSION_DAYS:-7}
+      RETENTION_DAYS: ${RETENTION_DAYS:-400}
+      TRUST_PROXY: "true"
+
+volumes:
+  vokabeltrainer-data:

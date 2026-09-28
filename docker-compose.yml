@@ -1,0 +1,16 @@
+services:
+  vokabeltrainer:
+    image: ghcr.io/borega/vokabeltrainer:latest
+    # Alternativ selbst bauen:
+    # build: .
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      # Nur lokal erreichbar – davor gehört ein Reverse-Proxy mit HTTPS (siehe deploy/nginx).
+      - "127.0.0.1:3000:3000"
+    volumes:
+      # Benanntes Volume: gehört automatisch dem Benutzer im Container (ein Bind-Mount wie ./data wäre root-eigen).
+      - vokabeltrainer-data:/data
+
+volumes:
+  vokabeltrainer-data:
