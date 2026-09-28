@@ -125,7 +125,8 @@ curl -o .env https://raw.githubusercontent.com/Borega/vokabeltrainer/main/.env.e
 docker compose up -d
 ```
 
-Die Datenbank (SQLite) liegt im Docker-Volume `vokabeltrainer-data` – dieses Volume gehört in die Datensicherung.
+Die Datenbank (SQLite) liegt im Docker-Volume `vokabeltrainer-data` – dieses Volume gehört in die Datensicherung
+(siehe [Aktualisieren und Datensicherung](#aktualisieren-und-datensicherung)).
 
 **Portainer:** Stack-Vorlage und Variablen in [`deploy/portainer/`](deploy/portainer/).
 
@@ -138,6 +139,47 @@ Beispiel für Caddy (holt das Zertifikat automatisch):
 vokabeln.meine-schule.de {
     reverse_proxy 127.0.0.1:3000
 }
+```
+
+## Aktualisieren und Datensicherung
+
+**Datenbank-Änderungen laufen automatisch.** Beim Start öffnet der Server die Datenbank, bevor er Anfragen
+annimmt, und bringt sie auf den Stand der neuen Version (`PRAGMA user_version`, Migrationen in
+[`src/db.js`](src/db.js)). Jede Migration läuft in einer Transaktion: Schlägt sie fehl, bleibt die Datenbank
+unverändert, der Container beendet sich mit der Fehlermeldung im Log und startet neu. Es darf immer nur
+**ein** Container auf das Volume zugreifen.
+
+**Vor jedem Update sichern.** Die Datenbank läuft im WAL-Modus – neue Änderungen können noch in der Datei
+`vokabeltrainer.sqlite-wal` stehen. Deshalb den Container vorher stoppen und das ganze Volume sichern:
+
+```bash
+# Name des Volumes herausfinden – Compose und Portainer setzen den Projekt- bzw. Stack-Namen davor
+docker volume ls | grep vokabeltrainer-data
+VOL=vokabeltrainer_vokabeltrainer-data   # anpassen
+
+docker compose stop                      # bzw. in Portainer: Stack → Stop
+docker run --rm -v "$VOL":/data -v "$PWD":/backup alpine \
+  tar czf /backup/vokabeltrainer-$(date +%F).tgz -C /data .
+```
+
+**Update einspielen:**
+
+```bash
+docker compose pull && docker compose up -d   # bzw. in Portainer: Stack → „Pull and redeploy“
+docker compose logs --tail 20 vokabeltrainer  # sollte „Vokabeltrainer läuft auf Port 3000“ zeigen
+```
+
+Danach kurz anmelden und prüfen, ob Listen und Lernstände da sind.
+
+**Zurück zur vorherigen Version:** Container stoppen, Sicherung zurückspielen und die alte Version starten.
+Statt `latest` dazu in `docker-compose.yml` einen festen Tag eintragen, z. B. `sha-<commit>`
+(alle Tags unter *Packages* im GitHub-Repo).
+
+```bash
+docker compose stop
+docker run --rm -v "$VOL":/data -v "$PWD":/backup alpine \
+  sh -c 'rm -rf /data/* && tar xzf /backup/vokabeltrainer-<datum>.tgz -C /data'
+docker compose up -d
 ```
 
 ## Anbindung an IServ
