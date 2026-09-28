@@ -22,8 +22,16 @@ test('Kopfzeile wird erkannt, Notizspalte übernommen, BOM entfernt', () => {
   const { words, header } = csvToWords('﻿Englisch;Deutsch;Notiz\ndog;Hund;animal\ncat;Katze\n\n');
   assert.deepEqual(header, ['Englisch', 'Deutsch', 'Notiz']);
   assert.deepEqual(words, [
-    { a: 'dog', b: 'Hund', note: 'animal' },
-    { a: 'cat', b: 'Katze', note: '' },
+    { a: 'dog', b: 'Hund', note: 'animal', example: '' },
+    { a: 'cat', b: 'Katze', note: '', example: '' },
+  ]);
+});
+
+test('vierte Spalte ist der Beispielsatz', () => {
+  const { words } = csvToWords('dog;Hund;;The *dog* barks.\ncat;Katze;animal');
+  assert.deepEqual(words, [
+    { a: 'dog', b: 'Hund', note: '', example: 'The *dog* barks.' },
+    { a: 'cat', b: 'Katze', note: 'animal', example: '' },
   ]);
 });
 
@@ -35,9 +43,9 @@ test('ohne Kopfzeile bleibt die erste Zeile ein Wort', () => {
 
 test('Export und Re-Import ergeben dieselben Wörter', () => {
   const words = [
-    { a: 'yes; please', b: 'ja "bitte"', note: '' },
-    { a: 'dog', b: 'Hund', note: 'animal' },
+    { a: 'yes; please', b: 'ja "bitte"', note: '', example: '' },
+    { a: 'dog', b: 'Hund', note: 'animal', example: 'The dog barks; loudly.' },
   ];
-  const csv = wordsToCsv(words, ['Englisch', 'Deutsch', 'Notiz']);
+  const csv = wordsToCsv(words, ['Englisch', 'Deutsch', 'Notiz', 'Beispielsatz']);
   assert.deepEqual(csvToWords(csv).words, words);
 });

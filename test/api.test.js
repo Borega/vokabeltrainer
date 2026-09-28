@@ -5,6 +5,7 @@ import { createApp } from '../src/server.js';
 
 let server;
 let base;
+let db;
 
 const config = {
   production: false,
@@ -18,7 +19,8 @@ const config = {
 };
 
 before(async () => {
-  const app = createApp(openDb(':memory:'), config);
+  db = openDb(':memory:');
+  const app = createApp(db, config);
   await new Promise((resolve) => {
     server = app.listen(0, resolve);
   });
@@ -205,9 +207,85 @@ test('Migration ergänzt Spalten in bestehender Datenbank', async () => {
   const db = openDb(':memory:');
   const cols = db.prepare('PRAGMA table_info(lists)').all().map((c) => c.name);
   assert.ok(cols.includes('shared') && cols.includes('copied_from'));
-  assert.equal(db.prepare('PRAGMA user_version').get().user_version, 3);
+  assert.equal(db.prepare('PRAGMA user_version').get().user_version, 4);
   const pcols = db.prepare('PRAGMA table_info(progress)').all().map((c) => c.name);
   assert.ok(['stability', 'difficulty', 'due', 'state', 'last_review'].every((c) => pcols.includes(c)));
+});
+
+test('Migration 4 baut die Listentabelle neu auf, ohne Wörter zu verlieren', async () => {
+  const { MIGRATIONS, openDb } = await import('../src/db.js');
+  const { mkdtempSync, rmSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { DatabaseSync } = await import('node:sqlite');
+  const dir = mkdtempSync(join(tmpdir(), 'vt-'));
+  try {
+    // Datenbank im Stand von Version 3 anlegen (Schema + Migrationen 1–3), mit Fremdschlüsseln
+    const fresh = openDb(dir);
+    fresh.close();
+    const old = new DatabaseSync(join(dir, 'vokabeltrainer.sqlite'));
+    old.exec(`PRAGMA foreign_keys = OFF;
+      DROP TABLE lists; DROP TABLE words; DROP TABLE review_log;
+      CREATE TABLE lists (id INTEGER PRIMARY KEY, owner_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        title TEXT NOT NULL, lang_a TEXT NOT NULL DEFAULT '', lang_b TEXT NOT NULL DEFAULT '',
+        mode TEXT NOT NULL DEFAULT 'flip' CHECK (mode IN ('flip', 'type')), case_sensitive INTEGER NOT NULL DEFAULT 0,
+        accent_sensitive INTEGER NOT NULL DEFAULT 1, direction TEXT NOT NULL DEFAULT 'ab', allow_switch INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+      CREATE TABLE words (id INTEGER PRIMARY KEY, list_id INTEGER NOT NULL REFERENCES lists(id) ON DELETE CASCADE,
+        pos INTEGER NOT NULL, a TEXT NOT NULL, b TEXT NOT NULL, note TEXT NOT NULL DEFAULT '');
+      ${MIGRATIONS[0]}
+      ${MIGRATIONS[2]}
+      INSERT INTO lists (id, title, mode, shared, copied_from, created_at, updated_at) VALUES (7, 'Alt', 'type', 1, 'X', 't', 't');
+      INSERT INTO words (list_id, pos, a, b) VALUES (7, 0, 'dog', 'Hund'), (7, 1, 'cat', 'Katze');
+      PRAGMA user_version = 3;`);
+    old.close();
+    const db = openDb(dir);
+    assert.equal(db.prepare('PRAGMA user_version').get().user_version, 4);
+    assert.deepEqual({ ...db.prepare('SELECT mode, shared, copied_from FROM lists WHERE id = 7').get() }, { mode: 'type', shared: 1, copied_from: 'X' });
+    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM words WHERE list_id = 7').get().n, 2, 'Wörter bleiben erhalten');
+    assert.equal(db.prepare("SELECT example FROM words LIMIT 1").get().example, '');
+    db.prepare("UPDATE lists SET mode = 'auto' WHERE id = 7").run();
+    assert.throws(() => db.prepare("UPDATE lists SET mode = 'quatsch' WHERE id = 7").run());
+    // Fremdschlüssel wirken weiter: Liste löschen entfernt ihre Wörter
+    db.prepare('DELETE FROM lists WHERE id = 7').run();
+    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM words').get().n, 0);
+    db.close();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('Lernleiter und Auswählen, Beispielsätze, Übungsart im Verlauf', async () => {
+  const teacher = await login('Frau Leiter', { teacher: true, groups: 'Klasse 6c' });
+  const student = await login('Schülerin L', { groups: 'Klasse 6c' });
+  const body = {
+    ...listBody,
+    mode: undefined,
+    groups: [{ id: 'klasse.6c', name: 'Klasse 6c' }],
+    words: [{ a: 'dog', b: 'Hund', example: 'The *dog* barks.' }, { a: 'cat', b: 'Katze' }],
+  };
+  const { body: { id } } = await teacher('POST', '/lists', body);
+  let list = (await student('GET', `/lists/${id}`)).body;
+  assert.equal(list.mode, 'auto', 'neue Listen nutzen standardmäßig die Lernleiter');
+  assert.equal(list.words[0].example, 'The *dog* barks.');
+  assert.equal(list.words[1].example, '');
+  assert.equal((await teacher('PUT', `/lists/${id}`, { ...body, mode: 'choice', words: list.words })).status, 200);
+  list = (await student('GET', `/lists/${id}`)).body;
+  assert.equal(list.mode, 'choice');
+  assert.equal(list.words[0].example, 'The *dog* barks.', 'Beispiel bleibt beim Speichern erhalten');
+
+  const copy = await teacher('POST', `/lists/${id}/copy`, {});
+  assert.equal((await teacher('GET', `/lists/${copy.body.id}`)).body.words[0].example, 'The *dog* barks.');
+
+  await student('POST', `/lists/${id}/results`, {
+    results: [
+      { word_id: list.words[0].id, direction: 'ab', grade: 'hard', correct: true, exercise: 'choice' },
+      { word_id: list.words[1].id, direction: 'ab', grade: 'good', correct: true, exercise: 'quatsch' },
+    ],
+  });
+  const log = db.prepare('SELECT word_id, exercise FROM review_log WHERE word_id IN (?, ?) ORDER BY word_id')
+    .all(list.words[0].id, list.words[1].id).map((r) => r.exercise);
+  assert.deepEqual(log, ['choice', ''], 'unbekannte Übungsarten werden nicht gespeichert');
 });
 
 test('Noten: grade hat Vorrang, "fast" (hard) zählt als falsch, aber als erinnert', async () => {

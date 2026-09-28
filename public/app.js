@@ -1,5 +1,9 @@
 import { checkAnswer } from './check.js';
 import { csvToWords, rowsToCsv, wordsToCsv } from './csv.js';
+import {
+  afterIntro, choiceOptions, clozeFor, gradeFor, hintPattern, hintTarget, maxHints, pickExercise, speechLang, speechText,
+} from './exercises.js';
+import { canSpeak, speak, stopSpeaking, voicesReady } from './speech.js';
 
 const SAFE_BOX = 3;
 const app = document.getElementById('app');
@@ -67,6 +71,20 @@ function langLabel(list, side) {
   return (side === 'a' ? list.lang_a : list.lang_b) || (side === 'a' ? 'Seite A' : 'Seite B');
 }
 
+const MODE_LABELS = { auto: 'Lernleiter', flip: 'Karteikarten', type: 'Eintippen', choice: 'Auswählen' };
+const modeLabel = (mode) => MODE_LABELS[mode] ?? MODE_LABELS.flip;
+
+// Einstellungen, die nur im Browser gemerkt werden (z. B. Ton an/aus)
+function pref(name, value) {
+  try {
+    if (value === undefined) return localStorage.getItem(`vokabeltrainer.${name}`);
+    localStorage.setItem(`vokabeltrainer.${name}`, value);
+  } catch {
+    return null;
+  }
+  return value;
+}
+
 function directionLabel(list, dir) {
   if (dir === 'mixed') return 'Gemischt';
   const [from, to] = dir === 'ab' ? ['a', 'b'] : ['b', 'a'];
@@ -116,7 +134,7 @@ function renderLogin() {
   renderUser();
   const parts = [
     h('h1', {}, settings.appName || 'Vokabeltrainer'),
-    h('p', { class: 'lead' }, 'Vokabeln lernen mit Karteikarten oder durch Eintippen – mit den Listen deiner Lehrkräfte.'),
+    h('p', { class: 'lead' }, 'Vokabeln lernen – mit Karteikarten, Auswählen, Eintippen, Lückensätzen und Hörübungen, mit den Listen deiner Lehrkräfte.'),
   ];
   if (settings.oidc) parts.push(h('a', { class: 'btn primary big', href: '/auth/login' }, settings.loginLabel || 'Anmelden'));
   if (settings.devLogin) {
@@ -140,7 +158,7 @@ function listCard(list, { own }) {
   const total = list.word_count;
   const meta = [
     `${total} Wörter`,
-    list.mode === 'type' ? 'Eintippen' : 'Karteikarten',
+    modeLabel(list.mode),
   ];
   if (!own && list.owner_name) meta.push(`von ${list.owner_name}`);
   return h('article', { class: 'card' },
@@ -214,7 +232,7 @@ const LANGUAGES = ['Deutsch', 'Englisch', 'Französisch', 'Spanisch', 'Latein', 
 async function renderEditor(id) {
   const isNew = id === 'new';
   const list = isNew
-    ? { title: '', lang_a: 'Englisch', lang_b: 'Deutsch', mode: 'flip', case_sensitive: false, accent_sensitive: true, direction: 'ab', allow_switch: true, shared: false, groups: [], words: [] }
+    ? { title: '', lang_a: 'Englisch', lang_b: 'Deutsch', mode: 'auto', case_sensitive: false, accent_sensitive: true, direction: 'ab', allow_switch: true, shared: false, groups: [], words: [] }
     : await api('GET', `/lists/${id}`);
   if (!isNew && !list.is_owner) throw new Error('Nur die Ersteller:in darf diese Liste bearbeiten.');
 
@@ -229,8 +247,9 @@ async function renderEditor(id) {
   const langA = h('input', { value: list.lang_a, list: 'langs', maxLength: 50 });
   const langB = h('input', { value: list.lang_b, list: 'langs', maxLength: 50 });
 
-  const modeFlip = h('input', { type: 'radio', name: 'mode', value: 'flip', checked: list.mode === 'flip' });
-  const modeType = h('input', { type: 'radio', name: 'mode', value: 'type', checked: list.mode === 'type' });
+  const modeInputs = Object.fromEntries(['auto', 'flip', 'type', 'choice'].map((m) =>
+    [m, h('input', { type: 'radio', name: 'mode', value: m, checked: list.mode === m })]));
+  const selectedMode = () => Object.keys(modeInputs).find((m) => modeInputs[m].checked) ?? 'auto';
   const caseSens = h('input', { type: 'checkbox', checked: list.case_sensitive });
   const accentSens = h('input', { type: 'checkbox', checked: list.accent_sensitive });
   const typeOptions = h('div', { class: 'suboptions' },
@@ -238,8 +257,8 @@ async function renderEditor(id) {
     h('label', { class: 'check' }, accentSens, 'Akzente und Umlaute beachten', h('small', { class: 'muted' }, ' (é ≠ e, ü ≠ u)')),
     h('p', { class: 'small muted' }, 'Mehrere richtige Lösungen mit „;“ trennen (big; large). Teile in Klammern sind optional: „(to) go“.'),
   );
-  const syncMode = () => { typeOptions.hidden = !modeType.checked; };
-  modeFlip.onchange = modeType.onchange = () => { syncMode(); markDirty(); };
+  const syncMode = () => { typeOptions.hidden = !['auto', 'type'].includes(selectedMode()); };
+  for (const input of Object.values(modeInputs)) input.onchange = () => { syncMode(); markDirty(); };
   syncMode();
 
   const direction = h('select', {},
@@ -283,7 +302,7 @@ async function renderEditor(id) {
     const n = [...tbody.rows].filter((r) => r.querySelector('.a').value.trim() || r.querySelector('.b').value.trim()).length;
     counter.textContent = `${n} ${n === 1 ? 'Wort' : 'Wörter'}`;
   };
-  function addRow(w = { a: '', b: '', note: '' }, focus = false) {
+  function addRow(w = { a: '', b: '', note: '', example: '' }, focus = false) {
     const onKey = (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
@@ -296,6 +315,7 @@ async function renderEditor(id) {
       h('td', {}, h('input', { class: 'a', value: w.a, 'aria-label': 'Wort A', onkeydown: onKey })),
       h('td', {}, h('input', { class: 'b', value: w.b, 'aria-label': 'Wort B', onkeydown: onKey })),
       h('td', {}, h('input', { class: 'note', value: w.note ?? '', 'aria-label': 'Notiz', placeholder: 'optional', onkeydown: onKey })),
+      h('td', {}, h('input', { class: 'example', value: w.example ?? '', 'aria-label': 'Beispielsatz', placeholder: 'optional', onkeydown: onKey })),
       h('td', {}, h('button', { type: 'button', class: 'icon', title: 'Zeile löschen', 'aria-label': 'Zeile löschen', onclick: () => { row.remove(); if (!tbody.rows.length) addRow(); markDirty(); updateCount(); } }, '×')),
     );
     tbody.append(row);
@@ -312,6 +332,7 @@ async function renderEditor(id) {
       a: r.querySelector('.a').value,
       b: r.querySelector('.b').value,
       note: r.querySelector('.note').value,
+      example: r.querySelector('.example').value,
     }))
     .filter((w) => w.a.trim() || w.b.trim());
 
@@ -342,7 +363,7 @@ async function renderEditor(id) {
     toast(`${words.length} Wörter importiert.`);
   };
   const exportCsv = () => {
-    const csv = wordsToCsv(readWords(), [langA.value.trim() || 'A', langB.value.trim() || 'B', 'Notiz']);
+    const csv = wordsToCsv(readWords(), [langA.value.trim() || 'A', langB.value.trim() || 'B', 'Notiz', 'Beispielsatz']);
     const a = h('a', { href: URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })), download: `${title.value.trim() || 'vokabeln'}.csv` });
     a.click();
     URL.revokeObjectURL(a.href);
@@ -358,7 +379,7 @@ async function renderEditor(id) {
       title: title.value,
       lang_a: langA.value,
       lang_b: langB.value,
-      mode: modeType.checked ? 'type' : 'flip',
+      mode: selectedMode(),
       case_sensitive: caseSens.checked,
       accent_sensitive: accentSens.checked,
       direction: direction.value,
@@ -400,8 +421,10 @@ async function renderEditor(id) {
     h('div', { class: 'panel' },
       h('h2', {}, 'Abfrage'),
       h('div', { class: 'choice' },
-        h('label', { class: 'option' }, modeFlip, h('strong', {}, 'Karteikarten'), h('small', {}, 'Karte umdrehen und selbst einschätzen: gewusst oder nicht.')),
-        h('label', { class: 'option' }, modeType, h('strong', {}, 'Eintippen'), h('small', {}, 'Die Übersetzung muss eingetippt werden und wird automatisch geprüft.')),
+        h('label', { class: 'option' }, modeInputs.auto, h('strong', {}, 'Lernleiter (empfohlen)'), h('small', {}, 'Die Aufgabe passt sich an: Neue Wörter kennenlernen und auswählen, dann eintippen – mit Tipps, später im Beispielsatz oder nach Gehör.')),
+        h('label', { class: 'option' }, modeInputs.flip, h('strong', {}, 'Karteikarten'), h('small', {}, 'Karte umdrehen und selbst einschätzen: gewusst oder nicht.')),
+        h('label', { class: 'option' }, modeInputs.type, h('strong', {}, 'Eintippen'), h('small', {}, 'Die Übersetzung muss eingetippt werden und wird automatisch geprüft. Tipps auf Wunsch.')),
+        h('label', { class: 'option' }, modeInputs.choice, h('strong', {}, 'Auswählen'), h('small', {}, 'Aus vier Antworten die richtige wählen. Leichter; ein Wort gilt so aber erst spät als „sicher“.')),
       ),
       typeOptions,
       h('div', { class: 'row2' },
@@ -428,10 +451,11 @@ async function renderEditor(id) {
           fileInput,
         ),
       ),
-      h('p', { class: 'small muted' }, 'CSV: erste Spalte Seite A, zweite Spalte Seite B, dritte Spalte optional Notiz (Trennzeichen ; , oder Tab). Mit Enter springst du in die nächste Zeile.'),
+      h('p', { class: 'small muted' }, 'CSV: erste Spalte Seite A, zweite Spalte Seite B, optional dritte Spalte Notiz und vierte Spalte Beispielsatz (Trennzeichen ; , oder Tab). Mit Enter springst du in die nächste Zeile.'),
+      h('p', { class: 'small muted' }, 'Beispielsatz: Kommt das Wort darin vor, wird daraus in der Lernleiter ein Lückentext. Gebeugte Formen mit Sternchen markieren: „Yesterday I *went* home.“'),
       h('div', { class: 'table-wrap' },
         h('table', { class: 'words' },
-          h('thead', {}, h('tr', {}, colA, colB, h('th', {}, 'Notiz / Beispiel'), h('th', {}))),
+          h('thead', {}, h('tr', {}, colA, colB, h('th', {}, 'Notiz'), h('th', {}, 'Beispielsatz'), h('th', {}))),
           tbody)),
       h('button', { type: 'button', class: 'btn ghost', onclick: () => { addRow(undefined, true); } }, '+ Zeile'),
     ),
@@ -466,6 +490,16 @@ async function renderLearn(id) {
   let mode = null; // 'due' (Heute fällig) oder 'free' (Frei üben)
 
   const dirsFor = () => (direction === 'mixed' ? ['ab', 'ba'] : [direction]);
+
+  // Aussprache: nur, wenn das Gerät eine Stimme für die Sprache hat
+  await voicesReady();
+  const langs = { langA: list.lang_a, langB: list.lang_b };
+  const speech = { a: speechLang(list.lang_a), b: speechLang(list.lang_b) };
+  const speakable = (side) => canSpeak(speech[side]);
+  const isGerman = (side) => speech[side]?.startsWith('de') ?? false;
+  // Seite, deren Aussprache geübt wird: die Fremdsprache, im Zweifel Seite A
+  const foreign = ['a', 'b'].find((side) => speakable(side) && !isGerman(side)) ?? null;
+  let sound = !!foreign && pref('sound') === 'on';
 
   // Fällige Einträge (Wort + Richtung), die ältesten zuerst – pro Wort höchstens einer.
   function dueItems() {
@@ -543,7 +577,10 @@ async function renderLearn(id) {
 
     view(h('section', { class: 'panel learn-setup' },
       h('div', { class: 'section-head' }, h('h1', {}, list.title), h('a', { class: 'btn ghost', href: '#/' }, 'Zurück')),
-      h('p', { class: 'muted' }, [`${list.words.length} Wörter`, list.mode === 'type' ? 'Eintippen' : 'Karteikarten', list.is_owner ? null : list.owner_name && `von ${list.owner_name}`].filter(Boolean).join(' · ')),
+      h('p', { class: 'muted' }, [`${list.words.length} Wörter`, modeLabel(list.mode), list.is_owner ? null : list.owner_name && `von ${list.owner_name}`].filter(Boolean).join(' · ')),
+      list.mode === 'auto'
+        ? h('p', { class: 'small muted' }, 'Neue Wörter lernst du erst kennen und wählst sie aus, danach tippst du sie ein – mit Tipps auf Wunsch, später auch im Satz oder nach Gehör. Je sicherer ein Wort sitzt, desto schwerer die Aufgabe.')
+        : null,
       h('div', { class: 'progress' }, progressBar(safe, list.words.length, 'Sicher gelernt'), h('span', { class: 'small muted' }, `${safe} von ${list.words.length} sicher gelernt`)),
       h('h2', {}, 'Modus'),
       segmented('Modus', [['due', `Heute fällig${due ? ` (${due})` : ''}`], ['free', 'Frei üben']], mode, (m) => { mode = m; setupView(); }),
@@ -552,6 +589,15 @@ async function renderLearn(id) {
       list.allow_switch
         ? segmented('Richtung', ['ab', 'ba', 'mixed'].map((d) => [d, directionLabel(list, d)]), direction, (d) => { direction = d; setupView(); })
         : h('p', {}, directionLabel(list, direction)),
+      foreign
+        ? [
+            h('h2', {}, 'Ton'),
+            segmented('Ton', [['off', 'Aus'], ['on', 'An']], sound ? 'on' : 'off', (v) => { sound = v === 'on'; pref('sound', v); setupView(); }),
+            h('p', { class: 'small muted' }, sound
+              ? 'Wörter werden vorgelesen, dazu kommen Hörübungen – am besten mit Kopfhörern.'
+              : 'Mit Ton werden Wörter vorgelesen und es gibt Hörübungen. Über 🔊 kannst du Wörter jederzeit anhören.'),
+          ]
+        : null,
       h('h2', {}, 'Wie viele Wörter?'),
       segmented('Anzahl', [['10', '10'], ['20', '20'], ['all', `Alle${mode === 'free' ? ` (${list.words.length})` : ''}`]], size, (s) => { size = s; setupView(); }),
       nothingToDo
@@ -582,7 +628,7 @@ async function renderLearn(id) {
   const pending = [];
   let chain = Promise.resolve();
   function record(card, grade, correct) {
-    pending.push({ word_id: card.word.id, direction: card.dir, grade, correct });
+    pending.push({ word_id: card.word.id, direction: card.dir, grade, correct, exercise: card.exercise });
     // Sofort als erledigt markieren, damit das Wort nicht erneut als fällig/neu zählt
     const k = key(card.word.id, card.dir);
     progress.set(k, { ...(progress.get(k) ?? { word_id: card.word.id, direction: card.dir, box: 0 }), due: null });
@@ -609,9 +655,48 @@ async function renderLearn(id) {
     return chain;
   }
 
+  // ---------- Übungen ----------
+
+  const sides = (dir) => (dir === 'ab' ? ['a', 'b'] : ['b', 'a']);
+
+  // Ansagen nur in der Fremdsprache (nicht Deutsch) und nur mit einer Stimme auf dem Gerät
+  function speakBtn(side, text) {
+    if (!speakable(side) || isGerman(side)) return null;
+    return h('button', {
+      type: 'button', class: 'icon speak', title: 'Anhören', 'aria-label': `Anhören: ${text}`,
+      onclick: (e) => { e.stopPropagation(); speak(speechText(text), speech[side]); },
+    }, '🔊');
+  }
+  function autoSpeak(word) {
+    if (sound && foreign) speak(speechText(word[foreign]), speech[foreign]);
+  }
+
+  // Beispielsatz mit hervorgehobener *Lücke*
+  const exampleNode = (example) => example.split('*').map((part, i) => (i % 2 ? h('b', {}, part) : part));
+  const details = (word, { example = true } = {}) => [
+    word.note ? h('div', { class: 'note' }, word.note) : null,
+    example && word.example ? h('div', { class: 'example' }, exampleNode(word.example)) : null,
+  ];
+  const promptBlock = (side, text, label = langLabel(list, side)) => h('div', { class: 'prompt' },
+    h('span', { class: 'lang' }, label),
+    h('span', { class: 'word-line' }, h('span', { class: 'word' }, text), speakBtn(side, text)));
+
+  function chooseExercise(card) {
+    const [from, to] = sides(card.dir);
+    const other = card.dir === 'ab' ? 'ba' : 'ab';
+    return pickExercise({
+      mode: list.mode,
+      level: progress.get(key(card.word.id, card.dir))?.box ?? 0,
+      knownOther: (progress.get(key(card.word.id, other))?.box ?? 0) > 0,
+      choiceOk: !!choiceOptions(list.words, card.word, to),
+      clozeOk: !!clozeFor(card.word, to, langs),
+      listenOk: sound && speakable(from) && !isGerman(from),
+    });
+  }
+
   function startRound(cards) {
     if (!cards.length) return setupView();
-    const queue = cards.map((c) => ({ ...c, retry: 0 }));
+    const queue = cards.map((c) => ({ word: c.word, dir: c.dir, retry: 0 }));
     const total = cards.length;
     let done = 0;
     let right = 0;
@@ -619,106 +704,252 @@ async function renderLearn(id) {
 
     const options = { caseSensitive: list.case_sensitive, accentSensitive: list.accent_sensitive };
 
+    // Nur die erste Antwort zählt für die Planung. Nicht (sicher) gewusste Wörter kommen
+    // nach 3–5 Karten erneut, bis sie einmal richtig sind (höchstens dreimal).
+    function answered(card, grade, correct) {
+      if (!card.retry) {
+        record(card, grade, correct);
+        done++;
+        if (correct) right++;
+        else wrongWords.push(card);
+      }
+      if (!correct && card.retry < 3) {
+        const at = Math.min(queue.length, 2 + Math.floor(Math.random() * 3));
+        queue.splice(at, 0, { ...card, retry: card.retry + 1 });
+      }
+    }
+
     function next() {
+      stopSpeaking();
       const card = queue.shift();
       if (!card) return finish();
-      const [from, to] = card.dir === 'ab' ? ['a', 'b'] : ['b', 'a'];
-      const prompt = card.word[from];
-      const solution = card.word[to];
+      card.exercise ??= chooseExercise(card);
       const header = h('div', { class: 'round-head' },
-        h('button', { class: 'btn ghost small', onclick: () => { if (confirm('Runde abbrechen?')) { flush(); cleanupKeys(); setupView(); } } }, '✕ Beenden'),
+        h('button', { class: 'btn ghost small', onclick: () => { if (confirm('Runde abbrechen?')) { flush(); cleanupKeys(); stopSpeaking(); setupView(); } } }, '✕ Beenden'),
         progressBar(done, total, 'Fortschritt der Runde'),
         h('span', { class: 'small muted' }, `${Math.min(done + 1, total)} / ${total}`),
       );
+      const show = (...content) => view(h('section', { class: 'round' }, header,
+        card.retry ? h('p', { class: 'retry small' }, 'Wiederholung') : null, ...content));
+      const render = { intro: showIntro, flip: showFlip, choice: showChoice }[card.exercise] ?? showTyping;
+      render(card, show);
+    }
 
-      // Nur die erste Antwort zählt für die Planung. Nicht (sicher) gewusste Wörter kommen
-      // nach 3–5 Karten erneut, bis sie einmal richtig sind (höchstens dreimal).
-      function answered(grade, correct) {
-        if (!card.retry) {
-          record(card, grade, correct);
-          done++;
-          if (correct) right++;
-          else wrongWords.push(card);
+    // Neues Wort kennenlernen; die erste Abfrage folgt ein paar Karten später.
+    function showIntro(card, show) {
+      const [from, to] = sides(card.dir);
+      function proceed() {
+        const at = Math.min(queue.length, 2 + Math.floor(Math.random() * 2));
+        queue.splice(at, 0, { ...card, exercise: afterIntro(!!choiceOptions(list.words, card.word, to)) });
+        next();
+      }
+      const cont = h('button', { class: 'btn primary big', onclick: proceed }, 'Verstanden – weiter');
+      setKeys((e) => {
+        if (e.target === cont || (e.key !== 'Enter' && e.key !== ' ')) return;
+        e.preventDefault();
+        proceed();
+      });
+      show(
+        h('div', { class: 'exercise intro' },
+          h('span', { class: 'chip new' }, 'Neues Wort'),
+          promptBlock(from, card.word[from]),
+          promptBlock(to, card.word[to]),
+          details(card.word)),
+        h('div', { class: 'actions center' }, cont),
+        h('p', { class: 'small muted center' }, 'Präg dir das Wort ein – gleich wird es abgefragt.'),
+      );
+      cont.focus();
+      autoSpeak(card.word);
+    }
+
+    function showFlip(card, show) {
+      const [from, to] = sides(card.dir);
+      const prompt = card.word[from];
+      const solution = card.word[to];
+      let flipped = false;
+      const inner = h('div', { class: 'flip-inner' },
+        h('div', { class: 'face front' }, h('span', { class: 'lang' }, langLabel(list, from)), h('span', { class: 'word' }, prompt)),
+        h('div', { class: 'face back', 'aria-hidden': 'true' }, h('span', { class: 'lang' }, langLabel(list, to)), h('span', { class: 'word' }, solution),
+          card.word.note ? h('span', { class: 'note' }, card.word.note) : null,
+          card.word.example ? h('span', { class: 'example' }, exampleNode(card.word.example)) : null),
+      );
+      const flipCard = h('button', { class: 'flipcard', 'aria-label': `${prompt} – Karte umdrehen`, onclick: () => flip() }, inner);
+      const speakRow = h('div', { class: 'actions center speak-row' }, speakBtn(from, prompt));
+      const buttons = h('div', { class: 'actions center rate', hidden: true },
+        h('button', { class: 'btn wrong big', onclick: () => rate('again') }, '✗ Nicht gewusst'),
+        h('button', { class: 'btn right big', onclick: () => rate('good') }, '✓ Gewusst'),
+        card.retry ? null : h('button', { class: 'btn easy big', onclick: () => rate('easy') }, '★ Leicht'),
+      );
+      // Laut aussprechen hilft beim Behalten (production effect)
+      const hint = h('p', { class: 'small muted center' }, 'Sag die Antwort laut – dann tippe auf die Karte oder drücke die Leertaste.');
+      function flip() {
+        flipped = !flipped;
+        flipCard.classList.toggle('flipped', flipped);
+        inner.children[0].setAttribute('aria-hidden', String(flipped));
+        inner.children[1].setAttribute('aria-hidden', String(!flipped));
+        flipCard.setAttribute('aria-label', flipped ? `${solution}${card.word.note ? ` – ${card.word.note}` : ''}` : `${prompt} – Karte umdrehen`);
+        if (flipped && buttons.hidden) {
+          fill(speakRow, speakBtn(from, prompt), speakBtn(to, solution));
+          autoSpeak(card.word);
         }
-        if (!correct && card.retry < 3) {
-          const at = Math.min(queue.length, 2 + Math.floor(Math.random() * 3));
-          queue.splice(at, 0, { ...card, retry: card.retry + 1 });
+        buttons.hidden = false;
+        hint.textContent = card.retry ? 'Tasten: 1 / ← nicht gewusst · 2 / → gewusst' : 'Tasten: 1 / ← nicht gewusst · 2 / → gewusst · 3 / ↑ leicht';
+      }
+      function rate(grade) {
+        if (!flipped) return;
+        answered(card, grade, grade !== 'again');
+        next();
+      }
+      setKeys((e) => {
+        if ((buttons.contains(e.target) || speakRow.contains(e.target)) && (e.key === ' ' || e.key === 'Enter')) return;
+        if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); if (!flipped) flip(); }
+        else if (flipped && (e.key === 'ArrowLeft' || e.key === '1')) rate('again');
+        else if (flipped && (e.key === 'ArrowRight' || e.key === '2')) rate('good');
+        else if (flipped && !card.retry && (e.key === 'ArrowUp' || e.key === '3')) rate('easy');
+      });
+      show(flipCard, speakRow, buttons, hint);
+      flipCard.focus();
+    }
+
+    // Aus vier Antworten auswählen
+    function showChoice(card, show) {
+      const [from, to] = sides(card.dir);
+      const choice = choiceOptions(list.words, card.word, to);
+      if (!choice) {
+        card.exercise = 'type';
+        return showTyping(card, show);
+      }
+      let picked = null;
+      const feedback = h('div', { class: 'feedback', 'aria-live': 'polite' });
+      const nextBtn = h('button', { class: 'btn primary', hidden: true, onclick: () => next() }, 'Weiter');
+      const buttons = choice.options.map((text, i) => h('button', { type: 'button', class: 'choice-btn', onclick: () => pick(i) },
+        h('span', { class: 'key', 'aria-hidden': 'true' }, String(i + 1)), h('span', {}, text)));
+      const box = h('div', { class: 'exercise' },
+        promptBlock(from, card.word[from]),
+        h('div', { class: 'choices', role: 'group', 'aria-label': `Übersetzung (${langLabel(list, to)}) auswählen` }, buttons),
+        feedback);
+      function pick(i) {
+        if (picked != null) return;
+        picked = i;
+        const ok = i === choice.correct;
+        buttons.forEach((b, j) => {
+          b.disabled = true;
+          if (j === choice.correct) b.classList.add('is-right');
+          else if (j === i) b.classList.add('is-wrong');
+        });
+        box.classList.add(ok ? 'is-right' : 'is-wrong');
+        fill(feedback,
+          h('strong', {}, ok ? 'Richtig!' : 'Leider falsch.'),
+          ok ? null : h('span', {}, ' Lösung: ', h('b', {}, card.word[to])),
+          speakBtn(to, card.word[to]),
+          details(card.word));
+        answered(card, gradeFor('choice', { correct: ok }), ok);
+        nextBtn.hidden = false;
+        nextBtn.focus();
+        autoSpeak(card.word);
+      }
+      setKeys((e) => {
+        if (picked == null) {
+          const n = Number(e.key);
+          if (n >= 1 && n <= buttons.length) { e.preventDefault(); pick(n - 1); }
+        } else if ((e.key === 'Enter' || e.key === ' ') && e.target !== nextBtn) {
+          e.preventDefault();
+          next();
         }
+      });
+      show(box, h('div', { class: 'actions center' }, nextBtn),
+        h('p', { class: 'small muted center' }, `Tasten: 1–${buttons.length} auswählen · Enter weiter`));
+    }
+
+    // Eintippen – auch als Lückentext (cloze) und nach Gehör (listen)
+    function showTyping(card, show) {
+      const [from, to] = sides(card.dir);
+      const prompt = card.word[from];
+      const cloze = card.exercise === 'cloze' ? clozeFor(card.word, to, langs) : null;
+      const listen = card.exercise === 'listen' && speakable(from);
+      const solution = cloze ? cloze.gap : card.word[to];
+
+      let promptEl;
+      let gap = null;
+      let heard = null;
+      if (cloze) {
+        gap = h('span', { class: 'gap' }, '_____');
+        promptEl = h('div', { class: 'prompt' },
+          h('span', { class: 'lang' }, `Lückentext · ${langLabel(list, to)}`),
+          h('p', { class: 'sentence' }, cloze.before, gap, cloze.after),
+          h('span', { class: 'cue' }, `(${prompt})`));
+      } else if (listen) {
+        const play = () => speak(speechText(prompt), speech[from]);
+        heard = h('span', { class: 'word', hidden: true }, prompt);
+        const reveal = h('button', { type: 'button', class: 'btn ghost small', onclick: () => { heard.hidden = false; reveal.remove(); input.focus(); } }, 'Wort anzeigen');
+        promptEl = h('div', { class: 'prompt' },
+          h('span', { class: 'lang' }, `Hören · ${langLabel(list, from)}`),
+          h('button', { type: 'button', class: 'btn big listen', onclick: () => { play(); input.focus(); } }, '🔊 Nochmal anhören'),
+          heard, reveal);
+        setTimeout(play, 150);
+      } else {
+        promptEl = promptBlock(from, prompt);
       }
 
-      if (list.mode === 'flip') {
-        let flipped = false;
-        const inner = h('div', { class: 'flip-inner' },
-          h('div', { class: 'face front' }, h('span', { class: 'lang' }, langLabel(list, from)), h('span', { class: 'word' }, prompt)),
-          h('div', { class: 'face back', 'aria-hidden': 'true' }, h('span', { class: 'lang' }, langLabel(list, to)), h('span', { class: 'word' }, solution),
-            card.word.note ? h('span', { class: 'note' }, card.word.note) : null),
-        );
-        const flipCard = h('button', { class: 'flipcard', 'aria-label': `${prompt} – Karte umdrehen`, onclick: () => flip() }, inner);
-        const buttons = h('div', { class: 'actions center rate', hidden: true },
-          h('button', { class: 'btn wrong big', onclick: () => rate('again') }, '✗ Nicht gewusst'),
-          h('button', { class: 'btn right big', onclick: () => rate('good') }, '✓ Gewusst'),
-          card.retry ? null : h('button', { class: 'btn easy big', onclick: () => rate('easy') }, '★ Leicht'),
-        );
-        const hint = h('p', { class: 'small muted center' }, 'Tippe auf die Karte oder drücke die Leertaste zum Umdrehen.');
-        function flip() {
-          flipped = !flipped;
-          flipCard.classList.toggle('flipped', flipped);
-          inner.children[0].setAttribute('aria-hidden', String(flipped));
-          inner.children[1].setAttribute('aria-hidden', String(!flipped));
-          flipCard.setAttribute('aria-label', flipped ? `${solution}${card.word.note ? ` – ${card.word.note}` : ''}` : `${prompt} – Karte umdrehen`);
-          buttons.hidden = false;
-          hint.textContent = card.retry ? 'Tasten: 1 / ← nicht gewusst · 2 / → gewusst' : 'Tasten: 1 / ← nicht gewusst · 2 / → gewusst · 3 / ↑ leicht';
-        }
-        function rate(grade) {
-          if (!flipped) return;
-          answered(grade, grade !== 'again');
-          next();
-        }
-        setKeys((e) => {
-          if (buttons.contains(e.target) && (e.key === ' ' || e.key === 'Enter')) return;
-          if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); if (!flipped) flip(); }
-          else if (flipped && (e.key === 'ArrowLeft' || e.key === '1')) rate('again');
-          else if (flipped && (e.key === 'ArrowRight' || e.key === '2')) rate('good');
-          else if (flipped && !card.retry && (e.key === 'ArrowUp' || e.key === '3')) rate('easy');
-        });
-        view(h('section', { class: 'round' }, header, card.retry ? h('p', { class: 'retry small' }, 'Wiederholung') : null, flipCard, buttons, hint));
-        flipCard.focus();
-      } else {
-        const input = h('input', { class: 'answer', autocomplete: 'off', autocapitalize: 'off', spellcheck: false, 'aria-label': `Übersetzung (${langLabel(list, to)})`, placeholder: langLabel(list, to) });
-        const feedback = h('div', { class: 'feedback', 'aria-live': 'polite' });
-        const submit = h('button', { class: 'btn primary', type: 'submit' }, 'Prüfen');
-        let state = 'ask';
-        let result = null;
-        const form = h('form', { class: 'type-form', onsubmit: (e) => {
-          e.preventDefault();
-          if (state === 'ask') {
-            if (!input.value.trim()) return;
-            result = checkAnswer(input.value, solution, options);
-            state = 'shown';
-            input.readOnly = true;
-            const ok = result === 'correct';
-            form.classList.add(ok ? 'is-right' : 'is-wrong');
-            fill(feedback,
-              h('strong', {}, ok ? 'Richtig!' : result === 'almost' ? 'Fast!' : 'Leider falsch.'),
-              ok && !hasVariants(solution) ? null : h('span', {}, ' Lösung: ', h('b', {}, solution)),
-              card.word.note ? h('div', { class: 'note' }, card.word.note) : null,
-              !ok ? h('button', { type: 'button', class: 'btn ghost small', onclick: () => { result = 'override'; proceed(); } }, 'Ich hatte recht') : null,
-            );
-            submit.textContent = 'Weiter';
-            submit.focus();
-          } else proceed();
-        } }, h('div', { class: 'prompt' }, h('span', { class: 'lang' }, langLabel(list, from)), h('span', { class: 'word' }, prompt)), input, submit, feedback);
-        function proceed() {
-          // Tippfehler („fast“) = erinnert, aber mit Mühe; zählt als falsch und wird wiederholt.
-          if (result === 'correct' || result === 'override') answered('good', true);
-          else if (result === 'almost') answered('hard', false);
-          else answered('again', false);
-          next();
-        }
-        setKeys(null);
-        view(h('section', { class: 'round' }, header, card.retry ? h('p', { class: 'retry small' }, 'Wiederholung') : null, form));
+      const input = h('input', { class: 'answer', autocomplete: 'off', autocapitalize: 'off', spellcheck: false, 'aria-label': `Übersetzung (${langLabel(list, to)})`, placeholder: langLabel(list, to) });
+      const feedback = h('div', { class: 'feedback', 'aria-live': 'polite' });
+      const submit = h('button', { class: 'btn primary', type: 'submit' }, 'Prüfen');
+
+      // Tipps: erster Buchstabe jedes Worts, dann jeweils einer mehr (Finley et al. 2011).
+      // Mit Tipp gelöst zählt als „mit Mühe gewusst“.
+      let hints = 0;
+      const target = hintTarget(solution);
+      const limit = maxHints(target);
+      const pattern = h('span', { class: 'hint-pattern', 'aria-live': 'polite' });
+      const hintBtn = h('button', { type: 'button', class: 'btn ghost small', onclick: () => giveHint() }, '💡 Tipp');
+      function giveHint() {
+        if (state !== 'ask' || hints >= limit) return;
+        hints++;
+        pattern.textContent = hintPattern(target, hints);
+        hintBtn.textContent = hints >= limit ? '💡 Kein Tipp mehr' : '💡 Noch ein Tipp';
+        hintBtn.disabled = hints >= limit;
         input.focus();
       }
+
+      let state = 'ask';
+      let result = null;
+      const form = h('form', { class: 'type-form', onsubmit: (e) => {
+        e.preventDefault();
+        if (state === 'ask') {
+          if (!input.value.trim()) return;
+          result = checkAnswer(input.value, solution, options);
+          state = 'shown';
+          input.readOnly = true;
+          hintBtn.disabled = true;
+          if (gap) gap.textContent = cloze.gap;
+          if (heard) heard.hidden = false;
+          const ok = result === 'correct';
+          form.classList.add(ok ? 'is-right' : 'is-wrong');
+          fill(feedback,
+            h('strong', {}, ok ? 'Richtig!' : result === 'almost' ? 'Fast!' : 'Leider falsch.'),
+            ok && !hasVariants(solution) ? null : h('span', {}, ' Lösung: ', h('b', {}, solution)),
+            cloze && cloze.gap !== card.word[to] ? h('span', { class: 'muted' }, `· Vokabel: ${card.word[to]}`) : null,
+            speakBtn(to, cloze ? cloze.gap : card.word[to]),
+            !ok ? h('button', { type: 'button', class: 'btn ghost small', onclick: () => { result = 'override'; proceed(); } }, 'Ich hatte recht') : null,
+            details(card.word, { example: !cloze }),
+          );
+          submit.textContent = 'Weiter';
+          submit.focus();
+          autoSpeak(card.word);
+        } else proceed();
+      } },
+        promptEl,
+        h('div', { class: 'hint-row' }, hintBtn, pattern),
+        input, submit, feedback);
+      function proceed() {
+        // Tippfehler („fast“) = erinnert, aber mit Mühe; zählt als falsch und wird wiederholt.
+        const correct = result === 'correct' || result === 'override';
+        answered(card, gradeFor(card.exercise, { correct, almost: result === 'almost', hints }), correct);
+        next();
+      }
+      setKeys(null);
+      show(form);
+      input.focus();
     }
 
     async function finish() {
@@ -736,7 +967,7 @@ async function renderLearn(id) {
           : null,
         remaining,
         h('div', { class: 'actions' },
-          wrongWords.length ? h('button', { class: 'btn', onclick: () => { mode = 'free'; startRound(shuffle(wrongWords.map((c) => ({ ...c })))); } }, 'Fehler wiederholen') : null,
+          wrongWords.length ? h('button', { class: 'btn', onclick: () => { mode = 'free'; startRound(shuffle(wrongWords.map((c) => ({ word: c.word, dir: c.dir })))); } }, 'Fehler wiederholen') : null,
           h('button', { class: 'btn ghost', onclick: () => setupView() }, 'Einstellungen'),
           h('a', { class: 'btn ghost', href: '#/' }, 'Zur Übersicht'),
         ),
@@ -762,7 +993,7 @@ async function renderLearn(id) {
     next();
   }
 
-  leaveGuard = () => { flush(); cleanupKeys(); return true; };
+  leaveGuard = () => { flush(); cleanupKeys(); stopSpeaking(); return true; };
   setupView();
 }
 
@@ -1080,7 +1311,7 @@ async function renderShared() {
     h('div', { class: 'card-head' },
       h('h3', {}, list.title),
       h('span', { class: 'langs' }, `${langLabel(list, 'a')} ↔ ${langLabel(list, 'b')}`)),
-    h('p', { class: 'muted small' }, [`${list.word_count} Wörter`, list.mode === 'type' ? 'Eintippen' : 'Karteikarten', list.owner_name && `von ${list.owner_name}`, `geändert ${formatDate(list.updated_at)}`].filter(Boolean).join(' · ')),
+    h('p', { class: 'muted small' }, [`${list.word_count} Wörter`, modeLabel(list.mode), list.owner_name && `von ${list.owner_name}`, `geändert ${formatDate(list.updated_at)}`].filter(Boolean).join(' · ')),
     h('div', { class: 'actions' },
       h('button', { class: 'btn primary', onclick: () => copyList(list) }, 'Kopieren'),
       h('a', { class: 'btn', href: `#/learn/${list.id}` }, 'Ansehen & ausprobieren')));

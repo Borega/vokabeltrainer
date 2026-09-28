@@ -7,6 +7,10 @@ export const SAFE_BOX = SAFE_LEVEL;
 const MAX_WORDS = 2000;
 const DAY = 24 * 60 * 60 * 1000;
 const HISTORY_WEEKS = 8;
+// auto = Lernleiter: Übungsart passt sich dem Lernstand jedes Worts an (siehe public/exercises.js)
+const MODES = ['auto', 'flip', 'type', 'choice'];
+// Übungsarten, die im Verlauf protokolliert werden
+const EXERCISES = ['flip', 'type', 'choice', 'cloze', 'listen'];
 
 class HttpError extends Error {
   constructor(status, message) {
@@ -27,7 +31,7 @@ function parseListBody(body) {
   if (!body || typeof body !== 'object') throw new HttpError(400, 'Ungültige Daten.');
   const title = text(body.title, 200, 'Titel');
   if (!title) throw new HttpError(400, 'Bitte einen Titel angeben.');
-  const mode = body.mode === 'type' ? 'type' : 'flip';
+  const mode = MODES.includes(body.mode) ? body.mode : 'auto';
   const direction = ['ab', 'ba', 'mixed'].includes(body.direction) ? body.direction : 'ab';
   if (!Array.isArray(body.words)) throw new HttpError(400, 'Wörter fehlen.');
   if (body.words.length > MAX_WORDS) throw new HttpError(400, `Höchstens ${MAX_WORDS} Wörter pro Liste.`);
@@ -37,7 +41,13 @@ function parseListBody(body) {
     const b = text(w?.b, 500, 'Wort');
     if (!a && !b) continue;
     if (!a || !b) throw new HttpError(400, `Unvollständige Zeile: „${a || b}“`);
-    words.push({ id: Number.isInteger(w.id) ? w.id : null, a, b, note: text(w.note, 1000, 'Notiz') });
+    words.push({
+      id: Number.isInteger(w.id) ? w.id : null,
+      a,
+      b,
+      note: text(w.note, 1000, 'Notiz'),
+      example: text(w.example, 1000, 'Beispielsatz'),
+    });
   }
   if (!words.length) throw new HttpError(400, 'Die Liste enthält keine Wörter.');
   const groups = Array.isArray(body.groups)
@@ -86,7 +96,7 @@ export function apiRouter(db, config) {
     userGroups: db.prepare('SELECT group_id AS id, group_name AS name FROM user_groups WHERE user_id = ? ORDER BY group_name'),
     list: db.prepare('SELECT * FROM lists WHERE id = ?'),
     listGroups: db.prepare('SELECT group_id AS id, group_name AS name FROM list_groups WHERE list_id = ? ORDER BY group_name'),
-    words: db.prepare('SELECT id, a, b, note FROM words WHERE list_id = ? ORDER BY pos, id'),
+    words: db.prepare('SELECT id, a, b, note, example FROM words WHERE list_id = ? ORDER BY pos, id'),
     canSee: db.prepare(
       `SELECT 1 FROM list_groups lg JOIN user_groups ug ON ug.group_id = lg.group_id
        WHERE lg.list_id = ? AND ug.user_id = ? LIMIT 1`,
@@ -125,7 +135,8 @@ export function apiRouter(db, config) {
     ownerName: db.prepare('SELECT name FROM users WHERE id = ?'),
     wordInList: db.prepare('SELECT 1 FROM words WHERE id = ? AND list_id = ?'),
     logReview: db.prepare(
-      'INSERT INTO review_log (user_id, word_id, direction, grade, stability, at) VALUES (?, ?, ?, ?, ?, ?)',
+      `INSERT INTO review_log (user_id, word_id, direction, grade, stability, at, exercise)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
     ),
     getProgress: db.prepare('SELECT * FROM progress WHERE user_id = ? AND word_id = ? AND direction = ?'),
     putProgress: db.prepare(
@@ -237,14 +248,14 @@ export function apiRouter(db, config) {
     // Bestehende Wörter behalten ihre ID, damit der Lernstand erhalten bleibt.
     const existing = new Set(db.prepare('SELECT id FROM words WHERE list_id = ?').all(listId).map((r) => r.id));
     const keep = new Set();
-    const update = db.prepare('UPDATE words SET pos = ?, a = ?, b = ?, note = ? WHERE id = ? AND list_id = ?');
-    const insert = db.prepare('INSERT INTO words (list_id, pos, a, b, note) VALUES (?, ?, ?, ?, ?)');
+    const update = db.prepare('UPDATE words SET pos = ?, a = ?, b = ?, note = ?, example = ? WHERE id = ? AND list_id = ?');
+    const insert = db.prepare('INSERT INTO words (list_id, pos, a, b, note, example) VALUES (?, ?, ?, ?, ?, ?)');
     data.words.forEach((w, pos) => {
       if (w.id && existing.has(w.id) && !keep.has(w.id)) {
-        update.run(pos, w.a, w.b, w.note, w.id, listId);
+        update.run(pos, w.a, w.b, w.note, w.example, w.id, listId);
         keep.add(w.id);
       } else {
-        insert.run(listId, pos, w.a, w.b, w.note);
+        insert.run(listId, pos, w.a, w.b, w.note, w.example);
       }
     });
     const remove = db.prepare('DELETE FROM words WHERE id = ?');
@@ -315,8 +326,8 @@ export function apiRouter(db, config) {
           list.case_sensitive, list.accent_sensitive, list.direction, list.allow_switch,
           ownerName ? `${list.title} – ${ownerName}` : list.copied_from, ts, ts);
       db.prepare(
-        `INSERT INTO words (list_id, pos, a, b, note)
-         SELECT ?, pos, a, b, note FROM words WHERE list_id = ? ORDER BY pos, id`,
+        `INSERT INTO words (list_id, pos, a, b, note, example)
+         SELECT ?, pos, a, b, note, example FROM words WHERE list_id = ? ORDER BY pos, id`,
       ).run(id, list.id);
       return id;
     });
@@ -324,8 +335,9 @@ export function apiRouter(db, config) {
     return { id };
   }));
 
-  // Ergebnisse einer Lernrunde: [{ word_id, direction, grade: again|hard|good|easy, correct }]
-  // grade steuert die Wiederholungsplanung, correct die Zähler richtig/falsch.
+  // Ergebnisse einer Lernrunde: [{ word_id, direction, grade: again|hard|good|easy, correct, exercise }]
+  // grade steuert die Wiederholungsplanung, correct die Zähler richtig/falsch,
+  // exercise (flip|type|choice|cloze|listen) wird nur im Verlauf festgehalten.
   router.post('/lists/:id/results', wrap((req) => {
     const list = loadList(req.params.id);
     assertCanSee(list, req.user);
@@ -349,7 +361,8 @@ export function apiRouter(db, config) {
           last_seen: ts,
           ...next,
         });
-        q.logReview.run(req.user.id, wordId, direction, grade, next.stability, ts);
+        const exercise = EXERCISES.includes(r.exercise) ? r.exercise : '';
+        q.logReview.run(req.user.id, wordId, direction, grade, next.stability, ts, exercise);
       }
     });
     return { progress: q.myProgress.all(req.user.id, list.id) };
