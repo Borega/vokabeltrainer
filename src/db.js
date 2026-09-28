@@ -86,11 +86,29 @@ export function openDb(dataDir) {
 }
 
 // Änderungen am Schema für bestehende Datenbanken. Nur anhängen, nie umsortieren.
-const MIGRATIONS = [
+export const MIGRATIONS = [
   // 1: Listen für Kolleg:innen freigeben und kopieren
   `ALTER TABLE lists ADD COLUMN shared INTEGER NOT NULL DEFAULT 0;
    ALTER TABLE lists ADD COLUMN copied_from TEXT NOT NULL DEFAULT '';
    CREATE INDEX IF NOT EXISTS lists_shared ON lists(shared);`,
+  // 2: Wiederholungsplanung (FSRS). Bisherige Kästchen werden in passende Startwerte umgerechnet,
+  //    sodass die Stufe (box) gleich bleibt: 1→0,5 Tage, 2→3, 3→14, 4→45, 5→120 Tage Stabilität.
+  `ALTER TABLE progress ADD COLUMN stability REAL;
+   ALTER TABLE progress ADD COLUMN difficulty REAL;
+   ALTER TABLE progress ADD COLUMN due TEXT;
+   ALTER TABLE progress ADD COLUMN state INTEGER;
+   ALTER TABLE progress ADD COLUMN reps INTEGER NOT NULL DEFAULT 0;
+   ALTER TABLE progress ADD COLUMN lapses INTEGER NOT NULL DEFAULT 0;
+   ALTER TABLE progress ADD COLUMN scheduled_days INTEGER NOT NULL DEFAULT 0;
+   ALTER TABLE progress ADD COLUMN last_review TEXT;
+   UPDATE progress SET
+     stability = CASE box WHEN 1 THEN 0.5 WHEN 2 THEN 3 WHEN 3 THEN 14 WHEN 4 THEN 45 ELSE 120 END,
+     scheduled_days = CASE box WHEN 1 THEN 1 WHEN 2 THEN 3 WHEN 3 THEN 14 WHEN 4 THEN 45 ELSE 120 END,
+     difficulty = 5, state = 2, reps = right + wrong, lapses = wrong, last_review = last_seen
+   WHERE box > 0;
+   UPDATE progress SET due = strftime('%Y-%m-%dT%H:%M:%fZ', last_seen, '+' || scheduled_days || ' days')
+   WHERE box > 0;
+   CREATE INDEX IF NOT EXISTS progress_due ON progress(user_id, due);`,
 ];
 
 function migrate(db) {

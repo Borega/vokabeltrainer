@@ -99,15 +99,29 @@ test('kompletter Ablauf: Liste anlegen, lernen, auswerten', async () => {
     ],
   });
   const dogProgress = res.body.progress.find((p) => p.word_id === dog.id);
-  assert.equal(dogProgress.box, 3);
-  assert.equal(res.body.progress.find((p) => p.word_id === cat.id).box, 1);
+  const catProgress = res.body.progress.find((p) => p.word_id === cat.id);
+  // Dreimal am selben Tag richtig ist noch kein Langzeitlernen: Stufe 1, in ein paar Tagen wieder fällig
+  assert.equal(dogProgress.box, 1);
+  assert.ok(new Date(dogProgress.due) > new Date(Date.now() + 2 * 86400000));
+  // Falsch: morgen wieder fällig
+  assert.equal(catProgress.box, 1);
+  const inHours = (new Date(catProgress.due) - Date.now()) / 3600000;
+  assert.ok(inHours > 23 && inHours < 25, `fällig in ${inHours} h`);
+
+  // Fällig-Zählung auf der Startseite
+  const tomorrow = new Date(Date.now() + 1.5 * 86400000).toISOString();
+  const summary = (await student('GET', `/lists?due_until=${tomorrow}`)).body.assigned[0].progress;
+  assert.equal(summary.due, 1, 'nur cat ist bis übermorgen fällig');
+  assert.equal((await student('GET', '/lists')).body.assigned[0].progress.due, 0, 'heute noch nichts fällig');
   assert.equal(res.body.progress.length, 2, 'fremde Wort-IDs werden ignoriert');
 
   const stats = await teacher('GET', `/lists/${id}/stats`);
   assert.equal(stats.status, 200);
   const [group] = stats.body.groups;
   assert.equal(group.students.length, 1);
-  assert.equal(group.students[0].safe, 1);
+  assert.equal(group.students[0].safe, 0);
+  assert.equal(group.students[0].seen, 2);
+  assert.equal(group.students[0].right, 3);
   assert.equal(group.students[0].wrong, 1);
   assert.equal(stats.body.hardest[0].a, 'cat');
   assert.equal((await student('GET', `/lists/${id}/stats`)).status, 403);
@@ -191,5 +205,26 @@ test('Migration ergänzt Spalten in bestehender Datenbank', async () => {
   const db = openDb(':memory:');
   const cols = db.prepare('PRAGMA table_info(lists)').all().map((c) => c.name);
   assert.ok(cols.includes('shared') && cols.includes('copied_from'));
-  assert.equal(db.prepare('PRAGMA user_version').get().user_version, 1);
+  assert.equal(db.prepare('PRAGMA user_version').get().user_version, 2);
+  const pcols = db.prepare('PRAGMA table_info(progress)').all().map((c) => c.name);
+  assert.ok(['stability', 'difficulty', 'due', 'state', 'last_review'].every((c) => pcols.includes(c)));
+});
+
+test('Noten: grade hat Vorrang, "fast" (hard) zählt als falsch, aber als erinnert', async () => {
+  const teacher = await login('Frau Noten', { teacher: true, groups: 'Klasse 8b' });
+  const student = await login('Schüler N', { groups: 'Klasse 8b' });
+  const { body: { id } } = await teacher('POST', '/lists', { ...listBody, groups: [{ id: 'klasse.8b', name: 'Klasse 8b' }] });
+  const [w1, w2] = (await student('GET', `/lists/${id}`)).body.words;
+  const res = await student('POST', `/lists/${id}/results`, {
+    results: [
+      { word_id: w1.id, direction: 'ab', grade: 'hard', correct: false },
+      { word_id: w2.id, direction: 'ba', grade: 'easy', correct: true },
+    ],
+  });
+  const p1 = res.body.progress.find((p) => p.word_id === w1.id);
+  const p2 = res.body.progress.find((p) => p.word_id === w2.id);
+  assert.equal(p1.wrong, 1);
+  assert.ok(p1.stability > 1 && p1.stability < p2.stability, 'hard < easy');
+  assert.equal(p2.direction, 'ba');
+  assert.ok(new Date(p2.due) > new Date(Date.now() + 5 * 86400000), 'leicht: erst in über 5 Tagen wieder');
 });

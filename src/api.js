@@ -1,9 +1,9 @@
 import express from 'express';
 import { now, transaction } from './db.js';
+import { GRADES, SAFE_LEVEL, review } from './scheduler.js';
 
-// Ab diesem Kästchen gilt ein Wort als „sicher“ (Leitner, 0 = neu … 5 = fertig).
-export const SAFE_BOX = 3;
-const MAX_BOX = 5;
+// Ab dieser Stufe gilt ein Wort als „sicher“ (0 = neu … 5, siehe scheduler.js).
+export const SAFE_BOX = SAFE_LEVEL;
 const MAX_WORDS = 2000;
 
 class HttpError extends Error {
@@ -105,12 +105,13 @@ export function apiRouter(db, config) {
     myProgressSummary: db.prepare(
       `SELECT w.list_id, COUNT(DISTINCT p.word_id) AS seen,
          COUNT(DISTINCT CASE WHEN p.box >= ${SAFE_BOX} THEN p.word_id END) AS safe,
+         COUNT(CASE WHEN p.due <= ? THEN 1 END) AS due,
          MAX(p.last_seen) AS last_seen
        FROM progress p JOIN words w ON w.id = p.word_id
        WHERE p.user_id = ? GROUP BY w.list_id`,
     ),
     myProgress: db.prepare(
-      `SELECT p.word_id, p.direction, p.box, p.right, p.wrong, p.last_seen
+      `SELECT p.word_id, p.direction, p.box, p.right, p.wrong, p.last_seen, p.due, p.stability
        FROM progress p JOIN words w ON w.id = p.word_id
        WHERE p.user_id = ? AND w.list_id = ?`,
     ),
@@ -121,13 +122,17 @@ export function apiRouter(db, config) {
     ),
     ownerName: db.prepare('SELECT name FROM users WHERE id = ?'),
     wordInList: db.prepare('SELECT 1 FROM words WHERE id = ? AND list_id = ?'),
-    getProgress: db.prepare('SELECT box FROM progress WHERE user_id = ? AND word_id = ? AND direction = ?'),
+    getProgress: db.prepare('SELECT * FROM progress WHERE user_id = ? AND word_id = ? AND direction = ?'),
     putProgress: db.prepare(
-      `INSERT INTO progress (user_id, word_id, direction, box, right, wrong, last_seen)
-       VALUES (?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO progress (user_id, word_id, direction, box, right, wrong, last_seen,
+         stability, difficulty, due, state, reps, lapses, scheduled_days, last_review)
+       VALUES (:user_id, :word_id, :direction, :box, :right, :wrong, :last_seen,
+         :stability, :difficulty, :due, :state, :reps, :lapses, :scheduled_days, :last_review)
        ON CONFLICT(user_id, word_id, direction) DO UPDATE SET
          box = excluded.box, right = right + excluded.right, wrong = wrong + excluded.wrong,
-         last_seen = excluded.last_seen`,
+         last_seen = excluded.last_seen, stability = excluded.stability, difficulty = excluded.difficulty,
+         due = excluded.due, state = excluded.state, reps = excluded.reps, lapses = excluded.lapses,
+         scheduled_days = excluded.scheduled_days, last_review = excluded.last_review`,
     ),
   };
 
@@ -180,15 +185,18 @@ export function apiRouter(db, config) {
     groups: req.user.isTeacher ? teacherGroups(req.user.id) : [],
   })));
 
+  // ?due_until=<ISO-Zeitpunkt>: bis wann ein Wort als „heute fällig“ zählt (Ende des lokalen Tages im Browser)
   router.get('/lists', wrap((req) => {
-    const summary = new Map(q.myProgressSummary.all(req.user.id).map((s) => [s.list_id, s]));
+    const until = new Date(String(req.query.due_until ?? ''));
+    const dueUntil = Number.isNaN(until.getTime()) ? now() : until.toISOString();
+    const summary = new Map(q.myProgressSummary.all(dueUntil, req.user.id).map((s) => [s.list_id, s]));
     const withProgress = (row) => {
       const s = summary.get(row.id);
       return {
         ...listJson(row),
         owner_name: row.owner_name,
         word_count: row.word_count,
-        progress: { seen: s?.seen ?? 0, safe: s?.safe ?? 0, last_seen: s?.last_seen ?? null },
+        progress: { seen: s?.seen ?? 0, safe: s?.safe ?? 0, due: s?.due ?? 0, last_seen: s?.last_seen ?? null },
       };
     };
     const own = req.user.isTeacher
@@ -311,7 +319,8 @@ export function apiRouter(db, config) {
     return { id };
   }));
 
-  // Ergebnisse einer Lernrunde: [{ word_id, direction, correct }]
+  // Ergebnisse einer Lernrunde: [{ word_id, direction, grade: again|hard|good|easy, correct }]
+  // grade steuert die Wiederholungsplanung, correct die Zähler richtig/falsch.
   router.post('/lists/:id/results', wrap((req) => {
     const list = loadList(req.params.id);
     assertCanSee(list, req.user);
@@ -322,9 +331,18 @@ export function apiRouter(db, config) {
         const wordId = Number(r?.word_id);
         const direction = r?.direction === 'ba' ? 'ba' : 'ab';
         if (!Number.isInteger(wordId) || !q.wordInList.get(wordId, list.id)) continue;
-        const box = q.getProgress.get(req.user.id, wordId, direction)?.box ?? 0;
-        const next = r.correct ? Math.min(box + 1, MAX_BOX) : 1;
-        q.putProgress.run(req.user.id, wordId, direction, next, r.correct ? 1 : 0, r.correct ? 0 : 1, ts);
+        const grade = r.grade in GRADES ? r.grade : r.correct ? 'good' : 'again';
+        const correct = typeof r.correct === 'boolean' ? r.correct : grade !== 'again';
+        const previous = q.getProgress.get(req.user.id, wordId, direction);
+        q.putProgress.run({
+          user_id: req.user.id,
+          word_id: wordId,
+          direction,
+          right: correct ? 1 : 0,
+          wrong: correct ? 0 : 1,
+          last_seen: ts,
+          ...review(previous, grade, new Date(ts)),
+        });
       }
     });
     return { progress: q.myProgress.all(req.user.id, list.id) };

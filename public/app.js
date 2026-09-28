@@ -151,6 +151,7 @@ function listCard(list, { own }) {
     h('p', { class: 'muted small' }, meta.join(' · ')),
     own && list.copied_from ? h('p', { class: 'muted small' }, `Kopie von: ${list.copied_from}`) : null,
     own && list.shared ? h('div', { class: 'chips' }, h('span', { class: 'chip shared' }, 'Für Kolleg:innen freigegeben')) : null,
+    list.progress.due ? h('div', { class: 'chips' }, h('span', { class: 'chip due' }, `🔔 ${list.progress.due} heute fällig`)) : null,
     own && list.groups?.length
       ? h('div', { class: 'chips' }, list.groups.map((g) => h('span', { class: 'chip' }, g.name)))
       : own ? h('p', { class: 'warn small' }, 'Noch keiner Gruppe zugewiesen') : null,
@@ -168,8 +169,17 @@ function listCard(list, { own }) {
 }
 
 async function renderHome() {
-  const { own, assigned } = await api('GET', '/lists');
+  const { own, assigned } = await api('GET', `/lists?due_until=${encodeURIComponent(endOfToday().toISOString())}`);
   const sections = [];
+  const dueLists = [...own, ...assigned].filter((l) => l.progress.due);
+  const dueTotal = dueLists.reduce((sum, l) => sum + l.progress.due, 0);
+  if (dueTotal) {
+    sections.push(h('section', { class: 'panel due-banner' },
+      h('h2', {}, `🔔 Heute fällig: ${dueTotal} ${dueTotal === 1 ? 'Wort' : 'Wörter'}`),
+      h('p', { class: 'small muted' }, 'Jetzt wiederholen, bevor du sie vergisst – das dauert nur ein paar Minuten.'),
+      h('div', { class: 'actions' }, dueLists.map((l) => h('a', { class: 'btn', href: `#/learn/${l.id}` }, `${l.title} (${l.progress.due})`))),
+    ));
+  }
   if (me.isTeacher) {
     sections.push(
       h('section', {},
@@ -438,38 +448,120 @@ async function renderEditor(id) {
 
 // ---------- Lernen ----------
 
+// Ende des heutigen Tages (lokale Zeit): Bis dahin fällige Wörter zählen als „heute fällig“.
+function endOfToday() {
+  const d = new Date();
+  d.setHours(23, 59, 59, 999);
+  return d;
+}
+
 async function renderLearn(id) {
   const list = await api('GET', `/lists/${id}`);
   if (!list.words.length) throw new Error('Diese Liste enthält keine Wörter.');
-  const boxOf = new Map(list.progress.map((p) => [`${p.word_id}:${p.direction}`, p.box]));
+  const progress = new Map(list.progress.map((p) => [`${p.word_id}:${p.direction}`, p]));
+  const key = (wordId, dir) => `${wordId}:${dir}`;
 
   let direction = list.direction;
   let size = '20';
+  let mode = null; // 'due' (Heute fällig) oder 'free' (Frei üben)
+
+  const dirsFor = () => (direction === 'mixed' ? ['ab', 'ba'] : [direction]);
+
+  // Fällige Einträge (Wort + Richtung), die ältesten zuerst – pro Wort höchstens einer.
+  function dueItems() {
+    const until = endOfToday();
+    const dirs = dirsFor();
+    const seen = new Set();
+    return [...progress.values()]
+      .filter((p) => dirs.includes(p.direction) && p.due && new Date(p.due) <= until)
+      .sort((x, y) => new Date(x.due) - new Date(y.due))
+      .filter((p) => !seen.has(p.word_id) && seen.add(p.word_id))
+      .map((p) => ({ word: list.words.find((w) => w.id === p.word_id), dir: p.direction }))
+      .filter((c) => c.word);
+  }
+
+  // Wörter, die in der gewählten Richtung noch nie abgefragt wurden.
+  function newItems() {
+    const dirs = dirsFor();
+    return list.words
+      .map((w) => {
+        const missing = dirs.filter((d) => !progress.has(key(w.id, d)));
+        return missing.length ? { word: w, dir: missing[Math.floor(Math.random() * missing.length)] } : null;
+      })
+      .filter(Boolean);
+  }
+
+  function nextDueDate() {
+    const dirs = dirsFor();
+    const dates = [...progress.values()].filter((p) => dirs.includes(p.direction) && p.due).map((p) => new Date(p.due));
+    return dates.length ? new Date(Math.min(...dates)) : null;
+  }
+
+  function pickDue() {
+    const n = size === 'all' ? Infinity : Number(size);
+    const cards = dueItems().slice(0, n);
+    const used = new Set(cards.map((c) => c.word.id));
+    const fresh = shuffle(newItems().filter((c) => !used.has(c.word.id)));
+    cards.push(...fresh.slice(0, Math.max(0, n - cards.length)));
+    return shuffle(cards);
+  }
+
+  function pickFree() {
+    const cards = list.words.map((w) => {
+      const dir = direction === 'mixed' ? (Math.random() < 0.5 ? 'ab' : 'ba') : direction;
+      return { word: w, dir, box: progress.get(key(w.id, dir))?.box ?? 0, rnd: Math.random() };
+    });
+    cards.sort((x, y) => x.box - y.box || x.rnd - y.rnd);
+    const n = size === 'all' ? cards.length : Number(size);
+    return shuffle(cards.slice(0, n));
+  }
+
+  const pick = () => (mode === 'due' ? pickDue() : pickFree());
+
+  const segmented = (label, options, current, onPick) =>
+    h('div', { class: 'segmented', role: 'radiogroup', 'aria-label': label },
+      options.map(([value, text]) => h('button', {
+        type: 'button', role: 'radio', 'aria-checked': String(current === value), class: current === value ? 'active' : '',
+        onclick: () => onPick(value),
+      }, text)));
 
   const setupView = () => {
-    const dirSelect = h('div', { class: 'segmented', role: 'radiogroup', 'aria-label': 'Richtung' },
-      ['ab', 'ba', 'mixed'].map((d) => h('button', {
-        type: 'button', role: 'radio', 'aria-checked': String(direction === d), class: direction === d ? 'active' : '',
-        onclick: () => { direction = d; setupView(); },
-      }, directionLabel(list, d))));
-    const sizeSelect = h('div', { class: 'segmented', role: 'radiogroup', 'aria-label': 'Anzahl' },
-      ['10', '20', 'all'].map((s) => h('button', {
-        type: 'button', role: 'radio', 'aria-checked': String(size === s), class: size === s ? 'active' : '',
-        onclick: () => { size = s; setupView(); },
-      }, s === 'all' ? `Alle (${list.words.length})` : s)));
-    const dirs = direction === 'mixed' ? ['ab', 'ba'] : [direction];
-    const safe = list.words.filter((w) => dirs.every((d) => (boxOf.get(`${w.id}:${d}`) ?? 0) >= SAFE_BOX)).length;
+    const due = dueItems().length;
+    const fresh = newItems().length;
+    if (!mode) mode = due + fresh > 0 ? 'due' : 'free';
+    const dirs = dirsFor();
+    const safe = list.words.filter((w) => dirs.every((d) => (progress.get(key(w.id, d))?.box ?? 0) >= SAFE_BOX)).length;
+    const nothingToDo = mode === 'due' && due + fresh === 0;
+    const next = nextDueDate();
+
+    const modeInfo = mode === 'due'
+      ? h('div', { class: 'mode-info' },
+          h('p', {}, h('strong', {}, `${due} fällig`), ` · ${fresh} neu`),
+          h('p', { class: 'small muted' }, 'Das Programm plant, wann jedes Wort wiederkommt: Gewusste Wörter kommen in immer größeren Abständen, vergessene schon am nächsten Tag. So bleibt am meisten hängen.'))
+      : h('div', { class: 'mode-info' },
+          h('p', { class: 'small muted' }, 'Beliebige Wörter üben, unsichere zuerst – z. B. vor einem Test. Deine Antworten fließen trotzdem in die Planung ein.'));
+
     view(h('section', { class: 'panel learn-setup' },
       h('div', { class: 'section-head' }, h('h1', {}, list.title), h('a', { class: 'btn ghost', href: '#/' }, 'Zurück')),
       h('p', { class: 'muted' }, [`${list.words.length} Wörter`, list.mode === 'type' ? 'Eintippen' : 'Karteikarten', list.is_owner ? null : list.owner_name && `von ${list.owner_name}`].filter(Boolean).join(' · ')),
       h('div', { class: 'progress' }, progressBar(safe, list.words.length, 'Sicher gelernt'), h('span', { class: 'small muted' }, `${safe} von ${list.words.length} sicher gelernt`)),
+      h('h2', {}, 'Modus'),
+      segmented('Modus', [['due', `Heute fällig${due ? ` (${due})` : ''}`], ['free', 'Frei üben']], mode, (m) => { mode = m; setupView(); }),
+      modeInfo,
       h('h2', {}, 'Richtung'),
-      list.allow_switch ? dirSelect : h('p', {}, directionLabel(list, direction)),
+      list.allow_switch
+        ? segmented('Richtung', ['ab', 'ba', 'mixed'].map((d) => [d, directionLabel(list, d)]), direction, (d) => { direction = d; setupView(); })
+        : h('p', {}, directionLabel(list, direction)),
       h('h2', {}, 'Wie viele Wörter?'),
-      sizeSelect,
-      h('p', { class: 'small muted' }, 'Wörter, die du noch nicht sicher kannst, kommen zuerst dran.'),
+      segmented('Anzahl', [['10', '10'], ['20', '20'], ['all', `Alle${mode === 'free' ? ` (${list.words.length})` : ''}`]], size, (s) => { size = s; setupView(); }),
+      nothingToDo
+        ? h('p', { class: 'done-today' }, 'Für heute ist alles erledigt 🎉',
+            next ? h('span', { class: 'small muted' }, ` Nächste Wiederholung: ${formatDue(next)}.`) : null)
+        : null,
       h('div', { class: 'actions' },
-        h('button', { class: 'btn primary big', onclick: () => startRound(pickCards()) }, 'Los geht’s'),
+        nothingToDo
+          ? h('button', { class: 'btn primary big', onclick: () => { mode = 'free'; setupView(); } }, 'Trotzdem frei üben')
+          : h('button', { class: 'btn primary big', onclick: () => startRound(pick()) }, 'Los geht’s'),
         list.progress.length ? h('button', { class: 'btn ghost', onclick: resetProgress }, 'Lernstand zurücksetzen') : null,
         list.can_copy && !list.is_owner ? h('button', { class: 'btn', onclick: () => copyList(list) }, 'In meine Listen kopieren') : null,
       ),
@@ -479,41 +571,47 @@ async function renderLearn(id) {
   async function resetProgress() {
     if (!confirm('Deinen Lernstand für diese Liste wirklich zurücksetzen?')) return;
     await api('DELETE', `/lists/${id}/progress`);
-    boxOf.clear();
+    progress.clear();
     list.progress = [];
+    mode = null;
     setupView();
   }
 
-  function pickCards() {
-    const cards = list.words.map((w) => {
-      const dir = direction === 'mixed' ? (Math.random() < 0.5 ? 'ab' : 'ba') : direction;
-      return { word: w, dir, box: boxOf.get(`${w.id}:${dir}`) ?? 0, rnd: Math.random() };
-    });
-    cards.sort((x, y) => x.box - y.box || x.rnd - y.rnd);
-    const n = size === 'all' ? cards.length : Number(size);
-    return shuffle(cards.slice(0, n));
-  }
-
+  // Antworten sammeln und an den Server schicken; der plant die nächste Wiederholung.
+  // Anfragen laufen nacheinander (Kette); wer flush() abwartet, wartet auf alles bis dahin Beantwortete.
   const pending = [];
-  let flushing = null;
-  function record(card, correct) {
-    pending.push({ word_id: card.word.id, direction: card.dir, correct });
-    const key = `${card.word.id}:${card.dir}`;
-    const box = boxOf.get(key) ?? 0;
-    boxOf.set(key, correct ? Math.min(box + 1, 5) : 1);
+  let chain = Promise.resolve();
+  function record(card, grade, correct) {
+    pending.push({ word_id: card.word.id, direction: card.dir, grade, correct });
+    // Sofort als erledigt markieren, damit das Wort nicht erneut als fällig/neu zählt
+    const k = key(card.word.id, card.dir);
+    progress.set(k, { ...(progress.get(k) ?? { word_id: card.word.id, direction: card.dir, box: 0 }), due: null });
     flush();
   }
   function flush() {
-    if (flushing || !pending.length) return flushing;
-    const batch = pending.splice(0);
-    flushing = api('POST', `/lists/${id}/results`, { results: batch })
-      .catch(() => { pending.unshift(...batch); toast('Lernstand konnte nicht gespeichert werden.', 'error'); })
-      .finally(() => { flushing = null; if (pending.length) flush(); });
-    return flushing;
+    chain = chain.then(async () => {
+      if (!pending.length) return;
+      const batch = pending.splice(0);
+      try {
+        const res = await api('POST', `/lists/${id}/results`, { results: batch });
+        // Noch nicht gesendete Antworten nicht mit altem Serverstand überschreiben
+        const waiting = new Set(pending.map((r) => key(r.word_id, r.direction)));
+        for (const p of res.progress) {
+          const k = key(p.word_id, p.direction);
+          if (!waiting.has(k)) progress.set(k, p);
+        }
+        list.progress = res.progress;
+      } catch {
+        pending.unshift(...batch);
+        toast('Lernstand konnte nicht gespeichert werden.', 'error');
+      }
+    });
+    return chain;
   }
 
   function startRound(cards) {
-    const queue = cards.map((c) => ({ ...c, retry: false }));
+    if (!cards.length) return setupView();
+    const queue = cards.map((c) => ({ ...c, retry: 0 }));
     const total = cards.length;
     let done = 0;
     let right = 0;
@@ -533,15 +631,19 @@ async function renderLearn(id) {
         h('span', { class: 'small muted' }, `${Math.min(done + 1, total)} / ${total}`),
       );
 
-      // Beantwortet: zählt nur beim ersten Versuch für den Lernstand.
-      function answered(correct) {
+      // Nur die erste Antwort zählt für die Planung. Nicht (sicher) gewusste Wörter kommen
+      // nach 3–5 Karten erneut, bis sie einmal richtig sind (höchstens dreimal).
+      function answered(grade, correct) {
         if (!card.retry) {
-          record(card, correct);
+          record(card, grade, correct);
           done++;
           if (correct) right++;
           else wrongWords.push(card);
         }
-        if (!correct && !card.retry) queue.push({ ...card, retry: true });
+        if (!correct && card.retry < 3) {
+          const at = Math.min(queue.length, 2 + Math.floor(Math.random() * 3));
+          queue.splice(at, 0, { ...card, retry: card.retry + 1 });
+        }
       }
 
       if (list.mode === 'flip') {
@@ -552,9 +654,10 @@ async function renderLearn(id) {
             card.word.note ? h('span', { class: 'note' }, card.word.note) : null),
         );
         const flipCard = h('button', { class: 'flipcard', 'aria-label': `${prompt} – Karte umdrehen`, onclick: () => flip() }, inner);
-        const buttons = h('div', { class: 'actions center', hidden: true },
-          h('button', { class: 'btn wrong big', onclick: () => rate(false) }, '✗ Nicht gewusst'),
-          h('button', { class: 'btn right big', onclick: () => rate(true) }, '✓ Gewusst'),
+        const buttons = h('div', { class: 'actions center rate', hidden: true },
+          h('button', { class: 'btn wrong big', onclick: () => rate('again') }, '✗ Nicht gewusst'),
+          h('button', { class: 'btn right big', onclick: () => rate('good') }, '✓ Gewusst'),
+          card.retry ? null : h('button', { class: 'btn easy big', onclick: () => rate('easy') }, '★ Leicht'),
         );
         const hint = h('p', { class: 'small muted center' }, 'Tippe auf die Karte oder drücke die Leertaste zum Umdrehen.');
         function flip() {
@@ -564,18 +667,19 @@ async function renderLearn(id) {
           inner.children[1].setAttribute('aria-hidden', String(!flipped));
           flipCard.setAttribute('aria-label', flipped ? `${solution}${card.word.note ? ` – ${card.word.note}` : ''}` : `${prompt} – Karte umdrehen`);
           buttons.hidden = false;
-          hint.textContent = 'Tasten: ← nicht gewusst · → gewusst';
+          hint.textContent = card.retry ? 'Tasten: 1 / ← nicht gewusst · 2 / → gewusst' : 'Tasten: 1 / ← nicht gewusst · 2 / → gewusst · 3 / ↑ leicht';
         }
-        function rate(ok) {
+        function rate(grade) {
           if (!flipped) return;
-          answered(ok);
+          answered(grade, grade !== 'again');
           next();
         }
         setKeys((e) => {
-          if (buttons.contains(e.target)) return;
+          if (buttons.contains(e.target) && (e.key === ' ' || e.key === 'Enter')) return;
           if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); if (!flipped) flip(); }
-          else if (flipped && (e.key === 'ArrowRight' || e.key === '2')) rate(true);
-          else if (flipped && (e.key === 'ArrowLeft' || e.key === '1')) rate(false);
+          else if (flipped && (e.key === 'ArrowLeft' || e.key === '1')) rate('again');
+          else if (flipped && (e.key === 'ArrowRight' || e.key === '2')) rate('good');
+          else if (flipped && !card.retry && (e.key === 'ArrowUp' || e.key === '3')) rate('easy');
         });
         view(h('section', { class: 'round' }, header, card.retry ? h('p', { class: 'retry small' }, 'Wiederholung') : null, flipCard, buttons, hint));
         flipCard.focus();
@@ -598,14 +702,17 @@ async function renderLearn(id) {
               h('strong', {}, ok ? 'Richtig!' : result === 'almost' ? 'Fast!' : 'Leider falsch.'),
               ok && !hasVariants(solution) ? null : h('span', {}, ' Lösung: ', h('b', {}, solution)),
               card.word.note ? h('div', { class: 'note' }, card.word.note) : null,
-              !ok ? h('button', { type: 'button', class: 'btn ghost small', onclick: () => { result = 'correct'; proceed(); } }, 'Ich hatte recht') : null,
+              !ok ? h('button', { type: 'button', class: 'btn ghost small', onclick: () => { result = 'override'; proceed(); } }, 'Ich hatte recht') : null,
             );
             submit.textContent = 'Weiter';
             submit.focus();
           } else proceed();
         } }, h('div', { class: 'prompt' }, h('span', { class: 'lang' }, langLabel(list, from)), h('span', { class: 'word' }, prompt)), input, submit, feedback);
         function proceed() {
-          answered(result === 'correct');
+          // Tippfehler („fast“) = erinnert, aber mit Mühe; zählt als falsch und wird wiederholt.
+          if (result === 'correct' || result === 'override') answered('good', true);
+          else if (result === 'almost') answered('hard', false);
+          else answered('again', false);
           next();
         }
         setKeys(null);
@@ -614,24 +721,42 @@ async function renderLearn(id) {
       }
     }
 
-    function finish() {
+    async function finish() {
       cleanupKeys();
-      flush();
       const pct = total ? Math.round((right / total) * 100) : 0;
+      const outlook = h('p', { class: 'small muted' }, 'Lernstand wird gespeichert …');
+      const remaining = h('div', {});
       view(h('section', { class: 'panel result' },
         h('h1', {}, pct === 100 ? 'Perfekt! 🎉' : pct >= 70 ? 'Gut gemacht!' : 'Weiter üben!'),
-        h('p', { class: 'score' }, `${right} von ${total} richtig (${pct} %)`),
+        h('p', { class: 'score' }, `${right} von ${total} beim ersten Versuch richtig (${pct} %)`),
+        outlook,
         wrongWords.length
           ? h('div', {}, h('h2', {}, 'Noch üben'),
               h('ul', { class: 'wrong-list' }, wrongWords.map((c) => h('li', {}, h('span', {}, c.word[c.dir === 'ab' ? 'a' : 'b']), ' → ', h('b', {}, c.word[c.dir === 'ab' ? 'b' : 'a'])))))
           : null,
+        remaining,
         h('div', { class: 'actions' },
-          wrongWords.length ? h('button', { class: 'btn primary', onclick: () => startRound(shuffle(wrongWords.map((c) => ({ ...c })))) }, 'Fehler wiederholen') : null,
-          h('button', { class: 'btn', onclick: () => startRound(pickCards()) }, 'Neue Runde'),
+          wrongWords.length ? h('button', { class: 'btn', onclick: () => { mode = 'free'; startRound(shuffle(wrongWords.map((c) => ({ ...c })))); } }, 'Fehler wiederholen') : null,
           h('button', { class: 'btn ghost', onclick: () => setupView() }, 'Einstellungen'),
           h('a', { class: 'btn ghost', href: '#/' }, 'Zur Übersicht'),
         ),
       ));
+      await flush();
+      // Wann kommen die Wörter dieser Runde wieder?
+      const buckets = { morgen: 0, 'in 2–7 Tagen': 0, 'in 1–4 Wochen': 0, später: 0 };
+      for (const c of cards) {
+        const p = progress.get(key(c.word.id, c.dir));
+        if (!p?.due) continue;
+        const d = (new Date(p.due) - Date.now()) / 86400000;
+        buckets[d <= 1.5 ? 'morgen' : d <= 7.5 ? 'in 2–7 Tagen' : d <= 30 ? 'in 1–4 Wochen' : 'später']++;
+      }
+      const parts = Object.entries(buckets).filter(([, n]) => n).map(([when, n]) => `${when}: ${n}`);
+      outlook.textContent = parts.length ? `Kommt wieder – ${parts.join(' · ')}` : '';
+      const left = dueItems().length + newItems().length;
+      if (left) {
+        fill(remaining, h('p', {}, `Heute noch fällig oder neu: ${left}`),
+          h('button', { class: 'btn primary', onclick: () => { mode = 'due'; startRound(pickDue()); } }, 'Weiterlernen'));
+      }
     }
 
     next();
@@ -639,6 +764,15 @@ async function renderLearn(id) {
 
   leaveGuard = () => { flush(); cleanupKeys(); return true; };
   setupView();
+}
+
+// „heute“, „morgen“, „am Montag“ oder Datum
+function formatDue(date) {
+  const days = Math.round((new Date(date).setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0)) / 86400000);
+  if (days <= 0) return 'heute';
+  if (days === 1) return 'morgen';
+  if (days < 7) return `am ${new Date(date).toLocaleDateString('de-DE', { weekday: 'long' })}`;
+  return `am ${new Date(date).toLocaleDateString('de-DE')}`;
 }
 
 // Bei mehreren Varianten wird die Lösung auch nach einer richtigen Antwort gezeigt.
@@ -678,7 +812,7 @@ async function renderStats(id) {
   ));
   view(
     h('div', { class: 'section-head' }, h('h1', {}, `Auswertung: ${stats.list.title}`), h('a', { class: 'btn ghost', href: '#/' }, 'Zurück')),
-    h('p', { class: 'small muted' }, `„Sicher“ = mindestens ${stats.safe_box}× in Folge richtig. Es erscheinen nur Schüler:innen, die sich schon einmal angemeldet haben.`),
+    h('p', { class: 'small muted' }, '„Sicher“ = würde das Wort laut Lernplanung auch in zwei Wochen noch mit 90 % Wahrscheinlichkeit wissen (mehrmals an verschiedenen Tagen richtig). Es erscheinen nur Schüler:innen, die sich schon einmal angemeldet haben.'),
     groups.length ? groups : h('p', { class: 'empty' }, 'Die Liste ist keiner Gruppe zugewiesen.'),
     stats.hardest.length
       ? h('section', { class: 'panel' }, h('h2', {}, 'Schwierigste Wörter'),

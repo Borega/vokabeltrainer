@@ -24,16 +24,42 @@ Gruppen (Klassen/Kurse) und die Rolle „Lehrkraft“ werden direkt aus IServ ü
 
 **Für Schüler:innen**
 - sehen nur Listen ihrer Gruppen
+- Zwei Modi:
+  - **Heute fällig** – verteiltes Wiederholen: Das Programm plant für jedes Wort, wann es wiederkommt
+    (siehe unten). Die Startseite zeigt, wie viele Wörter heute fällig sind.
+  - **Frei üben** – beliebige Wörter, unsichere zuerst (z. B. vor einem Test); zählt trotzdem für die Planung
 - Richtung wählen (sofern erlaubt), Rundengröße 10 / 20 / alle
-- Lernkartei-Prinzip (Leitner): unsichere Wörter kommen zuerst, falsche Wörter werden in der Runde wiederholt
+- Nicht gewusste Wörter kommen in derselben Runde nach wenigen Karten erneut, bis sie einmal sitzen
 - Lernstand wird auf dem Server gespeichert und ist auf allen Geräten verfügbar
-- Tastatur: Leertaste = umdrehen, ← / → = nicht gewusst / gewusst, Enter = prüfen / weiter
+- Tastatur: Leertaste = umdrehen, 1 / ← = nicht gewusst, 2 / → = gewusst, 3 / ↑ = leicht, Enter = prüfen / weiter
 
 **Prüfregeln beim Eintippen**
 - Mehrere richtige Lösungen mit `;` oder `|` trennen: `big; large`
 - Teile in Klammern sind optional: `(to) go` akzeptiert `go` und `to go`
 - Leerzeichen und `.` `!` `?` am Ende zählen nicht
 - Kleine Tippfehler werden als „Fast!“ angezeigt (zählen als falsch, mit „Ich hatte recht“ korrigierbar)
+
+## Wie die Wiederholungsplanung funktioniert
+
+Der Trainer nutzt zwei gut belegte Lerneffekte: **Abrufen statt Wiederlesen** (*testing effect*,
+Roediger & Karpicke 2006) und **verteiltes Wiederholen** (*spacing effect*, Cepeda et al. 2006/2008).
+Beide gelten in der Übersicht von Dunlosky et al. (2013) als die wirksamsten Lerntechniken.
+
+Geplant wird mit [FSRS](https://github.com/open-spaced-repetition/ts-fsrs) (Free Spaced Repetition
+Scheduler, auch in Anki im Einsatz). Für jedes Wort und jede Richtung werden *Stabilität* (wie lange es
+voraussichtlich behalten wird) und *Schwierigkeit* geschätzt. Ein Wort wird fällig, wenn es nur noch mit
+etwa 90 % Wahrscheinlichkeit gewusst würde:
+
+| Antwort | Bewertung | Folge |
+|---|---|---|
+| nicht gewusst / falsch | *again* | morgen wieder fällig, Stabilität sinkt |
+| Tippfehler („Fast!“) | *hard* | zählt als falsch, kommt etwas früher wieder |
+| gewusst / richtig | *good* | Abstand wächst (z. B. 3 → 12 → 50 Tage) |
+| leicht (Karteikarten) | *easy* | Abstand wächst stärker |
+
+Mehrfaches Wiederholen am selben Tag erhöht die Stabilität kaum – Pauken bringt kurzfristig etwas,
+für die Planung zählt aber das Behalten über Tage. „Sicher“ in der Auswertung heißt: Das Wort würde
+auch in zwei Wochen noch mit mindestens 90 % Wahrscheinlichkeit gewusst.
 
 ## Installation (Docker)
 
