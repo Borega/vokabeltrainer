@@ -70,6 +70,11 @@ function quote(field) {
   return /[";\n\r]/.test(field) ? `"${field.replace(/"/g, '""')}"` : field;
 }
 
+// Beliebige Tabelle als CSV (Semikolon, mit BOM für Excel)
+export function rowsToCsv(rows) {
+  return '\uFEFF' + rows.map((r) => r.map((f) => quote(String(f ?? ''))).join(';')).join('\r\n') + '\r\n';
+}
+
 export function wordsToCsv(words, header) {
   const lines = [];
   if (header) lines.push(header.map(quote).join(';'));

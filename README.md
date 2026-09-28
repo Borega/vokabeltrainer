@@ -20,7 +20,12 @@ Gruppen (Klassen/Kurse) und die Rolle „Lehrkraft“ werden direkt aus IServ ü
 - Listen **für Kolleg:innen freigeben** (freiwillig, pro Liste): Andere Lehrkräfte finden sie unter
   „Geteilte Listen“, können sie ausprobieren und eine eigene Kopie anlegen, die sie frei bearbeiten und
   ihren Gruppen zuweisen. Das Original bleibt unverändert, Lernstände werden nicht geteilt.
-- **Auswertung** je Gruppe: wie viele Wörter jede:r sicher kann, richtig/falsch, zuletzt aktiv, schwierigste Wörter
+- **Auswertung** pro Liste und Gruppe:
+  - Kennzahlen: Schüler:innen, aktiv in den letzten 7 Tagen, Ø sicher, Ø geübt, heute fällig
+  - Verlauf der letzten 8 Wochen: Ø sicher und Abfragen pro Woche (Diagramm und Tabelle)
+  - Tabelle pro Schüler:in (sortierbar): sicher, geübt, fällig, richtig/falsch, zuletzt aktiv
+  - Einzelansicht per Klick auf den Namen: Lernstand jedes Worts in beiden Richtungen
+  - schwierigste Wörter der Gruppe und Export als CSV
 
 **Für Schüler:innen**
 - sehen nur Listen ihrer Gruppen

@@ -109,6 +109,22 @@ export const MIGRATIONS = [
    UPDATE progress SET due = strftime('%Y-%m-%dT%H:%M:%fZ', last_seen, '+' || scheduled_days || ' days')
    WHERE box > 0;
    CREATE INDEX IF NOT EXISTS progress_due ON progress(user_id, due);`,
+  // 3: Verlauf für die Auswertung. Jede Antwort wird mit der danach geschätzten Stabilität protokolliert.
+  //    Der bisherige Stand dient als erster Eintrag.
+  `CREATE TABLE review_log (
+     id         INTEGER PRIMARY KEY,
+     user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     word_id    INTEGER NOT NULL REFERENCES words(id) ON DELETE CASCADE,
+     direction  TEXT NOT NULL,
+     grade      TEXT NOT NULL,
+     stability  REAL NOT NULL,
+     at         TEXT NOT NULL
+   );
+   CREATE INDEX review_log_word ON review_log(word_id, at);
+   CREATE INDEX review_log_user ON review_log(user_id, at);
+   INSERT INTO review_log (user_id, word_id, direction, grade, stability, at)
+     SELECT user_id, word_id, direction, 'import', stability, COALESCE(last_review, last_seen)
+     FROM progress WHERE stability IS NOT NULL;`,
 ];
 
 function migrate(db) {

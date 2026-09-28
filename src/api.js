@@ -1,10 +1,12 @@
 import express from 'express';
 import { now, transaction } from './db.js';
-import { GRADES, SAFE_LEVEL, review } from './scheduler.js';
+import { GRADES, SAFE_LEVEL, levelFor, review } from './scheduler.js';
 
 // Ab dieser Stufe gilt ein Wort als „sicher“ (0 = neu … 5, siehe scheduler.js).
 export const SAFE_BOX = SAFE_LEVEL;
 const MAX_WORDS = 2000;
+const DAY = 24 * 60 * 60 * 1000;
+const HISTORY_WEEKS = 8;
 
 class HttpError extends Error {
   constructor(status, message) {
@@ -122,6 +124,9 @@ export function apiRouter(db, config) {
     ),
     ownerName: db.prepare('SELECT name FROM users WHERE id = ?'),
     wordInList: db.prepare('SELECT 1 FROM words WHERE id = ? AND list_id = ?'),
+    logReview: db.prepare(
+      'INSERT INTO review_log (user_id, word_id, direction, grade, stability, at) VALUES (?, ?, ?, ?, ?, ?)',
+    ),
     getProgress: db.prepare('SELECT * FROM progress WHERE user_id = ? AND word_id = ? AND direction = ?'),
     putProgress: db.prepare(
       `INSERT INTO progress (user_id, word_id, direction, box, right, wrong, last_seen,
@@ -334,6 +339,7 @@ export function apiRouter(db, config) {
         const grade = r.grade in GRADES ? r.grade : r.correct ? 'good' : 'again';
         const correct = typeof r.correct === 'boolean' ? r.correct : grade !== 'again';
         const previous = q.getProgress.get(req.user.id, wordId, direction);
+        const next = review(previous, grade, new Date(ts));
         q.putProgress.run({
           user_id: req.user.id,
           word_id: wordId,
@@ -341,8 +347,9 @@ export function apiRouter(db, config) {
           right: correct ? 1 : 0,
           wrong: correct ? 0 : 1,
           last_seen: ts,
-          ...review(previous, grade, new Date(ts)),
+          ...next,
         });
+        q.logReview.run(req.user.id, wordId, direction, grade, next.stability, ts);
       }
     });
     return { progress: q.myProgress.all(req.user.id, list.id) };
@@ -351,10 +358,46 @@ export function apiRouter(db, config) {
   router.delete('/lists/:id/progress', wrap((req) => {
     const list = loadList(req.params.id);
     assertCanSee(list, req.user);
-    db.prepare('DELETE FROM progress WHERE user_id = ? AND word_id IN (SELECT id FROM words WHERE list_id = ?)')
-      .run(req.user.id, list.id);
+    for (const table of ['progress', 'review_log']) {
+      db.prepare(`DELETE FROM ${table} WHERE user_id = ? AND word_id IN (SELECT id FROM words WHERE list_id = ?)`)
+        .run(req.user.id, list.id);
+    }
     return { ok: true };
   }));
+
+  // Verlauf der letzten Wochen: Anteil sicherer Wörter (Ø über die Lernenden) und Anzahl Abfragen pro Woche.
+  // „Sicher“ zum Zeitpunkt T = die letzte Antwort vor T ergab Stabilität ≥ 14 Tage (in einer der Richtungen).
+  function history(listId, userIds, wordCount) {
+    const end = Date.now();
+    const points = Array.from({ length: HISTORY_WEEKS }, (_, i) => end - (HISTORY_WEEKS - 1 - i) * 7 * DAY);
+    if (!userIds.length || !wordCount) {
+      return points.map((t) => ({ at: new Date(t).toISOString(), safe_pct: 0, reviews: 0 }));
+    }
+    const rows = db
+      .prepare(
+        `SELECT user_id, word_id, direction, stability, grade, at FROM review_log
+         WHERE word_id IN (SELECT id FROM words WHERE list_id = ?)
+           AND user_id IN (${userIds.map(() => '?').join(',')})
+         ORDER BY at`,
+      )
+      .all(listId, ...userIds);
+    const latest = new Map(); // user:word:dir -> letzte Antwort
+    let i = 0;
+    return points.map((t) => {
+      let reviews = 0;
+      while (i < rows.length && Date.parse(rows[i].at) <= t) {
+        const r = rows[i++];
+        latest.set(`${r.user_id}:${r.word_id}:${r.direction}`, r);
+        if (r.grade !== 'import' && Date.parse(r.at) > t - 7 * DAY) reviews++;
+      }
+      const safeWords = new Map(userIds.map((id) => [id, new Set()]));
+      for (const r of latest.values()) {
+        if (levelFor(r.stability) >= SAFE_LEVEL) safeWords.get(r.user_id)?.add(r.word_id);
+      }
+      const avg = [...safeWords.values()].reduce((sum, set) => sum + set.size / wordCount, 0) / userIds.length;
+      return { at: new Date(t).toISOString(), safe_pct: Math.round(avg * 1000) / 10, reviews };
+    });
+  }
 
   // Übersicht für die Lehrkraft: Lernstand aller Schüler:innen der zugewiesenen Gruppen.
   router.get('/lists/:id/stats', wrap((req) => {
@@ -362,12 +405,16 @@ export function apiRouter(db, config) {
     const list = loadList(req.params.id);
     assertOwner(list, req.user);
     const words = q.words.all(list.id);
+    const n = words.length;
+    const nowIso = now();
+    const weekAgo = new Date(Date.now() - 7 * DAY).toISOString();
     const groups = q.listGroups.all(list.id).map((g) => {
       const students = db
         .prepare(
           `SELECT u.id, u.name,
              COUNT(DISTINCT p.word_id) AS seen,
              COUNT(DISTINCT CASE WHEN p.box >= ${SAFE_BOX} THEN p.word_id END) AS safe,
+             COUNT(CASE WHEN p.due <= ? THEN 1 END) AS due,
              COALESCE(SUM(p.right), 0) AS right, COALESCE(SUM(p.wrong), 0) AS wrong,
              MAX(p.last_seen) AS last_seen
            FROM user_groups ug
@@ -376,8 +423,18 @@ export function apiRouter(db, config) {
            WHERE ug.group_id = ?
            GROUP BY u.id ORDER BY u.name COLLATE NOCASE`,
         )
-        .all(list.id, g.id);
-      return { ...g, students };
+        .all(nowIso, list.id, g.id);
+      const count = students.length;
+      const avg = (field) =>
+        count && n ? Math.round((students.reduce((sum, st) => sum + st[field] / n, 0) / count) * 1000) / 10 : 0;
+      const summary = {
+        students: count,
+        active_7d: students.filter((st) => st.last_seen && st.last_seen >= weekAgo).length,
+        safe_pct: avg('safe'),
+        seen_pct: avg('seen'),
+        due: students.reduce((sum, st) => sum + st.due, 0),
+      };
+      return { ...g, summary, history: history(list.id, students.map((st) => st.id), n), students };
     });
     // Schwierigste Wörter: höchste Fehlerquote über alle Lernenden
     const hardest = db
@@ -390,7 +447,39 @@ export function apiRouter(db, config) {
          LIMIT 10`,
       )
       .all(list.id);
-    return { list: listJson(list), word_count: words.length, safe_box: SAFE_BOX, groups, hardest };
+    return { list: listJson(list), word_count: n, safe_box: SAFE_BOX, groups, hardest };
+  }));
+
+  // Einzelansicht: Lernstand einer Schülerin / eines Schülers pro Wort und Richtung.
+  router.get('/lists/:id/stats/students/:uid', wrap((req) => {
+    requireTeacher(req);
+    const list = loadList(req.params.id);
+    assertOwner(list, req.user);
+    const student = db
+      .prepare(
+        `SELECT DISTINCT u.id, u.name FROM users u
+         JOIN user_groups ug ON ug.user_id = u.id
+         JOIN list_groups lg ON lg.group_id = ug.group_id AND lg.list_id = ?
+         WHERE u.id = ? AND u.is_teacher = 0`,
+      )
+      .get(list.id, Number(req.params.uid));
+    if (!student) throw new HttpError(404, 'Diese Person ist keiner Gruppe der Liste zugeordnet.');
+    const words = q.words.all(list.id);
+    const progress = db
+      .prepare(
+        `SELECT word_id, direction, box, right, wrong, last_seen, due, stability FROM progress
+         WHERE user_id = ? AND word_id IN (SELECT id FROM words WHERE list_id = ?)`,
+      )
+      .all(student.id, list.id);
+    const byWord = new Map(words.map((w) => [w.id, { ...w, ab: null, ba: null }]));
+    for (const p of progress) byWord.get(p.word_id)[p.direction] = p;
+    return {
+      list: listJson(list),
+      student,
+      safe_box: SAFE_BOX,
+      words: [...byWord.values()],
+      history: history(list.id, [student.id], words.length),
+    };
   }));
 
   router.use((err, req, res, next) => {

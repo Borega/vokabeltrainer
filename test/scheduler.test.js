@@ -44,7 +44,9 @@ test('Migration rechnet alte Leitner-Kästchen in Startwerte um', async () => {
   const { MIGRATIONS } = await import('../src/db.js');
   // Datenbank im Zustand von Version 1 nachbauen
   const old = new DatabaseSync(':memory:');
-  old.exec(`CREATE TABLE progress (user_id INTEGER, word_id INTEGER, direction TEXT, box INTEGER, right INTEGER,
+  old.exec(`CREATE TABLE users (id INTEGER PRIMARY KEY); INSERT INTO users VALUES (1);
+    CREATE TABLE words (id INTEGER PRIMARY KEY); INSERT INTO words VALUES (1), (2);
+    CREATE TABLE progress (user_id INTEGER, word_id INTEGER, direction TEXT, box INTEGER, right INTEGER,
     wrong INTEGER, last_seen TEXT, PRIMARY KEY (user_id, word_id, direction));
     INSERT INTO progress VALUES (1, 1, 'ab', 3, 3, 0, '2026-09-28T10:00:00.000Z'), (1, 2, 'ab', 1, 0, 1, '2026-09-28T10:00:00.000Z');`);
   old.exec(MIGRATIONS[1]);
@@ -54,6 +56,13 @@ test('Migration rechnet alte Leitner-Kästchen in Startwerte um', async () => {
   assert.equal(rows[1].due, '2026-09-29T10:00:00.000Z');
   assert.equal(rows[0].state, 2);
   assert.equal(rows[0].reps, 3);
+  // Migration 3 übernimmt den Stand als ersten Verlaufseintrag
+  old.exec(MIGRATIONS[2]);
+  const log = old.prepare('SELECT word_id, grade, stability, at FROM review_log ORDER BY word_id').all();
+  assert.equal(log.length, 2);
+  assert.equal(log[0].grade, 'import');
+  assert.equal(log[0].stability, 14);
+  assert.equal(log[0].at, '2026-09-28T10:00:00.000Z');
   // und FSRS kann mit den umgerechneten Werten weiterrechnen
   const next = review({ ...rows[0], difficulty: 5, scheduled_days: 14, lapses: 0, last_review: '2026-09-28T10:00:00.000Z' }, 'good', new Date(rows[0].due));
   assert.ok(next.stability > rows[0].stability);

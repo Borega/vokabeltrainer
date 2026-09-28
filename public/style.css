@@ -222,6 +222,47 @@ tr.inactive td { color: var(--muted); }
 .wrong-list { list-style: none; padding: 0; text-align: left; max-width: 420px; margin: 0 auto; }
 .wrong-list li { padding: .4rem 0; border-bottom: 1px solid var(--border); }
 
+/* Auswertung */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: .75rem; margin: .5rem 0 1.25rem; }
+.tile { display: flex; flex-direction: column; gap: .1rem; padding: .75rem 1rem; border: 1px solid var(--border); border-radius: 10px; }
+.tile-label { font-size: .8rem; color: var(--muted); }
+.tile-value { font-size: 1.5rem; font-weight: 600; }
+.tile-sub { font-size: .8rem; color: var(--muted); }
+.history { margin-bottom: 1rem; }
+.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
+.chart-wrap { position: relative; margin: 0; }
+.chart-wrap figcaption { font-size: .875rem; font-weight: 600; margin-bottom: .25rem; }
+.chart { width: 100%; height: auto; display: block; overflow: visible; outline: none; }
+.chart:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 45%, transparent); outline-offset: 2px; border-radius: 6px; }
+.chart-grid { stroke: var(--border); stroke-width: 1; }
+.chart-axis { fill: var(--muted); font-size: 10px; }
+.chart-value { fill: var(--text); font-size: 11px; font-weight: 600; }
+.chart-line { fill: none; stroke: var(--primary); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.chart-area { fill: var(--primary); opacity: .1; }
+.chart-dot { fill: var(--primary); stroke: var(--surface); stroke-width: 2; }
+.chart-bar { fill: var(--primary); }
+.chart-bar.active { opacity: .75; }
+.chart-cross { stroke: var(--muted); stroke-width: 1; }
+.chart-tip {
+  position: absolute; top: 1.4rem; background: var(--surface); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px; padding: .3rem .6rem; font-size: .8rem;
+  box-shadow: var(--shadow); pointer-events: none; white-space: nowrap;
+}
+.chart-tip span { color: var(--muted); }
+.table-view summary { cursor: pointer; font-size: .875rem; color: var(--muted); margin: .25rem 0; }
+th button.sort { all: unset; cursor: pointer; }
+th button.sort:focus-visible { outline: 2px solid var(--primary); border-radius: 4px; }
+th[aria-sort="ascending"] button.sort::after { content: " ▲"; font-size: .7em; }
+th[aria-sort="descending"] button.sort::after { content: " ▼"; font-size: .7em; }
+.level-cell { display: inline-flex; gap: .35rem; align-items: center; flex-wrap: wrap; }
+.level { display: inline-block; border-radius: 999px; padding: .05rem .55rem; font-size: .8rem; color: var(--text); }
+.level-0 { border: 1px dashed var(--border); color: var(--muted); }
+.level-1 { background: color-mix(in srgb, var(--primary) 10%, transparent); }
+.level-2 { background: color-mix(in srgb, var(--primary) 22%, transparent); }
+.level-3 { background: color-mix(in srgb, var(--primary) 38%, transparent); }
+.level-4 { background: color-mix(in srgb, var(--primary) 55%, transparent); }
+.level-5 { background: color-mix(in srgb, var(--primary) 72%, transparent); color: var(--primary-text); }
+
 .toast {
   position: fixed; bottom: 1.25rem; left: 50%; transform: translateX(-50%);
   background: var(--text); color: var(--bg); padding: .65rem 1.1rem; border-radius: 10px;
