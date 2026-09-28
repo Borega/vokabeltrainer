@@ -1,8 +1,9 @@
 # Vokabeltrainer
 
 Ein schlanker Vokabeltrainer für Schulen. Lehrkräfte legen Wortlisten an (im Editor oder per CSV-Import)
-und weisen sie Klassen bzw. Kursen zu. Schüler:innen lernen mit **Karteikarten** (umdrehen und selbst
-einschätzen) oder durch **Eintippen** mit automatischer Prüfung – in beide Richtungen.
+und weisen sie Klassen bzw. Kursen zu. Schüler:innen lernen mit der **Lernleiter**, deren Aufgaben mit
+dem Lernstand jedes Worts schwerer werden (kennenlernen → auswählen → eintippen → Lückentext und Hörübung),
+oder wahlweise nur mit **Karteikarten**, **Eintippen** oder **Auswählen** – in beide Richtungen.
 
 Die Anmeldung läuft über **OpenID Connect**, z. B. über das Single-Sign-On von **IServ**.
 Gruppen (Klassen/Kurse) und die Rolle „Lehrkraft“ werden direkt aus IServ übernommen.
@@ -11,9 +12,12 @@ Gruppen (Klassen/Kurse) und die Rolle „Lehrkraft“ werden direkt aus IServ ü
 
 **Für Lehrkräfte**
 - Listen im Browser-Editor anlegen und bearbeiten (Enter springt in die nächste Zeile)
-- CSV-Import und -Export (Semikolon, Komma oder Tab; Kopfzeile wie `Englisch;Deutsch` wird erkannt)
+- CSV-Import und -Export (Semikolon, Komma oder Tab; Kopfzeile wie `Englisch;Deutsch` wird erkannt).
+  Spalten: Wort A, Wort B, optional Notiz und Beispielsatz
+- Pro Wort optional ein **Beispielsatz**: Kommt das Wort darin vor, wird daraus ein Lückentext.
+  Gebeugte Formen mit Sternchen markieren: `Yesterday I *went* home.`
 - Pro Liste festlegen:
-  - Abfrage als **Karteikarten** oder **Eintippen**
+  - Abfrage als **Lernleiter** (empfohlen, Standard für neue Listen), **Karteikarten**, **Eintippen** oder **Auswählen**
   - beim Eintippen: Groß-/Kleinschreibung und Akzente/Umlaute beachten – ja/nein
   - Standard-Richtung (A → B, B → A, gemischt) und ob Schüler:innen sie wechseln dürfen
 - Liste einer oder mehreren IServ-Gruppen zuweisen
@@ -34,9 +38,46 @@ Gruppen (Klassen/Kurse) und die Rolle „Lehrkraft“ werden direkt aus IServ ü
     (siehe unten). Die Startseite zeigt, wie viele Wörter heute fällig sind.
   - **Frei üben** – beliebige Wörter, unsichere zuerst (z. B. vor einem Test); zählt trotzdem für die Planung
 - Richtung wählen (sofern erlaubt), Rundengröße 10 / 20 / alle
+- **Ton an/aus** (wird im Browser gemerkt): Wörter werden vorgelesen, dazu kommen Hörübungen.
+  Über 🔊 lässt sich jedes Wort jederzeit anhören.
 - Nicht gewusste Wörter kommen in derselben Runde nach wenigen Karten erneut, bis sie einmal sitzen
 - Lernstand wird auf dem Server gespeichert und ist auf allen Geräten verfügbar
-- Tastatur: Leertaste = umdrehen, 1 / ← = nicht gewusst, 2 / → = gewusst, 3 / ↑ = leicht, Enter = prüfen / weiter
+- Tastatur: Leertaste = umdrehen, 1 / ← = nicht gewusst, 2 / → = gewusst, 3 / ↑ = leicht, Enter = prüfen / weiter;
+  beim Auswählen 1–4
+
+## Übungsarten
+
+| Übung | Was passiert | Wozu |
+|---|---|---|
+| **Kennenlernen** | Neues Wort mit Übersetzung, Notiz und Beispielsatz ansehen; abgefragt wird es ein paar Karten später | erster Kontakt, ohne zu raten |
+| **Auswählen** | Aus vier Antworten der Liste die richtige wählen; die falschen sehen der richtigen möglichst ähnlich (Verb zu Verb, Nomen mit Artikel …) | Wiedererkennen – leichter als selbst hervorbringen |
+| **Eintippen** | Übersetzung eintippen, automatisch geprüft; **💡 Tipp** zeigt den ersten Buchstaben jedes Worts, dann jeweils einen mehr | selbst hervorbringen, mit Hilfe nach Bedarf |
+| **Lückentext** | Das Wort im Beispielsatz ergänzen, die Übersetzung steht als Hinweis dabei | Gebrauch im Zusammenhang |
+| **Hören** | Das Wort wird vorgelesen (nur bei „Ton an“), die Übersetzung eintippen | Aussprache und Hörverstehen |
+| **Karteikarten** | Umdrehen und selbst einschätzen; Tipp: die Antwort vorher laut sagen | schnell, aber auf Selbsteinschätzung angewiesen |
+
+**Lernleiter:** Die Aufgabe richtet sich nach der Stufe des Worts in der jeweiligen Richtung:
+
+| Stufe | Aufgabe |
+|---|---|
+| neu | kennenlernen, dann auswählen (ist das Wort in der Gegenrichtung schon bekannt: gleich auswählen) |
+| Anfang (Stabilität < 3 Tage) | eintippen, Tipps auf Wunsch |
+| ab „lernt“ (≥ 3 Tage) | eintippen, abwechselnd auch als Lückentext (wenn ein passender Beispielsatz da ist) oder als Hörübung (bei „Ton an“) |
+
+Die Idee dahinter: Aufgaben, die gerade noch lösbar sind, bringen am meisten (*desirable difficulties*,
+Bjork 1994; *retrieval effort*, Pyc & Rawson 2009). Wiedererkennen kommt vor dem selbst Hervorbringen
+(Webb 2009; Nakata 2011). Auswählen mit plausiblen Ablenkern ist echtes Abrufen (Little et al. 2012),
+schrittweise Hinweise helfen beim Erinnern (Finley et al. 2011). Lückensätze kommen erst, wenn die
+Schreibweise eines Worts sitzt – vorher lenken Satzaufgaben eher ab (Barcroft 2004). Wechselnde
+Stimmen verbessern das Lernen der Aussprache (Barcroft & Sommers 2005), lautes Aussprechen das
+Behalten (*production effect*, MacLeod et al. 2010).
+
+**Aussprache und Datenschutz:** Vorgelesen wird mit der Sprachausgabe des Browsers. Es werden nur
+Stimmen verwendet, die auf dem Gerät selbst laufen – Online-Stimmen (z. B. „Google …“ in Chrome), die den
+Text an den Anbieter schicken würden, bleiben außen vor. Hat das Gerät keine passende Stimme, gibt es
+keinen Ton und keine Hörübungen. Die Sprache ergibt sich aus der Sprachbezeichnung der Liste
+(„Englisch“ → britisches Englisch, „Englisch (USA)“ → amerikanisches; ein Code wie `fr-CA` geht auch).
+Latein und Altgriechisch werden nicht vorgelesen.
 
 **Prüfregeln beim Eintippen**
 - Mehrere richtige Lösungen mit `;` oder `|` trennen: `big; large`
@@ -59,8 +100,14 @@ etwa 90 % Wahrscheinlichkeit gewusst würde:
 |---|---|---|
 | nicht gewusst / falsch | *again* | morgen wieder fällig, Stabilität sinkt |
 | Tippfehler („Fast!“) | *hard* | zählt als falsch, kommt etwas früher wieder |
-| gewusst / richtig | *good* | Abstand wächst (z. B. 3 → 12 → 50 Tage) |
+| richtig ausgewählt | *hard* | nur wiedererkannt – Abstand wächst langsamer |
+| richtig mit Tipp | *hard* | gewusst, aber mit Hilfe |
+| gewusst / richtig (auch Lückentext, Hören) | *good* | Abstand wächst (z. B. 3 → 12 → 50 Tage) |
 | leicht (Karteikarten) | *easy* | Abstand wächst stärker |
+
+Dass Auswählen nur als *hard* zählt, ist Absicht: „Sicher“ soll weiterhin heißen, dass ein Wort selbst
+hervorgebracht werden kann. In Listen mit „Auswählen“ dauert es deshalb länger, bis Wörter als sicher
+gelten. Welche Übung zu einer Antwort gehörte, wird im Verlauf mitgespeichert.
 
 Mehrfaches Wiederholen am selben Tag erhöht die Stabilität kaum – Pauken bringt kurzfristig etwas,
 für die Planung zählt aber das Behalten über Tage. „Sicher“ in der Auswertung heißt: Das Wort würde
@@ -78,7 +125,8 @@ curl -o .env https://raw.githubusercontent.com/Borega/vokabeltrainer/main/.env.e
 docker compose up -d
 ```
 
-Die Datenbank (SQLite) liegt im Docker-Volume `vokabeltrainer-data` – dieses Volume gehört in die Datensicherung.
+Die Datenbank (SQLite) liegt im Docker-Volume `vokabeltrainer-data` – dieses Volume gehört in die Datensicherung
+(siehe [Aktualisieren und Datensicherung](#aktualisieren-und-datensicherung)).
 
 **Portainer:** Stack-Vorlage und Variablen in [`deploy/portainer/`](deploy/portainer/).
 
@@ -91,6 +139,47 @@ Beispiel für Caddy (holt das Zertifikat automatisch):
 vokabeln.meine-schule.de {
     reverse_proxy 127.0.0.1:3000
 }
+```
+
+## Aktualisieren und Datensicherung
+
+**Datenbank-Änderungen laufen automatisch.** Beim Start öffnet der Server die Datenbank, bevor er Anfragen
+annimmt, und bringt sie auf den Stand der neuen Version (`PRAGMA user_version`, Migrationen in
+[`src/db.js`](src/db.js)). Jede Migration läuft in einer Transaktion: Schlägt sie fehl, bleibt die Datenbank
+unverändert, der Container beendet sich mit der Fehlermeldung im Log und startet neu. Es darf immer nur
+**ein** Container auf das Volume zugreifen.
+
+**Vor jedem Update sichern.** Die Datenbank läuft im WAL-Modus – neue Änderungen können noch in der Datei
+`vokabeltrainer.sqlite-wal` stehen. Deshalb den Container vorher stoppen und das ganze Volume sichern:
+
+```bash
+# Name des Volumes herausfinden – Compose und Portainer setzen den Projekt- bzw. Stack-Namen davor
+docker volume ls | grep vokabeltrainer-data
+VOL=vokabeltrainer_vokabeltrainer-data   # anpassen
+
+docker compose stop                      # bzw. in Portainer: Stack → Stop
+docker run --rm -v "$VOL":/data -v "$PWD":/backup alpine \
+  tar czf /backup/vokabeltrainer-$(date +%F).tgz -C /data .
+```
+
+**Update einspielen:**
+
+```bash
+docker compose pull && docker compose up -d   # bzw. in Portainer: Stack → „Pull and redeploy“
+docker compose logs --tail 20 vokabeltrainer  # sollte „Vokabeltrainer läuft auf Port 3000“ zeigen
+```
+
+Danach kurz anmelden und prüfen, ob Listen und Lernstände da sind.
+
+**Zurück zur vorherigen Version:** Container stoppen, Sicherung zurückspielen und die alte Version starten.
+Statt `latest` dazu in `docker-compose.yml` einen festen Tag eintragen, z. B. `sha-<commit>`
+(alle Tags unter *Packages* im GitHub-Repo).
+
+```bash
+docker compose stop
+docker run --rm -v "$VOL":/data -v "$PWD":/backup alpine \
+  sh -c 'rm -rf /data/* && tar xzf /backup/vokabeltrainer-<datum>.tgz -C /data'
+docker compose up -d
 ```
 
 ## Anbindung an IServ
@@ -166,7 +255,8 @@ npm test
 
 Aufbau:
 - `src/` – Express-Server: OIDC-Login (`auth.js`), REST-API (`api.js`), SQLite (`db.js`), Sessions (`session.js`)
-- `public/` – Oberfläche ohne Build-Schritt (Vanilla JS); `check.js` und `csv.js` werden auch in den Tests genutzt
+- `public/` – Oberfläche ohne Build-Schritt (Vanilla JS); `check.js`, `csv.js` und `exercises.js` (Übungsarten,
+  Lernleiter, Ablenker, Tipps, Lückentext) werden auch in den Tests genutzt, `speech.js` für die Aussprache
 - `test/` – Tests mit `node:test`
 
 ## Lizenz

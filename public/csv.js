@@ -1,4 +1,4 @@
-// CSV-Import/-Export für Wortlisten. Spalten: Wort A, Wort B, (optional) Notiz.
+// CSV-Import/-Export für Wortlisten. Spalten: Wort A, Wort B, (optional) Notiz, (optional) Beispielsatz.
 // Trennzeichen (Semikolon, Komma, Tab) wird automatisch erkannt – Excel speichert
 // in Deutschland meist mit Semikolon.
 
@@ -62,7 +62,7 @@ export function csvToWords(text) {
   if (rows.length && rows[0].slice(0, 2).every((f) => HEADER_WORDS.test(f))) header = rows.shift();
   const words = rows
     .filter((r) => r[0] || r[1])
-    .map((r) => ({ a: r[0] ?? '', b: r[1] ?? '', note: r.slice(2).filter(Boolean).join(' ') }));
+    .map((r) => ({ a: r[0] ?? '', b: r[1] ?? '', note: r[2] ?? '', example: r.slice(3).filter(Boolean).join(' ') }));
   return { words, header };
 }
 
@@ -78,7 +78,7 @@ export function rowsToCsv(rows) {
 export function wordsToCsv(words, header) {
   const lines = [];
   if (header) lines.push(header.map(quote).join(';'));
-  for (const w of words) lines.push([w.a, w.b, w.note ?? ''].map(quote).join(';'));
+  for (const w of words) lines.push([w.a, w.b, w.note ?? '', w.example ?? ''].map(quote).join(';'));
   // BOM, damit Excel Umlaute richtig anzeigt
   return '﻿' + lines.join('\r\n') + '\r\n';
 }

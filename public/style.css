@@ -146,7 +146,7 @@ input[type="checkbox"], input[type="radio"] { width: auto; accent-color: var(--p
 .search-row { display: flex; align-items: center; gap: 1rem; margin: 1rem 0; }
 .search-row input { max-width: 480px; }
 .suboptions { display: flex; flex-direction: column; gap: .35rem; margin: 0 0 1rem; padding-left: .25rem; }
-.suboptions[hidden] { display: none; }
+[hidden] { display: none !important; }
 .group-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: .35rem 1rem; margin-top: .6rem; max-height: 260px; overflow-y: auto; }
 
 .table-wrap { overflow-x: auto; }
@@ -216,6 +216,47 @@ tr.inactive td { color: var(--muted); }
 .type-form.is-wrong .answer { background: var(--wrong-bg); }
 .type-form.is-wrong strong { color: var(--wrong); }
 
+/* Lernleiter: Einführung, Auswählen, Tipps, Lückentext, Hören */
+.exercise {
+  display: flex; flex-direction: column; gap: .75rem;
+  background: var(--surface); border: 2px solid var(--border); border-radius: 16px; padding: 1.5rem; box-shadow: var(--shadow);
+}
+.exercise.is-right { border-color: var(--right); }
+.exercise.is-wrong { border-color: var(--wrong); }
+.exercise.is-right .feedback strong { color: var(--right); }
+.exercise.is-wrong .feedback strong { color: var(--wrong); }
+.exercise .prompt { display: flex; flex-direction: column; align-items: center; gap: .4rem; padding: .75rem 0; }
+.exercise.intro .prompt + .prompt { border-top: 1px solid var(--border); }
+.exercise .feedback { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; min-height: 1.5em; }
+.chip.new { align-self: center; background: var(--right-bg); color: var(--right); }
+.word-line { display: inline-flex; align-items: center; justify-content: center; gap: .35rem; flex-wrap: wrap; }
+.icon.speak { font-size: 1.15rem; padding: .15rem .35rem; }
+.icon.speak:hover { color: var(--primary); }
+.speak-row { min-height: 2rem; margin: -.5rem 0 0; }
+div.example, span.example { color: var(--muted); font-size: .95rem; font-style: italic; text-align: center; }
+.example b { font-style: normal; color: var(--text); }
+.feedback .note, .feedback .example { width: 100%; text-align: left; }
+.choices { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+.choice-btn {
+  display: flex; align-items: center; gap: .6rem; min-height: 56px; padding: .7rem 1rem; text-align: left;
+  font: inherit; font-size: 1.05rem; color: var(--text); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 10px; cursor: pointer; overflow-wrap: anywhere;
+}
+.choice-btn:hover:not(:disabled) { border-color: var(--primary); }
+.choice-btn:disabled { cursor: default; opacity: .65; }
+.choice-btn .key {
+  flex: none; display: inline-grid; place-items: center; width: 1.6rem; height: 1.6rem;
+  border-radius: 6px; background: var(--chip); color: var(--muted); font-size: .8rem;
+}
+.choice-btn.is-right { opacity: 1; border-color: var(--right); background: var(--right-bg); color: var(--right); font-weight: 600; }
+.choice-btn.is-wrong { opacity: 1; border-color: var(--wrong); background: var(--wrong-bg); color: var(--wrong); }
+.hint-row { grid-column: 1 / -1; display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; min-height: 2rem; }
+.hint-pattern { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 1.1rem; white-space: pre-wrap; }
+.sentence { margin: 0; font-size: clamp(1.15rem, 3.5vw, 1.5rem); text-align: center; overflow-wrap: anywhere; }
+.gap { display: inline-block; min-width: 4ch; border-bottom: 2px solid var(--primary); color: var(--primary); font-weight: 600; text-align: center; }
+.cue { color: var(--muted); }
+.btn.listen { font-size: 1.1rem; }
+
 .result { max-width: 640px; margin: 0 auto; text-align: center; }
 .result .actions { justify-content: center; margin-top: 1.5rem; }
 .score { font-size: 1.3rem; }
@@ -277,7 +318,9 @@ th[aria-sort="descending"] button.sort::after { content: " ▼"; font-size: .7em
   h1 { font-size: 1.35rem; }
   .flipcard { height: 230px; }
   .type-form { grid-template-columns: 1fr; }
-  table.words th:nth-child(3), table.words td:nth-child(3) { display: none; }
+  table.words th:nth-child(3), table.words td:nth-child(3),
+  table.words th:nth-child(4), table.words td:nth-child(4) { display: none; }
+  .choices { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,0 +1,216 @@
+// Übungsarten und ihre Bausteine. Wird im Browser und in den Tests verwendet.
+//
+// Lernleiter (Listenmodus „auto“): Die Aufgabe wird schwerer, je sicherer ein Wort sitzt.
+//  - neu:            Wort kennenlernen, dann aus vier Antworten auswählen (Wiedererkennen)
+//  - Stufe 1:        eintippen, Tipps auf Wunsch (erster Buchstabe, dann mehr)
+//  - ab Stufe 2:     eintippen, teils im Beispielsatz (Lückentext) oder nach Gehör
+// Leitidee: Aufgaben, die gerade noch lösbar sind, bringen am meisten (desirable difficulties,
+// Bjork 1994); Wiedererkennen vor Selbst-Hervorbringen (Webb 2009, Nakata 2011).
+
+import { normalize, variants } from './check.js';
+
+// Stufe, ab der Lückentexte und Hörübungen vorkommen (Stabilität ≥ 3 Tage, siehe scheduler.js)
+export const ADVANCED_LEVEL = 2;
+
+// Welche Übung kommt für diese Karte?
+//  mode:      Listenmodus (auto | flip | type | choice)
+//  level:     Stufe 0–5 in dieser Richtung, 0 = noch nie abgefragt
+//  knownOther: in der Gegenrichtung schon gelernt (dann ist die Einführung überflüssig)
+//  choiceOk / clozeOk / listenOk: ob die Übung für dieses Wort möglich ist
+export function pickExercise({ mode, level = 0, knownOther = false, choiceOk, clozeOk, listenOk, random = Math.random }) {
+  if (mode === 'flip') return 'flip';
+  if (mode === 'type') return 'type';
+  if (mode === 'choice') return choiceOk ? 'choice' : 'flip';
+  // Lernleiter
+  if (level === 0) {
+    if (knownOther) return choiceOk ? 'choice' : 'type';
+    return 'intro';
+  }
+  if (level >= ADVANCED_LEVEL) {
+    const r = random();
+    if (clozeOk && listenOk) return r < 0.4 ? 'cloze' : r < 0.7 ? 'listen' : 'type';
+    if (clozeOk) return r < 0.5 ? 'cloze' : 'type';
+    if (listenOk) return r < 0.35 ? 'listen' : 'type';
+  }
+  return 'type';
+}
+
+// Nach der Einführung eines neuen Worts folgt die erste Abfrage: Auswählen, wenn möglich.
+export function afterIntro(choiceOk) {
+  return choiceOk ? 'choice' : 'type';
+}
+
+// Bewertung für die Wiederholungsplanung.
+//  Auswählen ist nur Wiedererkennen: richtig zählt als „hard“, damit „sicher“ weiterhin bedeutet,
+//  dass das Wort selbst hervorgebracht werden kann.
+//  Eintippen mit Tipp zählt ebenfalls als „hard“ (gewusst, aber mit Hilfe).
+export function gradeFor(exercise, { correct, almost = false, hints = 0 }) {
+  if (exercise === 'choice') return correct ? 'hard' : 'again';
+  if (correct) return hints ? 'hard' : 'good';
+  return almost ? 'hard' : 'again';
+}
+
+// ---------- Auswählen (Multiple Choice) ----------
+
+const firstToken = (s) => s.trim().split(/\s+/)[0].toLowerCase();
+// Signalwörter, die eine Wortart verraten: to go, the dog, der Hund, le chien …
+const MARKERS = new Set(['to', 'the', 'a', 'an', 'der', 'die', 'das', 'ein', 'eine', 'le', 'la', 'les', "l'", 'un', 'une', 'el', 'los', 'las', 'il', 'lo', 'gli', 'uno', 'una', 'sich']);
+
+function shape(s) {
+  const t = s.trim();
+  const tok = firstToken(t);
+  return {
+    len: t.length,
+    words: t.split(/\s+/).length,
+    marker: MARKERS.has(tok) ? tok : '',
+    upper: /^\p{Lu}/u.test(t),
+  };
+}
+
+// Ähnlichkeit zweier Antworten im Aussehen – je kleiner, desto verwechselbarer.
+// Plausible Ablenker machen Auswählen zu echtem Abrufen (Little et al. 2012).
+function distance(x, y) {
+  const a = shape(x), b = shape(y);
+  return Math.abs(a.len - b.len) / Math.max(a.len, b.len, 1) * 3
+    + Math.abs(a.words - b.words)
+    + (a.marker === b.marker ? 0 : 2)
+    + (a.upper === b.upper ? 0 : 1);
+}
+
+// Antwortmöglichkeiten: die richtige und bis zu count-1 Ablenker aus derselben Liste.
+// words: alle Wörter der Liste, word: das abgefragte, side: 'a' | 'b' (Antwortseite)
+// Ergebnis: { options: string[], correct: number } oder null, wenn es zu wenige Ablenker gibt.
+export function choiceOptions(words, word, side, { count = 4, random = Math.random } = {}) {
+  const answer = word[side];
+  const key = (s) => normalize(s, { caseSensitive: false, accentSensitive: false });
+  const taken = new Set([key(answer), ...variants(answer).map(key)]);
+  const pool = [];
+  for (const w of words) {
+    if (w.id === word.id) continue;
+    const text = w[side];
+    const k = key(text);
+    if (!k || taken.has(k) || variants(text).some((v) => taken.has(key(v)))) continue;
+    taken.add(k);
+    pool.push({ text, score: distance(answer, text) + random() * 1.5 });
+  }
+  if (pool.length < 1) return null;
+  pool.sort((x, y) => x.score - y.score);
+  const options = [answer, ...pool.slice(0, count - 1).map((p) => p.text)];
+  for (let i = options.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [options[i], options[j]] = [options[j], options[i]];
+  }
+  return { options, correct: options.indexOf(answer) };
+}
+
+// ---------- Tipps beim Eintippen ----------
+
+const LETTER = /[\p{L}\p{N}]/u;
+
+// Die Lösung, an der sich die Tipps orientieren: die erste Variante („big; large“ → „big“).
+export function hintTarget(solution) {
+  return variants(solution)[0] ?? solution.trim();
+}
+
+// Lösungsmuster mit den ersten n Buchstaben jedes Worts: hintPattern('to go', 1) → 't _   g _'
+export function hintPattern(text, revealed) {
+  return text.trim().split(/\s+/).map((word) => {
+    let i = 0;
+    return [...word].map((ch) => (LETTER.test(ch) ? (i++ < revealed ? ch : '_') : ch)).join(' ');
+  }).join('   ');
+}
+
+// Wie viele Tipps es gibt: bis auf den letzten Buchstaben des längsten Worts.
+export function maxHints(text) {
+  const longest = Math.max(0, ...text.trim().split(/\s+/).map((w) => [...w].filter((c) => LETTER.test(c)).length));
+  return Math.max(1, longest - 1);
+}
+
+// ---------- Lückentext ----------
+
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// Lücke, die die Lehrkraft mit *Sternchen* markiert hat – etwa für gebeugte Formen:
+// „Yesterday I *went* home.“
+function markedGap(example) {
+  const m = example.match(/^(.*?)\*([^*]+)\*(.*)$/s);
+  return m ? { before: plainExample(m[1]), gap: m[2].trim(), after: plainExample(m[3]) } : null;
+}
+
+// Sonst wird die Lösung (eine ihrer Varianten, die längste zuerst) als ganzes Wort im Satz gesucht.
+function foundGap(example, solution) {
+  for (const c of variants(solution).sort((x, y) => y.length - x.length)) {
+    const m = example.match(new RegExp(`(?<![\\p{L}\\p{N}])${escapeRe(c)}(?![\\p{L}\\p{N}])`, 'iu'));
+    if (m) return { before: example.slice(0, m.index), gap: m[0], after: example.slice(m.index + m[0].length) };
+  }
+  return null;
+}
+
+const loose = (s) => normalize(s, { caseSensitive: false, accentSensitive: false });
+
+// Zu welcher Seite ('a' | 'b') gehört der Beispielsatz? Enthält er das Wort einer Seite, ist es diese.
+// Bei einer markierten Lücke, die keiner Seite wörtlich entspricht (went ↔ (to) go), ist es die
+// Fremdsprache – also nicht die deutsche Seite, im Zweifel Seite A.
+export function exampleSide(word, { langA, langB } = {}) {
+  const example = word.example?.trim();
+  if (!example) return null;
+  const marked = markedGap(example);
+  if (!marked) return foundGap(example, word.a) ? 'a' : foundGap(example, word.b) ? 'b' : null;
+  for (const side of ['a', 'b']) {
+    if (variants(word[side]).some((v) => loose(v) === loose(marked.gap))) return side;
+  }
+  const german = (label) => speechLang(label)?.startsWith('de') ?? false;
+  return german(langA) && !german(langB) ? 'b' : 'a';
+}
+
+// Lückentext für die Antwortseite side: { before, gap, after } oder null.
+// Die Lösung ist dann die Lücke (bei markierten Lücken ggf. eine gebeugte Form).
+export function clozeFor(word, side, langs) {
+  if (exampleSide(word, langs) !== side) return null;
+  const example = word.example.trim();
+  return markedGap(example) ?? foundGap(example, word[side]);
+}
+
+// Beispielsatz ohne Markierungen
+export function plainExample(example) {
+  return (example ?? '').replace(/\*/g, '');
+}
+
+// ---------- Aussprache ----------
+
+// Text zum Vorlesen: Varianten nacheinander, Klammern weg („(to) go; walk“ → „to go, walk“)
+export function speechText(solution) {
+  return solution.split(/[;|]/).map((s) => s.replace(/[()*]/g, '').replace(/\s+/g, ' ').trim()).filter(Boolean).join(', ');
+}
+
+const LANG_CODES = [
+  [/^(englisch|english|en)\b.*\b(usa?|amerik|american)/, 'en-US'],
+  [/^(englisch|english)/, 'en-GB'],
+  [/^(deutsch|german)/, 'de-DE'],
+  [/^(französisch|franzoesisch|french|français)/, 'fr-FR'],
+  [/^(spanisch|spanish|español)/, 'es-ES'],
+  [/^(italienisch|italian)/, 'it-IT'],
+  [/^(portugiesisch|portuguese)/, 'pt-PT'],
+  [/^(niederländisch|niederlaendisch|holländisch|dutch)/, 'nl-NL'],
+  [/^(russisch|russian)/, 'ru-RU'],
+  [/^(polnisch|polish)/, 'pl-PL'],
+  [/^(türkisch|tuerkisch|turkish)/, 'tr-TR'],
+  [/^(chinesisch|chinese)/, 'zh-CN'],
+  [/^(japanisch|japanese)/, 'ja-JP'],
+  [/^(schwedisch|swedish)/, 'sv-SE'],
+  [/^(dänisch|daenisch|danish)/, 'da-DK'],
+  [/^(norwegisch|norwegian)/, 'nb-NO'],
+  [/^(ukrainisch|ukrainian)/, 'uk-UA'],
+  [/^(arabisch|arabic)/, 'ar'],
+  [/^(neugriechisch|griechisch|greek)/, 'el-GR'],
+];
+
+// Sprachcode für die Sprachausgabe aus der Sprachbezeichnung der Liste. Latein und Altgriechisch
+// haben keine Stimme und bekommen null. Ein Code wie „en-US“ wird direkt übernommen.
+export function speechLang(label) {
+  const t = (label ?? '').trim();
+  if (/^[a-z]{2,3}(-[A-Za-z]{2,4})?$/.test(t)) return t;
+  const lower = t.toLowerCase();
+  if (/^(latein|latin|altgriechisch)/.test(lower)) return null;
+  return LANG_CODES.find(([re]) => re.test(lower))?.[1] ?? null;
+}

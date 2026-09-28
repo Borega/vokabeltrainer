@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS user_groups (
 );
 CREATE INDEX IF NOT EXISTS user_groups_group ON user_groups(group_id);
 
+-- Ursprüngliches Schema (Version 0); spätere Änderungen stehen in MIGRATIONS.
+-- Die erlaubten Werte für mode erweitert Migration 4.
 CREATE TABLE IF NOT EXISTS lists (
   id                INTEGER PRIMARY KEY,
   owner_id          INTEGER REFERENCES users(id) ON DELETE SET NULL,
@@ -79,9 +81,12 @@ export function openDb(dataDir) {
     file = join(dataDir, 'vokabeltrainer.sqlite');
   }
   const db = new DatabaseSync(file);
-  db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
+  // Fremdschlüssel erst nach den Migrationen einschalten (node:sqlite schaltet sie standardmäßig ein):
+  // Beim Neuaufbau einer Tabelle würde DROP TABLE sonst abhängige Zeilen (z. B. alle Wörter einer Liste) mitlöschen.
+  db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = OFF; PRAGMA busy_timeout = 5000;');
   db.exec(SCHEMA);
   migrate(db);
+  db.exec('PRAGMA foreign_keys = ON;');
   return db;
 }
 
@@ -125,6 +130,34 @@ export const MIGRATIONS = [
    INSERT INTO review_log (user_id, word_id, direction, grade, stability, at)
      SELECT user_id, word_id, direction, 'import', stability, COALESCE(last_review, last_seen)
      FROM progress WHERE stability IS NOT NULL;`,
+  // 4: Neue Abfragearten „auto“ (Lernleiter) und „choice“ (Auswählen). Die CHECK-Bedingung für mode
+  //    lässt sich in SQLite nur durch Neuaufbau der Tabelle ändern. Dazu Beispielsätze für Lückentexte
+  //    und die Übungsart im Verlauf.
+  `CREATE TABLE lists_new (
+     id                INTEGER PRIMARY KEY,
+     owner_id          INTEGER REFERENCES users(id) ON DELETE SET NULL,
+     title             TEXT NOT NULL,
+     lang_a            TEXT NOT NULL DEFAULT '',
+     lang_b            TEXT NOT NULL DEFAULT '',
+     mode              TEXT NOT NULL DEFAULT 'auto' CHECK (mode IN ('auto', 'flip', 'type', 'choice')),
+     case_sensitive    INTEGER NOT NULL DEFAULT 0,
+     accent_sensitive  INTEGER NOT NULL DEFAULT 1,
+     direction         TEXT NOT NULL DEFAULT 'ab' CHECK (direction IN ('ab', 'ba', 'mixed')),
+     allow_switch      INTEGER NOT NULL DEFAULT 1,
+     created_at        TEXT NOT NULL,
+     updated_at        TEXT NOT NULL,
+     shared            INTEGER NOT NULL DEFAULT 0,
+     copied_from       TEXT NOT NULL DEFAULT ''
+   );
+   INSERT INTO lists_new (id, owner_id, title, lang_a, lang_b, mode, case_sensitive, accent_sensitive,
+       direction, allow_switch, created_at, updated_at, shared, copied_from)
+     SELECT id, owner_id, title, lang_a, lang_b, mode, case_sensitive, accent_sensitive,
+       direction, allow_switch, created_at, updated_at, shared, copied_from FROM lists;
+   DROP TABLE lists;
+   ALTER TABLE lists_new RENAME TO lists;
+   CREATE INDEX lists_shared ON lists(shared);
+   ALTER TABLE words ADD COLUMN example TEXT NOT NULL DEFAULT '';
+   ALTER TABLE review_log ADD COLUMN exercise TEXT NOT NULL DEFAULT '';`,
 ];
 
 function migrate(db) {
