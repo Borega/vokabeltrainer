@@ -341,6 +341,7 @@ test('Offline: alle zugewiesenen Listen auf einmal, Antworten später mit Zeitpu
 test('Angemeldet bleiben: Geräteschlüssel startet neue Sitzung, Abmelden löscht ihn', async () => {
   const student = await login('Schülerin Bleibt', { groups: 'Klasse 6a' });
   assert.equal((await fetch(`${base}/api/device-token`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })).status, 401);
+  assert.equal((await fetch(`${base}/config.json`).then((r) => r.json())).remember, true, 'Anmeldeseite bietet es an');
   const { body: { token, days } } = await student('POST', '/device-token', {});
   assert.equal(days, 30);
   assert.ok(token.length >= 40);
