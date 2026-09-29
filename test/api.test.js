@@ -400,6 +400,20 @@ test('Angemeldet bleiben ausgeschaltet (REMEMBER_DAYS=0): nicht angeboten, keine
   }
 });
 
+test('Abfrageart wechseln: standardmäßig erlaubt, pro Liste abschaltbar, beim Kopieren übernommen', async () => {
+  const teacher = await login('Frau Wechsel', { teacher: true, groups: 'Klasse 9c' });
+  const body = { ...listBody, groups: [{ id: 'klasse.9c', name: 'Klasse 9c' }] };
+  const { body: { id } } = await teacher('POST', '/lists', body);
+  assert.equal((await teacher('GET', `/lists/${id}`)).body.allow_mode_switch, true);
+  await teacher('PUT', `/lists/${id}`, { ...body, allow_mode_switch: false });
+  const list = (await teacher('GET', `/lists/${id}`)).body;
+  assert.equal(list.allow_mode_switch, false);
+  const copy = await teacher('POST', `/lists/${id}/copy`, {});
+  assert.equal((await teacher('GET', `/lists/${copy.body.id}`)).body.allow_mode_switch, false);
+  const offline = (await (await login('Schüler Wechsel', { groups: 'Klasse 9c' }))('GET', '/offline')).body;
+  assert.equal(offline.lists.find((l) => l.id === id).allow_mode_switch, false, 'auch offline bekannt');
+});
+
 test('Noten: grade hat Vorrang, "fast" (hard) zählt als falsch, aber als erinnert', async () => {
   const teacher = await login('Frau Noten', { teacher: true, groups: 'Klasse 8b' });
   const student = await login('Schüler N', { groups: 'Klasse 8b' });
