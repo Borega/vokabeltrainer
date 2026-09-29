@@ -41,6 +41,10 @@ export function createApp(db, cfg = config) {
   app.use('/auth', authRouter(db, cfg));
   app.use('/api', apiRouter(db, cfg));
 
+  // Die Planungs-Bibliothek läuft auch im Browser (Lernen ohne Internet), ohne Build-Schritt
+  const fsrsModule = fileURLToPath(import.meta.resolve('ts-fsrs'));
+  app.get('/vendor/ts-fsrs.js', (req, res) => res.sendFile(fsrsModule, { maxAge: cfg.production ? '1h' : 0 }));
+
   const publicDir = fileURLToPath(new URL('../public', import.meta.url));
   app.use(express.static(publicDir, { index: 'index.html', maxAge: cfg.production ? '1h' : 0 }));
 
