@@ -147,6 +147,12 @@ function langLabel(list, side) {
 
 const MODE_LABELS = { auto: 'Lernleiter', flip: 'Karteikarten', type: 'Eintippen', choice: 'Auswählen' };
 const modeLabel = (mode) => MODE_LABELS[mode] ?? MODE_LABELS.flip;
+const MODE_HINTS = {
+  auto: 'Neue Wörter lernst du erst kennen und wählst sie aus, danach tippst du sie ein – mit Tipps auf Wunsch, später auch im Satz oder nach Gehör. Je sicherer ein Wort sitzt, desto schwerer die Aufgabe.',
+  flip: 'Karte umdrehen und selbst einschätzen: gewusst oder nicht. Schnell – gut zum Wiederholen vor einem Test.',
+  type: 'Die Übersetzung eintippen, sie wird automatisch geprüft. Tipps gibt es auf Wunsch.',
+  choice: 'Aus vier Antworten die richtige wählen. Leichter – zählt für die Planung aber nur als „mit Mühe gewusst“.',
+};
 
 // Einstellungen, die nur im Browser gemerkt werden (z. B. Ton an/aus)
 function pref(name, value) {
@@ -514,7 +520,7 @@ const LANGUAGES = ['Deutsch', 'Englisch', 'Französisch', 'Spanisch', 'Latein', 
 async function renderEditor(id) {
   const isNew = id === 'new';
   const list = isNew
-    ? { title: '', lang_a: 'Englisch', lang_b: 'Deutsch', mode: 'auto', case_sensitive: false, accent_sensitive: true, direction: 'ab', allow_switch: true, shared: false, groups: [], words: [] }
+    ? { title: '', lang_a: 'Englisch', lang_b: 'Deutsch', mode: 'auto', case_sensitive: false, accent_sensitive: true, direction: 'ab', allow_switch: true, allow_mode_switch: true, shared: false, groups: [], words: [] }
     : await api('GET', `/lists/${id}`);
   if (!isNew && !list.is_owner) throw new Error('Nur die Ersteller:in darf diese Liste bearbeiten.');
 
@@ -539,8 +545,10 @@ async function renderEditor(id) {
     h('label', { class: 'check' }, accentSens, 'Akzente und Umlaute beachten', h('small', { class: 'muted' }, ' (é ≠ e, ü ≠ u)')),
     h('p', { class: 'small muted' }, 'Mehrere richtige Lösungen mit „;“ trennen (big; large). Teile in Klammern sind optional: „(to) go“.'),
   );
-  const syncMode = () => { typeOptions.hidden = !['auto', 'type'].includes(selectedMode()); };
-  for (const input of Object.values(modeInputs)) input.onchange = () => { syncMode(); markDirty(); };
+  const allowModeSwitch = h('input', { type: 'checkbox', checked: list.allow_mode_switch });
+  // Regeln fürs Eintippen zeigen, wenn eingetippt werden kann – auch weil Schüler:innen dorthin wechseln dürfen
+  const syncMode = () => { typeOptions.hidden = !['auto', 'type'].includes(selectedMode()) && !allowModeSwitch.checked; };
+  for (const input of [...Object.values(modeInputs), allowModeSwitch]) input.onchange = () => { syncMode(); markDirty(); };
   syncMode();
 
   const direction = h('select', {},
@@ -666,6 +674,7 @@ async function renderEditor(id) {
       accent_sensitive: accentSens.checked,
       direction: direction.value,
       allow_switch: allowSwitch.checked,
+      allow_mode_switch: allowModeSwitch.checked,
       shared: shared.checked,
       groups: [...selected].map((gid) => groupMap.get(gid)).filter(Boolean),
       words: readWords(),
@@ -708,6 +717,8 @@ async function renderEditor(id) {
         h('label', { class: 'option' }, modeInputs.type, h('strong', {}, 'Eintippen'), h('small', {}, 'Die Übersetzung muss eingetippt werden und wird automatisch geprüft. Tipps auf Wunsch.')),
         h('label', { class: 'option' }, modeInputs.choice, h('strong', {}, 'Auswählen'), h('small', {}, 'Aus vier Antworten die richtige wählen. Leichter; ein Wort gilt so aber erst spät als „sicher“.')),
       ),
+      h('label', { class: 'check' }, allowModeSwitch, 'Schüler:innen dürfen die Abfrageart wechseln',
+        h('small', { class: 'muted' }, ' (z. B. Karteikarten vor einem Test) – die Auswahl oben ist voreingestellt')),
       typeOptions,
       h('div', { class: 'row2' },
         field('Abfragerichtung', direction),
@@ -788,6 +799,11 @@ async function renderLearn(id) {
   const key = (wordId, dir) => `${wordId}:${dir}`;
 
   let direction = list.direction;
+  // Abfrageart: von der Lehrkraft vorgegeben; wenn erlaubt, wählen Schüler:innen selbst
+  // (pro Person und Liste gemerkt – auf geteilten Geräten übernimmt niemand die Wahl eines anderen)
+  const modeKey = `mode.${me.id}.${list.id}`;
+  const chosenMode = pref(modeKey);
+  let askMode = list.allow_mode_switch && MODE_LABELS[chosenMode] ? chosenMode : list.mode;
   let size = '20';
   let mode = null; // 'due' (Heute fällig) oder 'free' (Frei üben)
 
@@ -879,14 +895,16 @@ async function renderLearn(id) {
 
     view(h('section', { class: 'panel learn-setup' },
       h('div', { class: 'section-head' }, h('h1', {}, list.title), h('a', { class: 'btn ghost', href: '#/' }, 'Zurück')),
-      h('p', { class: 'muted' }, [`${list.words.length} Wörter`, modeLabel(list.mode), list.is_owner ? null : list.owner_name && `von ${list.owner_name}`].filter(Boolean).join(' · ')),
-      list.mode === 'auto'
-        ? h('p', { class: 'small muted' }, 'Neue Wörter lernst du erst kennen und wählst sie aus, danach tippst du sie ein – mit Tipps auf Wunsch, später auch im Satz oder nach Gehör. Je sicherer ein Wort sitzt, desto schwerer die Aufgabe.')
-        : null,
+      h('p', { class: 'muted' }, [`${list.words.length} Wörter`, list.is_owner ? null : list.owner_name && `von ${list.owner_name}`].filter(Boolean).join(' · ')),
       h('div', { class: 'progress' }, progressBar(safe, list.words.length, 'Sicher gelernt'), h('span', { class: 'small muted' }, `${safe} von ${list.words.length} sicher gelernt`)),
       h('h2', {}, 'Modus'),
       segmented('Modus', [['due', `Heute fällig${due ? ` (${due})` : ''}`], ['free', 'Frei üben']], mode, (m) => { mode = m; setupView(); }),
       modeInfo,
+      h('h2', {}, 'Abfrage'),
+      list.allow_mode_switch
+        ? segmented('Abfrage', Object.entries(MODE_LABELS), askMode, (m) => { askMode = m; pref(modeKey, m); setupView(); })
+        : h('p', {}, modeLabel(askMode)),
+      h('p', { class: 'small muted' }, MODE_HINTS[askMode]),
       h('h2', {}, 'Richtung'),
       list.allow_switch
         ? segmented('Richtung', ['ab', 'ba', 'mixed'].map((d) => [d, directionLabel(list, d)]), direction, (d) => { direction = d; setupView(); })
@@ -997,7 +1015,7 @@ async function renderLearn(id) {
     const [from, to] = sides(card.dir);
     const other = card.dir === 'ab' ? 'ba' : 'ab';
     return pickExercise({
-      mode: list.mode,
+      mode: askMode,
       level: progress.get(key(card.word.id, card.dir))?.box ?? 0,
       knownOther: (progress.get(key(card.word.id, other))?.box ?? 0) > 0,
       choiceOk: !!choiceOptions(list.words, card.word, to),

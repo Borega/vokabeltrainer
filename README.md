@@ -18,6 +18,7 @@ Gruppen (Klassen/Kurse) und die Rolle „Lehrkraft“ werden direkt aus IServ ü
   Gebeugte Formen mit Sternchen markieren: `Yesterday I *went* home.`
 - Pro Liste festlegen:
   - Abfrage als **Lernleiter** (empfohlen, Standard für neue Listen), **Karteikarten**, **Eintippen** oder **Auswählen**
+    – und ob Schüler:innen die Abfrageart selbst wechseln dürfen (Standard: ja)
   - beim Eintippen: Groß-/Kleinschreibung und Akzente/Umlaute beachten – ja/nein
   - Standard-Richtung (A → B, B → A, gemischt) und ob Schüler:innen sie wechseln dürfen
 - Liste einer oder mehreren IServ-Gruppen zuweisen
@@ -40,6 +41,8 @@ Gruppen (Klassen/Kurse) und die Rolle „Lehrkraft“ werden direkt aus IServ ü
   - **Heute fällig** – verteiltes Wiederholen: Das Programm plant für jedes Wort, wann es wiederkommt
     (siehe unten). Die Startseite zeigt, wie viele Wörter heute fällig sind.
   - **Frei üben** – beliebige Wörter, unsichere zuerst (z. B. vor einem Test); zählt trotzdem für die Planung
+- Abfrageart wählen, sofern erlaubt – z. B. sonst mit der Lernleiter, vor einem Test schnell mit Karteikarten
+  (wird pro Liste gemerkt; für die Planung zählt jede Art wie oben beschrieben, Auswählen also nur als „mit Mühe“)
 - Richtung wählen (sofern erlaubt), Rundengröße 10 / 20 / alle
 - **Ton an/aus** (wird im Browser gemerkt): Wörter werden vorgelesen, dazu kommen Hörübungen.
   Über 🔊 lässt sich jedes Wort jederzeit anhören.

@@ -67,6 +67,7 @@ function parseListBody(body) {
     accent_sensitive: body.accent_sensitive ? 1 : 0,
     direction,
     allow_switch: body.allow_switch === false ? 0 : 1,
+    allow_mode_switch: body.allow_mode_switch === false ? 0 : 1,
     shared: body.shared ? 1 : 0,
     words,
     groups,
@@ -84,6 +85,7 @@ function listJson(row) {
     accent_sensitive: !!row.accent_sensitive,
     direction: row.direction,
     allow_switch: !!row.allow_switch,
+    allow_mode_switch: !!row.allow_mode_switch,
     shared: !!row.shared,
     copied_from: row.copied_from || '',
     updated_at: row.updated_at,
@@ -273,9 +275,9 @@ export function apiRouter(db, config) {
     const ts = now();
     db.prepare(
       `UPDATE lists SET title = ?, lang_a = ?, lang_b = ?, mode = ?, case_sensitive = ?, accent_sensitive = ?,
-         direction = ?, allow_switch = ?, shared = ?, updated_at = ? WHERE id = ?`,
+         direction = ?, allow_switch = ?, allow_mode_switch = ?, shared = ?, updated_at = ? WHERE id = ?`,
     ).run(data.title, data.lang_a, data.lang_b, data.mode, data.case_sensitive, data.accent_sensitive,
-      data.direction, data.allow_switch, data.shared, ts, listId);
+      data.direction, data.allow_switch, data.allow_mode_switch, data.shared, ts, listId);
 
     // Bestehende Wörter behalten ihre ID, damit der Lernstand erhalten bleibt.
     const existing = new Set(db.prepare('SELECT id FROM words WHERE list_id = ?').all(listId).map((r) => r.id));
@@ -351,11 +353,11 @@ export function apiRouter(db, config) {
       const { id } = db
         .prepare(
           `INSERT INTO lists (owner_id, title, lang_a, lang_b, mode, case_sensitive, accent_sensitive,
-             direction, allow_switch, shared, copied_from, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?) RETURNING id`,
+             direction, allow_switch, allow_mode_switch, shared, copied_from, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?) RETURNING id`,
         )
         .get(req.user.id, isOwner ? `${list.title} (Kopie)` : list.title, list.lang_a, list.lang_b, list.mode,
-          list.case_sensitive, list.accent_sensitive, list.direction, list.allow_switch,
+          list.case_sensitive, list.accent_sensitive, list.direction, list.allow_switch, list.allow_mode_switch,
           ownerName ? `${list.title} – ${ownerName}` : list.copied_from, ts, ts);
       db.prepare(
         `INSERT INTO words (list_id, pos, a, b, note, example)
