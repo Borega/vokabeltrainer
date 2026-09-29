@@ -371,6 +371,25 @@ test('Angemeldet bleiben: Geräteschlüssel startet neue Sitzung, Abmelden lösc
   assert.equal((await resume(fresh)).status, 401);
 });
 
+test('Angemeldet bleiben ausgeschaltet (REMEMBER_DAYS=0): nicht angeboten, keine Schlüssel', async () => {
+  const off = createApp(openDb(':memory:'), { ...config, rememberDays: 0 });
+  const srv = await new Promise((resolve) => { const s = off.listen(0, () => resolve(s)); });
+  const url = `http://localhost:${srv.address().port}`;
+  try {
+    assert.equal((await fetch(`${url}/config.json`).then((r) => r.json())).remember, false);
+    const res = await fetch(`${url}/auth/dev-login`, { method: 'POST', body: new URLSearchParams({ name: 'Ohne', groups: '' }), redirect: 'manual' });
+    const cookie = res.headers.get('set-cookie').split(';')[0];
+    const me = await fetch(`${url}/api/me`, { headers: { cookie } }).then((r) => r.json());
+    assert.equal(me.remember, false);
+    const token = await fetch(`${url}/api/device-token`, { method: 'POST', headers: { cookie, 'content-type': 'application/json' }, body: '{}' });
+    assert.equal(token.status, 404);
+    const resume = await fetch(`${url}/auth/resume`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: 'x' }) });
+    assert.equal(resume.status, 401);
+  } finally {
+    srv.close();
+  }
+});
+
 test('Noten: grade hat Vorrang, "fast" (hard) zählt als falsch, aber als erinnert', async () => {
   const teacher = await login('Frau Noten', { teacher: true, groups: 'Klasse 8b' });
   const student = await login('Schüler N', { groups: 'Klasse 8b' });
