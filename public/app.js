@@ -233,16 +233,33 @@ function setOnline(value) {
 
 // ---------- Lernen ohne Internet: Abgleich ----------
 
+// Antworten, die gerade erst in den Gerätespeicher geschrieben werden (record → store.queue)
+const unqueued = new Map();
+
+// Welche Wörter haben noch Antworten, die nicht beim Server sind? → pendingFor(listId) = Set "<word_id>:<direction>"
+async function pendingKeys() {
+  const entries = [...(me ? await store.pending(me.id).catch(() => []) : []), ...unqueued.values()];
+  const byList = new Map();
+  for (const e of entries) {
+    if (!byList.has(e.list_id)) byList.set(e.list_id, new Set());
+    byList.get(e.list_id).add(`${e.word_id}:${e.direction}`);
+  }
+  return (listId) => byList.get(listId) ?? new Set();
+}
+
+const wordIdsOf = (list) => new Set(list.words.map((w) => w.id));
+
 // Listen und eigenen Lernstand auf das Gerät laden (bei jeder Verbindung, z. B. im Schul-WLAN).
 // Antworten, die das Gerät hat und der Server noch nicht, bleiben erhalten.
 async function download() {
   const data = await request('GET', '/offline');
+  const pendingFor = await pendingKeys();
   // Vorhandene Listen in place aktualisieren: Eine offene Lernrunde arbeitet mit genau diesen Objekten
   const before = new Map((offlineData?.lists ?? []).map((l) => [l.id, l]));
   data.lists = data.lists.map((fresh) => {
     const old = before.get(fresh.id);
     if (!old) return fresh;
-    return Object.assign(old, fresh, { progress: mergeProgress(old.progress, fresh.progress) });
+    return Object.assign(old, fresh, { progress: mergeProgress(old.progress, fresh.progress, pendingFor(fresh.id), wordIdsOf(fresh)) });
   });
   offlineData = data;
   await store.save(`offline:${me.id}`, data);
@@ -286,13 +303,14 @@ async function pushAnswers() {
     renderNet();
     const res = await request('POST', '/results', { results: batch });
     await store.done(batch.map((e) => e.id));
+    const pendingFor = await pendingKeys(); // was inzwischen neu beantwortet wurde
     if (offlineData) {
       for (const list of offlineData.lists) {
-        if (res.progress[list.id]) list.progress = mergeProgress(list.progress, res.progress[list.id]);
+        if (res.progress[list.id]) list.progress = mergeProgress(list.progress, res.progress[list.id], pendingFor(list.id));
       }
       await store.save(`offline:${me.id}`, offlineData);
     }
-    for (const fn of progressListeners) fn(res.progress);
+    for (const fn of progressListeners) fn(res.progress, pendingFor);
   }
 }
 
@@ -703,7 +721,8 @@ async function learnableList(id) {
     try {
       const list = await api('GET', `/lists/${id}`);
       if (!cached) return list;
-      Object.assign(cached, list, { progress: mergeProgress(cached.progress, list.progress) });
+      const pendingFor = await pendingKeys();
+      Object.assign(cached, list, { progress: mergeProgress(cached.progress, list.progress, pendingFor(cached.id), wordIdsOf(list)) });
       store.save(`offline:${me.id}`, offlineData).catch(() => {});
       return cached;
     } catch (err) {
@@ -852,11 +871,18 @@ async function renderLearn(id) {
   async function resetProgress() {
     if (!online) return toast('Zurücksetzen geht nur mit Internet.', 'warn');
     if (!confirm('Deinen Lernstand für diese Liste wirklich zurücksetzen?')) return;
-    // Noch nicht übertragene Antworten dieser Liste verwerfen, sonst kämen sie danach wieder an
+    // Erst alles übertragen und laufende Übertragungen abwarten – sonst könnte eine späte Antwort vom
+    // Server den alten Stand nach dem Zurücksetzen wiederherstellen.
     await writes;
+    await syncNow();
+    try {
+      await api('DELETE', `/lists/${id}/progress`);
+    } catch (err) {
+      return toast(err.message, 'error');
+    }
+    // Was trotzdem noch wartet (Übertragung fehlgeschlagen), gehört zum alten Stand
     const stale = (await store.pending(me.id)).filter((e) => e.list_id === list.id);
     await store.done(stale.map((e) => e.id));
-    await api('DELETE', `/lists/${id}/progress`);
     progress.clear();
     list.progress = [];
     if (offlineData) store.save(`offline:${me.id}`, offlineData).catch(() => {});
@@ -876,16 +902,19 @@ async function renderLearn(id) {
     const k = key(card.word.id, card.dir);
     progress.set(k, answer(progress.get(k), entry, review));
     list.progress = [...progress.values()];
+    unqueued.set(entry.id, entry);
     writes = writes
       .then(() => store.queue(entry))
+      .finally(() => unqueued.delete(entry.id))
       .then(() => offlineData && store.save(`offline:${me.id}`, offlineData))
       .catch(() => toast('Antwort konnte auf dem Gerät nicht gespeichert werden.', 'error'));
     writes.then(() => syncNow()).catch(() => {});
   }
-  // Stand vom Server übernehmen, sobald Antworten übertragen sind (neuere Antworten auf dem Gerät bleiben)
-  const onProgress = (byList) => {
+  // Stand vom Server übernehmen, sobald Antworten übertragen sind (wartende Antworten auf dem Gerät bleiben)
+  const onProgress = (byList, pendingFor) => {
     if (!byList[list.id]) return;
-    list.progress = mergeProgress(list.progress, byList[list.id]);
+    list.progress = mergeProgress(list.progress, byList[list.id], pendingFor(list.id));
+    progress.clear();
     for (const p of list.progress) progress.set(key(p.word_id, p.direction), p);
   };
   progressListeners.add(onProgress);

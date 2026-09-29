@@ -20,19 +20,25 @@ test('Antwort auf dem Gerät ergibt denselben Stand wie auf dem Server', () => {
   assert.equal(second.due, day(4), 'nicht gewusst: morgen wieder');
 });
 
-test('Abgleich: Server gewinnt, außer das Gerät hat eine neuere Antwort', () => {
+test('Abgleich: Server gewinnt, außer zum Wort wartet noch eine Antwort auf dem Gerät', () => {
   const local = [
-    { word_id: 1, direction: 'ab', last_review: day(2), box: 2 }, // neuer als der Server
-    { word_id: 2, direction: 'ab', last_review: day(1), box: 1 },
-    { word_id: 3, direction: 'ba', last_review: day(1), box: 1 }, // nur auf dem Gerät
+    { word_id: 1, direction: 'ab', last_review: day(2), box: 2 }, // Antwort wartet noch
+    { word_id: 2, direction: 'ab', last_review: day(3), box: 1 }, // neuer, aber schon übertragen (Uhr vorgestellt)
+    { word_id: 3, direction: 'ba', last_review: day(1), box: 1 }, // wartet, Server kennt das Wort noch nicht
+    { word_id: 5, direction: 'ab', last_review: day(1), box: 4 }, // auf anderem Gerät zurückgesetzt
   ];
   const server = [
     { word_id: 1, direction: 'ab', last_review: day(1), box: 1 },
-    { word_id: 2, direction: 'ab', last_review: day(1), box: 3 }, // gleich alt: Server
+    { word_id: 2, direction: 'ab', last_review: day(1), box: 3 },
     { word_id: 4, direction: 'ab', last_review: day(0), box: 1 }, // von einem anderen Gerät
   ];
-  const merged = new Map(mergeProgress(local, server).map((p) => [`${p.word_id}:${p.direction}`, p.box]));
-  assert.deepEqual(Object.fromEntries(merged), { '1:ab': 2, '2:ab': 3, '3:ba': 1, '4:ab': 1 });
+  const pending = new Set(['1:ab', '3:ba']);
+  const boxes = (rows) => Object.fromEntries(rows.map((p) => [`${p.word_id}:${p.direction}`, p.box]));
+  assert.deepEqual(boxes(mergeProgress(local, server, pending)), { '1:ab': 2, '2:ab': 3, '3:ba': 1, '4:ab': 1 });
+  // Nichts wartet: Server hat in allem recht
+  assert.deepEqual(boxes(mergeProgress(local, server)), { '1:ab': 1, '2:ab': 3, '4:ab': 1 });
+  // Wort aus der Liste gelöscht: Zeile fällt weg
+  assert.deepEqual(boxes(mergeProgress(local, server, pending, new Set([1, 2, 3]))), { '1:ab': 2, '2:ab': 3, '3:ba': 1 });
 });
 
 test('Kennzahlen wie auf dem Server: geübt, sicher, fällig', () => {

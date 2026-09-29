@@ -18,15 +18,15 @@ export function answer(row, { word_id, direction, grade, correct, at }, review) 
   };
 }
 
-// Stand vom Server übernehmen – außer für Wörter, zu denen das Gerät schon eine neuere Antwort hat
-// (die ist dann noch unterwegs und kommt mit der nächsten Übertragung an).
-export function mergeProgress(local = [], server = []) {
-  const merged = new Map(local.map((p) => [rowKey(p), p]));
-  for (const p of server) {
-    const mine = merged.get(rowKey(p));
-    if (!mine || !mine.last_review || (p.last_review ?? '') >= mine.last_review) merged.set(rowKey(p), p);
-  }
-  return [...merged.values()];
+// Stand vom Server übernehmen. Nur Wörter, zu denen noch eine Antwort auf dem Gerät wartet (pendingKeys:
+// Set aus "<word_id>:<direction>"), behalten den Stand vom Gerät – die Antwort kommt mit der nächsten
+// Übertragung an. Sonst hat der Server recht, auch wenn dort Zeilen fehlen (z. B. auf einem anderen Gerät
+// zurückgesetzt). wordIds (optional): Wörter der Liste; Zeilen gelöschter Wörter fallen weg.
+export function mergeProgress(local = [], server = [], pendingKeys = new Set(), wordIds = null) {
+  const merged = new Map(server.map((p) => [rowKey(p), p]));
+  for (const p of local) if (pendingKeys.has(rowKey(p))) merged.set(rowKey(p), p);
+  const rows = [...merged.values()];
+  return wordIds ? rows.filter((p) => wordIds.has(p.word_id)) : rows;
 }
 
 // Kennzahlen für die Startseite wie in GET /api/lists: geübt, sicher, fällig bis until, zuletzt
