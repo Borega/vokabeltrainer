@@ -162,6 +162,15 @@ export const MIGRATIONS = [
   //    Übertragen doppelt an (z. B. Verbindung während des Sendens abgerissen), zählt sie nur einmal.
   `ALTER TABLE review_log ADD COLUMN client_id TEXT;
    CREATE UNIQUE INDEX review_log_client ON review_log(user_id, client_id) WHERE client_id IS NOT NULL;`,
+  // 6: „Angemeldet bleiben“ – Geräteschlüssel (nur als Hash), siehe devices.js
+  `CREATE TABLE device_tokens (
+     hash       TEXT PRIMARY KEY,
+     user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     created    TEXT NOT NULL,
+     last_used  TEXT,
+     expires    INTEGER NOT NULL
+   );
+   CREATE INDEX device_tokens_user ON device_tokens(user_id);`,
 ];
 
 function migrate(db) {

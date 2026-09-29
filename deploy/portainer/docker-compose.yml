@@ -37,6 +37,7 @@ services:
       APP_NAME: ${APP_NAME:-Vokabeltrainer}
       LOGIN_LABEL: ${LOGIN_LABEL:-Mit IServ anmelden}
       SESSION_DAYS: ${SESSION_DAYS:-7}
+      REMEMBER_DAYS: ${REMEMBER_DAYS:-30}
       RETENTION_DAYS: ${RETENTION_DAYS:-400}
       TRUST_PROXY: "true"
 
