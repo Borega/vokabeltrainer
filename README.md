@@ -311,10 +311,10 @@ Aufbau:
 - **Erlaubt** ist die Nutzung für nicht-kommerzielle Zwecke: privat sowie durch Schulen und andere
   Bildungseinrichtungen, auch mit eigenen Änderungen.
 - **Namensnennung:** Wer die Software – verändert oder unverändert – weitergibt, muss den Lizenztext und den
-  Hinweis `Required Notice: Copyright 2026 Borega – Vokabeltrainer (https://github.com/Borega/vokabeltrainer)`
+  Hinweis `Required Notice: Copyright 2026 Sören Schröder – Vokabeltrainer (https://github.com/Borega/vokabeltrainer)`
   mitgeben.
 - **Kommerzielle Nutzung** (z. B. Verkauf, Hosting als kostenpflichtiger Dienst, Einbau in kommerzielle
-  Produkte) nur mit einer gesonderten Lizenz von mir – Anfrage über
-  [GitHub](https://github.com/Borega).
+  Produkte) nur mit einer gesonderten Lizenz von Sören Schröder – Anfrage an
+  [vokalbtrainer@filius.app](mailto:vokalbtrainer@filius.app).
 
 Eingebundene Bibliotheken (z. B. express, openid-client, ts-fsrs) stehen unter ihren eigenen Lizenzen (MIT).
