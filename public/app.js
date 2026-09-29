@@ -799,8 +799,10 @@ async function renderLearn(id) {
   const key = (wordId, dir) => `${wordId}:${dir}`;
 
   let direction = list.direction;
-  // Abfrageart: von der Lehrkraft vorgegeben; wenn erlaubt, wählen Schüler:innen selbst (pro Liste gemerkt)
-  const chosenMode = pref(`mode.${list.id}`);
+  // Abfrageart: von der Lehrkraft vorgegeben; wenn erlaubt, wählen Schüler:innen selbst
+  // (pro Person und Liste gemerkt – auf geteilten Geräten übernimmt niemand die Wahl eines anderen)
+  const modeKey = `mode.${me.id}.${list.id}`;
+  const chosenMode = pref(modeKey);
   let askMode = list.allow_mode_switch && MODE_LABELS[chosenMode] ? chosenMode : list.mode;
   let size = '20';
   let mode = null; // 'due' (Heute fällig) oder 'free' (Frei üben)
@@ -900,7 +902,7 @@ async function renderLearn(id) {
       modeInfo,
       h('h2', {}, 'Abfrage'),
       list.allow_mode_switch
-        ? segmented('Abfrage', Object.entries(MODE_LABELS), askMode, (m) => { askMode = m; pref(`mode.${list.id}`, m); setupView(); })
+        ? segmented('Abfrage', Object.entries(MODE_LABELS), askMode, (m) => { askMode = m; pref(modeKey, m); setupView(); })
         : h('p', {}, modeLabel(askMode)),
       h('p', { class: 'small muted' }, MODE_HINTS[askMode]),
       h('h2', {}, 'Richtung'),
