@@ -51,9 +51,10 @@ export function createApp(db, cfg = config) {
 
   // Die Planungs-Bibliothek läuft auch im Browser (Lernen ohne Internet), ohne Build-Schritt.
   // Ihr Lizenzhinweis (MIT) wird vorangestellt, weil die ausgelieferte Datei selbst keinen enthält.
-  const fsrsModule = fileURLToPath(import.meta.resolve('ts-fsrs'));
-  const fsrsLicense = readFileSync(new URL('LICENSE', new URL('..', `file://${fsrsModule}`)), 'utf8').replace(/\*\//g, '* /');
-  const fsrsSource = `/*! ts-fsrs – https://github.com/open-spaced-repetition/ts-fsrs\n\n${fsrsLicense}*/\n${readFileSync(fsrsModule, 'utf8')}`;
+  // Mit der von Node aufgelösten URL weiterarbeiten – so bleiben # oder ? im Installationspfad korrekt kodiert.
+  const fsrsUrl = new URL(import.meta.resolve('ts-fsrs')); // …/ts-fsrs/dist/index.mjs
+  const fsrsLicense = readFileSync(new URL('../LICENSE', fsrsUrl), 'utf8').replace(/\*\//g, '* /');
+  const fsrsSource = `/*! ts-fsrs – https://github.com/open-spaced-repetition/ts-fsrs\n\n${fsrsLicense}*/\n${readFileSync(fsrsUrl, 'utf8')}`;
   app.get('/vendor/ts-fsrs.js', (req, res) => {
     res.set('Cache-Control', cfg.production ? 'public, max-age=3600' : 'no-cache');
     res.type('text/javascript').send(fsrsSource);
