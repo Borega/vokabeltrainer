@@ -102,9 +102,12 @@ warten“, solange etwas aussteht.
 Daten von Webseiten, die sieben Tage nicht besucht wurden – bei Apps auf dem Home-Bildschirm nicht.
 
 **Gut zu wissen**
-- Anmelden geht nur mit Internet. Die Sitzung gilt `SESSION_DAYS` Tage (Standard 7) ab der Anmeldung;
-  danach meldet man sich in der Schule neu an. Bis dahin gelernte Antworten gehen nicht verloren – sie
-  werden nach der Anmeldung übertragen.
+- Anmelden geht nur mit Internet. Mit „Auf diesem Gerät angemeldet bleiben“ (Anmeldeseite, standardmäßig an)
+  meldet sich die App danach selbst wieder an – auch wenn iOS das Sitzungs-Cookie beim Schließen der App
+  verwirft –, und zwar `REMEMBER_DAYS` Tage lang (Standard 30) ab der IServ-Anmeldung. Danach einmal in der
+  Schule neu anmelden; dabei werden auch Klasse und Kurse aktualisiert. Bis dahin gelernte Antworten gehen
+  nicht verloren – sie werden nach der Anmeldung übertragen.
+- Auf geteilten Geräten „angemeldet bleiben“ ausschalten, sonst ist die nächste Person im falschen Konto.
 - Neue oder geänderte Listen kommen erst bei der nächsten Verbindung aufs Gerät.
 - Ohne Internet gehen nur Startseite und Lernen. Listen bearbeiten, teilen und auswerten braucht Internet;
   eigene (nicht zugewiesene) Listen einer Lehrkraft sind offline nicht verfügbar.
@@ -257,7 +260,8 @@ Alle Einstellungen stehen kommentiert in [`.env.example`](.env.example).
 | `TEACHER_ROLES` / `TEACHER_GROUPS` | wer als Lehrkraft gilt | `ROLE_TEACHER,teacher,lehrer` / `lehrer` |
 | `HIDDEN_GROUPS` | Gruppen, die bei der Zuweisung ausgeblendet werden | `alle,lehrer,schueler,schüler` |
 | `RETENTION_DAYS` | inaktive Konten nach so vielen Tagen löschen (0 = nie) | `400` |
-| `SESSION_DAYS` | Dauer einer Anmeldung | `7` |
+| `SESSION_DAYS` | Dauer einer Anmeldung (Sitzungs-Cookie) | `7` |
+| `REMEMBER_DAYS` | „Angemeldet bleiben“: so viele Tage nach der IServ-Anmeldung meldet sich die App selbst wieder an (0 = aus) | `30` |
 | `FRAME_ANCESTORS` | Einbettung per iframe erlauben | `'self'` |
 
 ## Datenschutz
@@ -265,7 +269,13 @@ Alle Einstellungen stehen kommentiert in [`.env.example`](.env.example).
 Gespeichert werden nur:
 - eine pseudonyme Kennung vom Anmeldedienst (`sub`), der Anzeigename und die Gruppenmitgliedschaften
 - die Wortlisten der Lehrkräfte
-- je Schüler:in, Wort und Richtung: Kästchen der Lernkartei, Anzahl richtig/falsch, Zeitpunkt der letzten Abfrage
+- je Schüler:in, Wort und Richtung: Lernstufe und Planungswerte, Anzahl richtig/falsch, Zeitpunkt der letzten Abfrage
+- ein Verlauf der Antworten (Zeitpunkt, Bewertung, Übungsart) für die Auswertung
+- bei „Angemeldet bleiben“: ein Geräteschlüssel (in der Datenbank nur als Hash), der nach `REMEMBER_DAYS` Tagen
+  oder beim Abmelden verfällt
+
+Auf dem Gerät speichert die App die zugewiesenen Listen mit dem eigenen Lernstand, noch nicht übertragene
+Antworten und ggf. den Geräteschlüssel (für das Lernen ohne Internet); beim Abmelden wird das gelöscht.
 
 Lehrkräfte sehen den Lernstand der Schüler:innen aus den Gruppen, denen sie eine Liste zugewiesen haben.
 Das sind Leistungsdaten – bitte den Einsatz mit der/dem Datenschutzbeauftragten der Schule abstimmen und

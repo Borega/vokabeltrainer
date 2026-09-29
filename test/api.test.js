@@ -12,6 +12,7 @@ const config = {
   baseUrl: 'http://localhost',
   trustProxy: false,
   sessionDays: 1,
+  rememberDays: 30,
   frameAncestors: "'self'",
   oidc: { issuer: '' },
   hiddenGroups: ['alle'],
@@ -225,7 +226,7 @@ test('Migration 4 baut die Listentabelle neu auf, ohne Wörter zu verlieren', as
     fresh.close();
     const old = new DatabaseSync(join(dir, 'vokabeltrainer.sqlite'));
     old.exec(`PRAGMA foreign_keys = OFF;
-      DROP TABLE lists; DROP TABLE words; DROP TABLE review_log;
+      DROP TABLE lists; DROP TABLE words; DROP TABLE review_log; DROP TABLE device_tokens;
       CREATE TABLE lists (id INTEGER PRIMARY KEY, owner_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
         title TEXT NOT NULL, lang_a TEXT NOT NULL DEFAULT '', lang_b TEXT NOT NULL DEFAULT '',
         mode TEXT NOT NULL DEFAULT 'flip' CHECK (mode IN ('flip', 'type')), case_sensitive INTEGER NOT NULL DEFAULT 0,
@@ -335,6 +336,38 @@ test('Offline: alle zugewiesenen Listen auf einmal, Antworten später mit Zeitpu
   // Auswertung: aktiv laut Zeitpunkt der letzten Antwort
   const stats = (await teacher('GET', `/lists/${l1}/stats`)).body;
   assert.equal(stats.groups[0].students.find((st) => st.name === 'Schüler Offline').right, 2);
+});
+
+test('Angemeldet bleiben: Geräteschlüssel startet neue Sitzung, Abmelden löscht ihn', async () => {
+  const student = await login('Schülerin Bleibt', { groups: 'Klasse 6a' });
+  assert.equal((await fetch(`${base}/api/device-token`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })).status, 401);
+  const { body: { token, days } } = await student('POST', '/device-token', {});
+  assert.equal(days, 30);
+  assert.ok(token.length >= 40);
+  assert.ok(!db.prepare('SELECT 1 FROM device_tokens WHERE hash = ?').get(token), 'nur der Hash wird gespeichert');
+
+  const resume = (t, headers = {}) => fetch(`${base}/auth/resume`, {
+    method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify({ token: t }),
+  });
+  assert.equal((await resume('falsch')).status, 401);
+  assert.equal((await resume(token, { origin: 'https://evil.example' })).status, 403, 'fremde Seiten dürfen nicht anmelden');
+  const res = await resume(token);
+  assert.equal(res.status, 200);
+  const cookie = res.headers.get('set-cookie').split(';')[0];
+  const me = await fetch(`${base}/api/me`, { headers: { cookie } }).then((r) => r.json());
+  assert.equal(me.name, 'Schülerin Bleibt');
+
+  // Abgelaufen (feste Laufzeit ab Anmeldung) → neu anmelden
+  const { body: { token: old } } = await student('POST', '/device-token', {});
+  db.prepare('UPDATE device_tokens SET expires = ? WHERE user_id = ?').run(Date.now() - 1, me.id);
+  assert.equal((await resume(old)).status, 401);
+
+  // Abmelden löscht den Schlüssel dieser Sitzung
+  const { body: { token: fresh } } = await student('POST', '/device-token', {});
+  const again = await resume(fresh);
+  const cookie2 = again.headers.get('set-cookie').split(';')[0];
+  await fetch(`${base}/auth/logout`, { method: 'POST', headers: { cookie: cookie2 }, redirect: 'manual' });
+  assert.equal((await resume(fresh)).status, 401);
 });
 
 test('Noten: grade hat Vorrang, "fast" (hard) zählt als falsch, aber als erinnert', async () => {

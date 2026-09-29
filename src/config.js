@@ -24,6 +24,8 @@ export const config = {
   dataDir: env.DATA_DIR ?? './data',
   trustProxy: bool(env.TRUST_PROXY, production),
   sessionDays: Number(env.SESSION_DAYS ?? 7),
+  // „Angemeldet bleiben“: so viele Tage nach der IServ-Anmeldung meldet die App sich selbst wieder an (0 = aus)
+  rememberDays: Number(env.REMEMBER_DAYS ?? 30),
   // Konten, die sich so lange nicht angemeldet haben, werden samt Lernstand gelöscht (0 = nie).
   retentionDays: Number(env.RETENTION_DAYS ?? 400),
   frameAncestors: env.FRAME_ANCESTORS ?? "'self'",

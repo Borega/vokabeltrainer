@@ -48,7 +48,8 @@ class OfflineError extends Error {}
 class AuthError extends Error {}
 
 // Anfrage an die API. Ohne Verbindung (oder nach 15 s ohne Antwort) OfflineError, abgelaufene Sitzung AuthError.
-async function request(method, path, body) {
+// Fehlt die Sitzung, wird einmal mit dem Geräteschlüssel („Angemeldet bleiben“) neu angemeldet.
+async function request(method, path, body, { retry = true } = {}) {
   let res;
   try {
     res = await fetch(`/api${path}`, {
@@ -63,10 +64,50 @@ async function request(method, path, body) {
     throw new OfflineError('Keine Internetverbindung.');
   }
   setOnline(true);
-  if (res.status === 401) throw new AuthError('Nicht angemeldet.');
+  if (res.status === 401) {
+    if (retry && (await resume())) return request(method, path, body, { retry: false });
+    throw new AuthError('Nicht angemeldet.');
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `Fehler ${res.status}`);
   return data;
+}
+
+// ---------- Angemeldet bleiben ----------
+// Nach einer IServ-Anmeldung bekommt die App einen Geräteschlüssel (gilt REMEMBER_DAYS Tage ab der Anmeldung).
+// Geht das Sitzungs-Cookie verloren – iOS verwirft es bei Apps auf dem Home-Bildschirm teils beim Schließen –,
+// meldet die App sich damit still wieder an. Auf geteilten Geräten auf der Anmeldeseite abschaltbar.
+
+const remembering = () => pref('remember') !== 'off';
+
+let resuming = null;
+function resume() {
+  resuming ??= (async () => {
+    const saved = await store.load('deviceToken').catch(() => null);
+    if (!saved?.token || !remembering()) return false;
+    try {
+      const res = await fetch('/auth/resume', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: saved.token }),
+        credentials: 'same-origin',
+      });
+      if (res.status === 401) await store.remove('deviceToken').catch(() => {});
+      return res.ok;
+    } catch {
+      return false;
+    }
+  })().finally(() => { resuming = null; });
+  return resuming;
+}
+
+// Nach einer frischen IServ-Anmeldung neuen Schlüssel holen (der alte wird dabei ungültig)
+async function rememberDevice() {
+  if (!me?.remember || me.device || !remembering()) return;
+  const saved = await store.load('deviceToken').catch(() => null);
+  const { token } = await request('POST', '/device-token', { replace: saved?.token });
+  await store.save('deviceToken', { user: me.id, token });
+  me.device = true;
 }
 
 // Wie request(), bei abgelaufener Sitzung aber gleich zur Anmeldung
@@ -203,7 +244,7 @@ async function logout(e) {
   await syncNow().catch(() => {});
   const left = (await store.pending(me.id).catch(() => [])).length;
   if (left && !confirm(`${answersText(left)} ${left === 1 ? 'konnte' : 'konnten'} noch nicht übertragen werden. ${left === 1 ? 'Sie bleibt auf diesem Gerät und wird' : 'Sie bleiben auf diesem Gerät und werden'} übertragen, wenn du dich hier wieder anmeldest.\n\nTrotzdem abmelden?`)) return;
-  await Promise.all([store.remove('lastUser'), store.remove(`offline:${me.id}`)]).catch(() => {});
+  await Promise.all([store.remove('lastUser'), store.remove(`offline:${me.id}`), store.remove('deviceToken')]).catch(() => {});
   form.submit();
 }
 
@@ -337,6 +378,13 @@ function renderLogin() {
     h('p', { class: 'lead' }, 'Vokabeln lernen – mit Karteikarten, Auswählen, Eintippen, Lückensätzen und Hörübungen, mit den Listen deiner Lehrkräfte.'),
   ];
   if (settings.oidc) parts.push(h('a', { class: 'btn primary big', href: '/auth/login' }, settings.loginLabel || 'Anmelden'));
+  parts.push(h('label', { class: 'check remember' },
+    h('input', { type: 'checkbox', checked: remembering(), onchange: (e) => {
+      pref('remember', e.target.checked ? 'on' : 'off');
+      if (!e.target.checked) store.remove('deviceToken').catch(() => {});
+    } }),
+    'Auf diesem Gerät angemeldet bleiben',
+    h('small', { class: 'muted' }, 'Auf geteilten Geräten bitte ausschalten.')));
   if (settings.devLogin) {
     parts.push(
       h('form', { class: 'devlogin', method: 'post', action: '/auth/dev-login' },
@@ -1644,6 +1692,7 @@ async function init() {
   try {
     me = await request('GET', '/me');
     await store.save('lastUser', me).catch(() => {});
+    await rememberDevice().catch(() => {});
   } catch (err) {
     // Ohne Internet: als zuletzt angemeldete Person mit den Listen auf dem Gerät weiterlernen
     me = err instanceof OfflineError ? await store.load('lastUser').catch(() => null) : null;

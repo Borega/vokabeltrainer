@@ -1,5 +1,6 @@
 import express from 'express';
 import { now, transaction } from './db.js';
+import { forgetDevice, forgetDeviceToken, issueDeviceToken } from './devices.js';
 import { GRADES, SAFE_LEVEL, levelFor, review } from './scheduler.js';
 
 // Ab dieser Stufe gilt ein Wort als „sicher“ (0 = neu … 5, siehe scheduler.js).
@@ -201,8 +202,22 @@ export function apiRouter(db, config) {
     }
   };
 
+  // „Angemeldet bleiben“: Geräteschlüssel für diese App ausstellen (nach einer IServ-Anmeldung).
+  // replace: bisheriger Schlüssel der App, der damit ungültig wird.
+  router.post('/device-token', wrap((req) => {
+    if (!(config.rememberDays > 0)) throw new HttpError(404, 'Angemeldet bleiben ist ausgeschaltet.');
+    forgetDevice(db, req.session.data.device);
+    forgetDeviceToken(db, req.body?.replace, req.user.id);
+    const { token, hash } = issueDeviceToken(db, req.user.id, config.rememberDays);
+    req.session.data.device = hash;
+    return { token, days: config.rememberDays };
+  }));
+
+  // device: Sitzung hat schon einen Geräteschlüssel (sonst frische IServ-Anmeldung)
   router.get('/me', wrap((req) => ({
     ...req.user,
+    device: !!req.session.data.device,
+    remember: config.rememberDays > 0,
     groups: req.user.isTeacher ? teacherGroups(req.user.id) : [],
   })));
 

@@ -2,6 +2,7 @@ import express from 'express';
 import * as oidc from 'openid-client';
 import { userFromClaims } from './claims.js';
 import { now, transaction } from './db.js';
+import { forgetDevice, resumeDevice } from './devices.js';
 
 export function saveUser(db, user) {
   return transaction(db, () => {
@@ -118,7 +119,18 @@ export function authRouter(db, config) {
     });
   }
 
+  // Neue Sitzung mit dem Geräteschlüssel der App („Angemeldet bleiben“)
+  router.post('/resume', express.json(), (req, res) => {
+    const device = config.rememberDays > 0 ? resumeDevice(db, req.body?.token) : null;
+    if (!device) return res.status(401).json({ error: 'Bitte neu anmelden.' });
+    db.prepare('UPDATE users SET last_login = ? WHERE id = ?').run(now(), device.userId);
+    login(req, device.userId);
+    req.session.data.device = device.hash;
+    res.json({ ok: true });
+  });
+
   router.post('/logout', (req, res) => {
+    forgetDevice(db, req.session.data?.device);
     req.session.destroy();
     res.redirect('/');
   });

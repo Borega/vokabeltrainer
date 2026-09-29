@@ -185,6 +185,8 @@ table.stats td { padding: .5rem; }
 .bar-cell { display: flex; align-items: center; gap: .5rem; min-width: 160px; }
 tr.inactive td { color: var(--muted); }
 
+.check.remember { flex-wrap: wrap; justify-content: center; column-gap: .5rem; row-gap: 0; }
+.check.remember small { flex-basis: 100%; text-align: center; }
 .login { max-width: 460px; margin: 3rem auto; text-align: center; display: flex; flex-direction: column; gap: 1rem; align-items: center; }
 .lead { color: var(--muted); }
 .devlogin { width: 100%; text-align: left; border-top: 1px solid var(--border); padding-top: 1rem; display: flex; flex-direction: column; gap: .5rem; }

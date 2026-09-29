@@ -4,6 +4,7 @@ import { apiRouter } from './api.js';
 import { authRouter } from './auth.js';
 import { assertConfig, config } from './config.js';
 import { openDb } from './db.js';
+import { purgeDevices } from './devices.js';
 import { purgeSessions, sessionMiddleware } from './session.js';
 
 export function createApp(db, cfg = config) {
@@ -61,6 +62,7 @@ export function createApp(db, cfg = config) {
 
 function cleanup(db) {
   purgeSessions(db);
+  purgeDevices(db);
   if (config.retentionDays > 0) {
     const cutoff = new Date(Date.now() - config.retentionDays * 86400000).toISOString();
     const { changes } = db.prepare('DELETE FROM users WHERE last_login < ?').run(cutoff);
