@@ -4,7 +4,7 @@
   "description": "Vokabeltrainer für Schulen mit Anmeldung über IServ bzw. OpenID Connect",
   "type": "module",
   "private": true,
-  "license": "MIT",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "engines": {
     "node": ">=24"
   },

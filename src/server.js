@@ -1,4 +1,5 @@
 import express from 'express';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { apiRouter } from './api.js';
 import { authRouter } from './auth.js';
@@ -48,9 +49,15 @@ export function createApp(db, cfg = config) {
   app.use('/auth', authRouter(db, cfg));
   app.use('/api', apiRouter(db, cfg));
 
-  // Die Planungs-Bibliothek läuft auch im Browser (Lernen ohne Internet), ohne Build-Schritt
+  // Die Planungs-Bibliothek läuft auch im Browser (Lernen ohne Internet), ohne Build-Schritt.
+  // Ihr Lizenzhinweis (MIT) wird vorangestellt, weil die ausgelieferte Datei selbst keinen enthält.
   const fsrsModule = fileURLToPath(import.meta.resolve('ts-fsrs'));
-  app.get('/vendor/ts-fsrs.js', (req, res) => res.sendFile(fsrsModule, { maxAge: cfg.production ? '1h' : 0 }));
+  const fsrsLicense = readFileSync(new URL('LICENSE', new URL('..', `file://${fsrsModule}`)), 'utf8').replace(/\*\//g, '* /');
+  const fsrsSource = `/*! ts-fsrs – https://github.com/open-spaced-repetition/ts-fsrs\n\n${fsrsLicense}*/\n${readFileSync(fsrsModule, 'utf8')}`;
+  app.get('/vendor/ts-fsrs.js', (req, res) => {
+    res.set('Cache-Control', cfg.production ? 'public, max-age=3600' : 'no-cache');
+    res.type('text/javascript').send(fsrsSource);
+  });
 
   const publicDir = fileURLToPath(new URL('../public', import.meta.url));
   app.use(express.static(publicDir, { index: 'index.html', maxAge: cfg.production ? '1h' : 0 }));
