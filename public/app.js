@@ -378,7 +378,7 @@ function renderLogin() {
     h('p', { class: 'lead' }, 'Vokabeln lernen – mit Karteikarten, Auswählen, Eintippen, Lückensätzen und Hörübungen, mit den Listen deiner Lehrkräfte.'),
   ];
   if (settings.oidc) parts.push(h('a', { class: 'btn primary big', href: '/auth/login' }, settings.loginLabel || 'Anmelden'));
-  parts.push(h('label', { class: 'check remember' },
+  if (settings.remember) parts.push(h('label', { class: 'check remember' },
     h('input', { type: 'checkbox', checked: remembering(), onchange: (e) => {
       pref('remember', e.target.checked ? 'on' : 'off');
       if (!e.target.checked) store.remove('deviceToken').catch(() => {});

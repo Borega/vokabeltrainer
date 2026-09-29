@@ -275,7 +275,9 @@ Gespeichert werden nur:
   oder beim Abmelden verfällt
 
 Auf dem Gerät speichert die App die zugewiesenen Listen mit dem eigenen Lernstand, noch nicht übertragene
-Antworten und ggf. den Geräteschlüssel (für das Lernen ohne Internet); beim Abmelden wird das gelöscht.
+Antworten und ggf. den Geräteschlüssel (für das Lernen ohne Internet). Beim Abmelden werden Listen, Lernstand
+und Geräteschlüssel gelöscht. Antworten, die bis dahin nicht übertragen werden konnten, bleiben (nach
+Rückfrage) auf dem Gerät und werden übertragen, sobald sich dieselbe Person dort wieder anmeldet.
 
 Lehrkräfte sehen den Lernstand der Schüler:innen aus den Gruppen, denen sie eine Liste zugewiesen haben.
 Das sind Leistungsdaten – bitte den Einsatz mit der/dem Datenschutzbeauftragten der Schule abstimmen und

@@ -36,7 +36,13 @@ export function createApp(db, cfg = config) {
   app.use(sessionMiddleware(db, { days: cfg.sessionDays, secure: cfg.baseUrl.startsWith('https://') }));
 
   app.get('/config.json', (req, res) => {
-    res.json({ appName: cfg.appName, loginLabel: cfg.loginLabel, devLogin: cfg.devLogin, oidc: !!cfg.oidc.issuer });
+    res.json({
+      appName: cfg.appName,
+      loginLabel: cfg.loginLabel,
+      devLogin: cfg.devLogin,
+      oidc: !!cfg.oidc.issuer,
+      remember: cfg.rememberDays > 0, // „Angemeldet bleiben“ anbieten?
+    });
   });
   app.get('/healthz', (req, res) => res.send('ok'));
   app.use('/auth', authRouter(db, cfg));
