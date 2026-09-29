@@ -81,6 +81,9 @@ a { color: var(--primary); }
 .logo { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; background: var(--primary); color: var(--primary-text); font-size: .9rem; }
 .topbar-right { display: flex; align-items: center; gap: .5rem; }
 .theme-toggle { font-size: 1.05rem; padding: .3rem .55rem; line-height: 1; }
+.chip.offline { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); text-decoration: none; white-space: nowrap; }
+.offline-note { border-color: var(--warn); }
+.offline-note h2 { margin-top: 0; }
 .user { display: flex; align-items: center; gap: .75rem; }
 .user form { margin: 0; }
 .who { display: flex; align-items: center; gap: .4rem; color: var(--muted); }

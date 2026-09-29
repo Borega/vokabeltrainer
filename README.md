@@ -45,6 +45,7 @@ Gruppen (Klassen/Kurse) und die Rolle „Lehrkraft“ werden direkt aus IServ ü
   Über 🔊 lässt sich jedes Wort jederzeit anhören.
 - Nicht gewusste Wörter kommen in derselben Runde nach wenigen Karten erneut, bis sie einmal sitzen
 - Lernstand wird auf dem Server gespeichert und ist auf allen Geräten verfügbar
+- **Lernen ohne Internet**, z. B. zu Hause mit dem Schul-iPad – siehe unten
 - Tastatur: Leertaste = umdrehen, 1 / ← = nicht gewusst, 2 / → = gewusst, 3 / ↑ = leicht, Enter = prüfen / weiter;
   beim Auswählen 1–4
 
@@ -87,6 +88,33 @@ Latein und Altgriechisch werden nicht vorgelesen.
 - Teile in Klammern sind optional: `(to) go` akzeptiert `go` und `to go`
 - Leerzeichen und `.` `!` `?` am Ende zählen nicht
 - Kleine Tippfehler werden als „Fast!“ angezeigt (zählen als falsch, mit „Ich hatte recht“ korrigierbar)
+
+## Lernen ohne Internet (iPad)
+
+Für Schüler:innen, die nur in der Schule WLAN haben: Die App lädt bei jeder Verbindung alle zugewiesenen
+Listen samt Lernstand auf das Gerät. Zu Hause wird damit weitergelernt – auch „Heute fällig“ stimmt, weil
+das Gerät genauso plant wie der Server. Die Antworten bleiben auf dem Gerät, bis es wieder im Schul-WLAN
+ist, und werden dann mit dem Zeitpunkt der Antwort übertragen. Oben rechts steht „Offline · 12 Antworten
+warten“, solange etwas aussteht.
+
+**Einrichten (einmal, in der Schule):** In Safari die Adresse öffnen, anmelden, dann Teilen →
+„Zum Home-Bildschirm“. Danach die App über das Symbol öffnen. Das ist wichtig: Safari löscht gespeicherte
+Daten von Webseiten, die sieben Tage nicht besucht wurden – bei Apps auf dem Home-Bildschirm nicht.
+
+**Gut zu wissen**
+- Anmelden geht nur mit Internet. Die Sitzung gilt `SESSION_DAYS` Tage (Standard 7) ab der Anmeldung;
+  danach meldet man sich in der Schule neu an. Bis dahin gelernte Antworten gehen nicht verloren – sie
+  werden nach der Anmeldung übertragen.
+- Neue oder geänderte Listen kommen erst bei der nächsten Verbindung aufs Gerät.
+- Ohne Internet gehen nur Startseite und Lernen. Listen bearbeiten, teilen und auswerten braucht Internet;
+  eigene (nicht zugewiesene) Listen einer Lehrkraft sind offline nicht verfügbar.
+- Geteilte Geräte: Gespeicherte Listen und wartende Antworten gehören zur jeweiligen Person. Beim Abmelden
+  wird noch übertragen und die gespeicherten Listen werden vom Gerät gelöscht.
+- Doppelt übertragene Antworten (z. B. WLAN bricht beim Senden ab) zählen nur einmal.
+- Die Auswertung der Lehrkraft zeigt Offline-Lernen erst nach der Übertragung, dann aber mit den richtigen
+  Tagen („zuletzt aktiv“, Verlauf).
+- Technik: installierbare Web-App (Service Worker `public/sw.js` hält die Oberfläche vor, IndexedDB die
+  Daten). Setzt HTTPS voraus. Nach einem Update holt sich die App die neue Version bei der nächsten Verbindung.
 
 ## Wie die Wiederholungsplanung funktioniert
 
@@ -259,7 +287,9 @@ npm test
 Aufbau:
 - `src/` – Express-Server: OIDC-Login (`auth.js`), REST-API (`api.js`), SQLite (`db.js`), Sessions (`session.js`)
 - `public/` – Oberfläche ohne Build-Schritt (Vanilla JS); `check.js`, `csv.js` und `exercises.js` (Übungsarten,
-  Lernleiter, Ablenker, Tipps, Lückentext) werden auch in den Tests genutzt, `speech.js` für die Aussprache
+  Lernleiter, Ablenker, Tipps, Lückentext) werden auch in den Tests genutzt, `speech.js` für die Aussprache.
+  Offline: `schedule.js` (FSRS-Planung, auch vom Server genutzt), `offline.js` (Abgleich), `store.js`
+  (IndexedDB), `sw.js` (Service Worker), `manifest.webmanifest`
 - `test/` – Tests mit `node:test`
 
 ## Lizenz

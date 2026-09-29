@@ -203,11 +203,11 @@ test('Listen für Kolleg:innen freigeben und kopieren', async () => {
 });
 
 test('Migration ergänzt Spalten in bestehender Datenbank', async () => {
-  const { openDb } = await import('../src/db.js');
+  const { MIGRATIONS, openDb } = await import('../src/db.js');
   const db = openDb(':memory:');
   const cols = db.prepare('PRAGMA table_info(lists)').all().map((c) => c.name);
   assert.ok(cols.includes('shared') && cols.includes('copied_from'));
-  assert.equal(db.prepare('PRAGMA user_version').get().user_version, 4);
+  assert.equal(db.prepare('PRAGMA user_version').get().user_version, MIGRATIONS.length);
   const pcols = db.prepare('PRAGMA table_info(progress)').all().map((c) => c.name);
   assert.ok(['stability', 'difficulty', 'due', 'state', 'last_review'].every((c) => pcols.includes(c)));
 });
@@ -240,7 +240,7 @@ test('Migration 4 baut die Listentabelle neu auf, ohne Wörter zu verlieren', as
       PRAGMA user_version = 3;`);
     old.close();
     const db = openDb(dir);
-    assert.equal(db.prepare('PRAGMA user_version').get().user_version, 4);
+    assert.equal(db.prepare('PRAGMA user_version').get().user_version, MIGRATIONS.length);
     assert.deepEqual({ ...db.prepare('SELECT mode, shared, copied_from FROM lists WHERE id = 7').get() }, { mode: 'type', shared: 1, copied_from: 'X' });
     assert.equal(db.prepare('SELECT COUNT(*) AS n FROM words WHERE list_id = 7').get().n, 2, 'Wörter bleiben erhalten');
     assert.equal(db.prepare("SELECT example FROM words LIMIT 1").get().example, '');
@@ -286,6 +286,55 @@ test('Lernleiter und Auswählen, Beispielsätze, Übungsart im Verlauf', async (
   const log = db.prepare('SELECT word_id, exercise FROM review_log WHERE word_id IN (?, ?) ORDER BY word_id')
     .all(list.words[0].id, list.words[1].id).map((r) => r.exercise);
   assert.deepEqual(log, ['choice', ''], 'unbekannte Übungsarten werden nicht gespeichert');
+});
+
+test('Offline: alle zugewiesenen Listen auf einmal, Antworten später mit Zeitpunkt und nur einmal', async () => {
+  const teacher = await login('Frau Offline', { teacher: true, groups: 'Klasse 5a' });
+  const student = await login('Schüler Offline', { groups: 'Klasse 5a' });
+  const stranger = await login('Schülerin Fremd', { groups: 'Klasse 9z' });
+  const group = [{ id: 'klasse.5a', name: 'Klasse 5a' }];
+  const { body: { id: l1 } } = await teacher('POST', '/lists', { ...listBody, title: 'Offline 1', groups: group });
+  const { body: { id: l2 } } = await teacher('POST', '/lists', { ...listBody, title: 'Offline 2', groups: group });
+
+  const offline = (await student('GET', '/offline')).body;
+  assert.deepEqual(offline.lists.map((l) => l.title).sort(), ['Offline 1', 'Offline 2']);
+  assert.equal(offline.user.name, 'Schüler Offline');
+  assert.equal(offline.lists[0].words.length, 2);
+  assert.deepEqual((await stranger('GET', '/offline')).body.lists, []);
+
+  const w1 = offline.lists.find((l) => l.id === l1).words[0];
+  const w2 = offline.lists.find((l) => l.id === l2).words[0];
+  const threeDaysAgo = new Date(Date.now() - 3 * 86400000).toISOString();
+  const results = [
+    // absichtlich nicht chronologisch: der Server sortiert
+    { id: 'b', list_id: l1, word_id: w1.id, direction: 'ab', grade: 'good', correct: true, at: new Date(Date.now() - 86400000).toISOString() },
+    { id: 'a', list_id: l1, word_id: w1.id, direction: 'ab', grade: 'good', correct: true, at: threeDaysAgo },
+    { id: 'c', list_id: l2, word_id: w2.id, direction: 'ba', grade: 'again', correct: false, at: '2999-01-01T00:00:00Z' },
+    { id: 'd', list_id: l2, word_id: w1.id, direction: 'ab', grade: 'good', correct: true }, // Wort gehört nicht zur Liste
+  ];
+  const res = await student('POST', '/results', { results });
+  assert.equal(res.status, 200);
+  const p1 = res.body.progress[l1].find((p) => p.word_id === w1.id);
+  assert.equal(p1.right, 2);
+  assert.equal(p1.reps, 2);
+  assert.ok(p1.last_seen < new Date(Date.now() - 86000000).toISOString(), 'Zeitpunkt der Antwort, nicht der Übertragung');
+  assert.ok(p1.stability > 3, 'Abstand zwischen den Antworten zählt: mehr als eine einzelne gute Antwort');
+  const p2 = res.body.progress[l2].find((p) => p.word_id === w2.id);
+  assert.ok(Date.parse(p2.last_seen) <= Date.now(), 'Zeitpunkt in der Zukunft wird auf jetzt gesetzt');
+  assert.equal(res.body.progress[l2].length, 1);
+
+  // Nochmal senden (Verbindung war abgerissen): ändert nichts
+  const again = await student('POST', '/results', { results });
+  assert.deepEqual(again.body.progress, {});
+  assert.equal((await student('GET', `/lists/${l1}`)).body.progress[0].right, 2);
+
+  // Fremde Listen: Antworten verfallen still
+  const foreign = await stranger('POST', '/results', { results: [{ id: 'x', list_id: l1, word_id: w1.id, direction: 'ab', grade: 'good' }] });
+  assert.deepEqual(foreign.body.progress, {});
+
+  // Auswertung: aktiv laut Zeitpunkt der letzten Antwort
+  const stats = (await teacher('GET', `/lists/${l1}/stats`)).body;
+  assert.equal(stats.groups[0].students.find((st) => st.name === 'Schüler Offline').right, 2);
 });
 
 test('Noten: grade hat Vorrang, "fast" (hard) zählt als falsch, aber als erinnert', async () => {

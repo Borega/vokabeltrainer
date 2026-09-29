@@ -4,12 +4,24 @@ import {
   afterIntro, choiceOptions, clozeFor, gradeFor, hintPattern, hintTarget, maxHints, pickExercise, speechLang, speechText,
 } from './exercises.js';
 import { canSpeak, speak, stopSpeaking, voicesReady } from './speech.js';
+import { answer, mergeProgress, newId, summarize } from './offline.js';
+import { createScheduler } from './schedule.js';
+import * as store from './store.js';
+import * as FSRS from './vendor/ts-fsrs.js';
+
+// Dieselbe Planung wie auf dem Server – so geht Lernen auch ohne Internet weiter
+const { review } = createScheduler(FSRS);
 
 const SAFE_BOX = 3;
 const app = document.getElementById('app');
 const userBox = document.getElementById('user');
 let me = null;
 let settings = {};
+// Lernen ohne Internet: online = letzte Anfrage kam durch; offlineData = auf dem Gerät gespeicherte
+// Listen der angemeldeten Person ({ user, lists, at }, siehe GET /api/offline)
+let online = true;
+let offlineData = null;
+let needsLogin = false; // Sitzung abgelaufen, aber Antworten warten noch
 let leaveGuard = null; // Rückfrage bei ungespeicherten Änderungen
 
 // ---------- Hilfsfunktionen ----------
@@ -32,21 +44,42 @@ function h(tag, attrs = {}, ...children) {
   return el;
 }
 
-async function api(method, path, body) {
-  const res = await fetch(`/api${path}`, {
-    method,
-    headers: body ? { 'Content-Type': 'application/json' } : {},
-    body: body ? JSON.stringify(body) : undefined,
-    credentials: 'same-origin',
-  });
-  if (res.status === 401) {
-    me = null;
-    renderLogin();
-    throw new Error('Nicht angemeldet.');
+class OfflineError extends Error {}
+class AuthError extends Error {}
+
+// Anfrage an die API. Ohne Verbindung (oder nach 15 s ohne Antwort) OfflineError, abgelaufene Sitzung AuthError.
+async function request(method, path, body) {
+  let res;
+  try {
+    res = await fetch(`/api${path}`, {
+      method,
+      headers: body ? { 'Content-Type': 'application/json' } : {},
+      body: body ? JSON.stringify(body) : undefined,
+      credentials: 'same-origin',
+      signal: AbortSignal.timeout?.(15000),
+    });
+  } catch {
+    setOnline(false);
+    throw new OfflineError('Keine Internetverbindung.');
   }
+  setOnline(true);
+  if (res.status === 401) throw new AuthError('Nicht angemeldet.');
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `Fehler ${res.status}`);
   return data;
+}
+
+// Wie request(), bei abgelaufener Sitzung aber gleich zur Anmeldung
+async function api(method, path, body) {
+  try {
+    return await request(method, path, body);
+  } catch (err) {
+    if (err instanceof AuthError) {
+      me = null;
+      renderLogin();
+    }
+    throw err;
+  }
 }
 
 function shuffle(arr) {
@@ -151,11 +184,132 @@ function showError(err) {
 
 function renderUser() {
   fill(userBox,);
+  renderNet();
   if (!me) return;
   userBox.append(
     h('span', { class: 'who' }, me.name, me.isTeacher ? h('span', { class: 'chip' }, 'Lehrkraft') : null),
-    h('form', { method: 'post', action: '/auth/logout' }, h('button', { class: 'btn ghost small', type: 'submit' }, 'Abmelden')),
+    h('form', { method: 'post', action: '/auth/logout', onsubmit: logout },
+      h('button', { class: 'btn ghost small', type: 'submit', disabled: !online, title: online ? null : 'Abmelden geht nur mit Internet' }, 'Abmelden')),
   );
+}
+
+const answersText = (n) => `${n} ${n === 1 ? 'Antwort' : 'Antworten'}`;
+
+// Vor dem Abmelden noch übertragen und die gespeicherten Listen vom Gerät löschen.
+// Nicht übertragene Antworten bleiben (der Person zugeordnet) und gehen bei der nächsten Anmeldung raus.
+async function logout(e) {
+  e.preventDefault();
+  const form = e.target;
+  await syncNow().catch(() => {});
+  const left = (await store.pending(me.id).catch(() => [])).length;
+  if (left && !confirm(`${answersText(left)} ${left === 1 ? 'konnte' : 'konnten'} noch nicht übertragen werden. ${left === 1 ? 'Sie bleibt auf diesem Gerät und wird' : 'Sie bleiben auf diesem Gerät und werden'} übertragen, wenn du dich hier wieder anmeldest.\n\nTrotzdem abmelden?`)) return;
+  await Promise.all([store.remove('lastUser'), store.remove(`offline:${me.id}`)]).catch(() => {});
+  form.submit();
+}
+
+// Anzeige oben: offline, wartende Antworten, neu anmelden
+const netBox = document.getElementById('net');
+async function renderNet() {
+  const waiting = me ? (await store.pending(me.id).catch(() => [])).length : 0;
+  const answers = `${waiting} ${waiting === 1 ? 'Antwort wartet' : 'Antworten warten'}`;
+  let content = null;
+  if (me && !online) {
+    content = h('span', { class: 'chip offline', title: 'Du kannst weiterlernen. Deine Antworten werden übertragen, sobald das Gerät wieder im Schul-WLAN ist.' },
+      waiting ? `Offline · ${answers}` : 'Offline');
+  } else if (me && needsLogin && waiting) {
+    content = h('a', { class: 'chip offline', href: '/auth/login' }, `Neu anmelden – ${answers}`);
+  } else if (me && waiting) {
+    content = h('span', { class: 'chip', title: 'Wird übertragen …' }, `⟳ ${answers}`);
+  }
+  fill(netBox, content);
+  netBox.hidden = !content;
+}
+
+function setOnline(value) {
+  if (online === value) return;
+  online = value;
+  renderUser();
+}
+
+// ---------- Lernen ohne Internet: Abgleich ----------
+
+// Listen und eigenen Lernstand auf das Gerät laden (bei jeder Verbindung, z. B. im Schul-WLAN).
+// Antworten, die das Gerät hat und der Server noch nicht, bleiben erhalten.
+async function download() {
+  const data = await request('GET', '/offline');
+  // Vorhandene Listen in place aktualisieren: Eine offene Lernrunde arbeitet mit genau diesen Objekten
+  const before = new Map((offlineData?.lists ?? []).map((l) => [l.id, l]));
+  data.lists = data.lists.map((fresh) => {
+    const old = before.get(fresh.id);
+    if (!old) return fresh;
+    return Object.assign(old, fresh, { progress: mergeProgress(old.progress, fresh.progress) });
+  });
+  offlineData = data;
+  await store.save(`offline:${me.id}`, data);
+  await store.save('lastUser', me);
+}
+
+// Gespeicherte Antworten übertragen (in Teilen, nacheinander). Läuft höchstens einmal gleichzeitig;
+// kommen währenddessen neue Antworten dazu, folgt gleich eine weitere Runde.
+let syncing = null;
+let syncAgain = false;
+const progressListeners = new Set(); // Lernansicht: neuen Stand vom Server übernehmen
+
+function syncNow() {
+  if (!me) return Promise.resolve();
+  if (syncing) {
+    syncAgain = true;
+    return syncing;
+  }
+  syncing = (async () => {
+    try {
+      do {
+        syncAgain = false;
+        await pushAnswers();
+      } while (syncAgain);
+      needsLogin = false;
+    } catch (err) {
+      if (err instanceof AuthError) needsLogin = true;
+      if (!(err instanceof OfflineError || err instanceof AuthError)) throw err;
+    } finally {
+      syncing = null;
+      renderNet();
+    }
+  })();
+  return syncing;
+}
+
+async function pushAnswers() {
+  for (;;) {
+    const batch = (await store.pending(me.id)).slice(0, 500);
+    if (!batch.length) return;
+    renderNet();
+    const res = await request('POST', '/results', { results: batch });
+    await store.done(batch.map((e) => e.id));
+    if (offlineData) {
+      for (const list of offlineData.lists) {
+        if (res.progress[list.id]) list.progress = mergeProgress(list.progress, res.progress[list.id]);
+      }
+      await store.save(`offline:${me.id}`, offlineData);
+    }
+    for (const fn of progressListeners) fn(res.progress);
+  }
+}
+
+// Wieder im WLAN? Übertragen und Listen auffrischen. Wird regelmäßig und beim Zurückkehren in die App versucht.
+async function reconnect() {
+  if (!me) return;
+  const waiting = (await store.pending(me.id).catch(() => [])).length;
+  if (online && !waiting) return;
+  const wasOffline = !online;
+  try {
+    await syncNow();
+    await download();
+  } catch {
+    return;
+  }
+  // Startseite mit den frischen Daten neu zeichnen (eine laufende Lernrunde nicht stören)
+  if (wasOffline && !location.hash.startsWith('#/learn') && !location.hash.startsWith('#/edit')) route();
 }
 
 function renderLogin() {
@@ -177,7 +331,15 @@ function renderLogin() {
     );
   }
   if (!settings.oidc && !settings.devLogin) parts.push(h('p', { class: 'error' }, 'Es ist keine Anmeldung konfiguriert.'));
+  if (!online) parts.push(h('p', { class: 'warn' }, 'Keine Internetverbindung. Zum Anmelden wird Internet gebraucht, z. B. das Schul-WLAN.'));
+  const waitingNote = h('p', { class: 'small muted' });
+  parts.push(waitingNote);
   view(h('section', { class: 'login panel' }, parts));
+  // Antworten einer abgelaufenen Sitzung warten noch auf dem Gerät?
+  store.load('lastUser').then(async (last) => {
+    const n = last ? (await store.pending(last.id)).length : 0;
+    if (n) waitingNote.textContent = `Auf diesem Gerät ${n === 1 ? 'wartet' : 'warten'} noch ${answersText(n)} von ${last.name}. ${n === 1 ? 'Sie wird' : 'Sie werden'} nach der Anmeldung übertragen.`;
+  }).catch(() => {});
 }
 
 // ---------- Startseite ----------
@@ -215,8 +377,34 @@ function listCard(list, { own }) {
 }
 
 async function renderHome() {
-  const { own, assigned } = await api('GET', `/lists?due_until=${encodeURIComponent(endOfToday().toISOString())}`);
-  const sections = [];
+  let data = null;
+  if (online) {
+    try {
+      data = await api('GET', `/lists?due_until=${encodeURIComponent(endOfToday().toISOString())}`);
+    } catch (err) {
+      if (!(err instanceof OfflineError)) throw err;
+    }
+  }
+  if (!data) return renderHomeOffline();
+  renderHomeLists(data);
+}
+
+// Ohne Internet: die auf dem Gerät gespeicherten Listen mit dem Lernstand auf dem Gerät
+function renderHomeOffline() {
+  const lists = offlineData?.lists ?? [];
+  const assigned = lists.map((l) => ({ ...l, word_count: l.words.length, progress: summarize(l.progress, endOfToday()) }));
+  const note = h('section', { class: 'panel offline-note' },
+    h('h2', {}, 'Du bist offline'),
+    h('p', { class: 'small muted' }, lists.length
+      ? `Du kannst mit den gespeicherten Listen weiterlernen (Stand: ${offlineData.at ? new Date(offlineData.at).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) : 'unbekannt'}). Deine Antworten werden übertragen, sobald das Gerät wieder im Schul-WLAN ist.`
+      : 'Auf diesem Gerät sind noch keine Listen gespeichert. Öffne die App einmal mit Internet, z. B. im Schul-WLAN – dann kannst du auch zu Hause lernen.'),
+    me.isTeacher ? h('p', { class: 'small muted' }, 'Eigene Listen bearbeiten und auswerten geht nur mit Internet.') : null,
+  );
+  renderHomeLists({ own: [], assigned }, { offline: true, note });
+}
+
+function renderHomeLists({ own, assigned }, { offline = false, note = null } = {}) {
+  const sections = [note];
   const dueLists = [...own, ...assigned].filter((l) => l.progress.due);
   const dueTotal = dueLists.reduce((sum, l) => sum + l.progress.due, 0);
   if (dueTotal) {
@@ -226,7 +414,7 @@ async function renderHome() {
       h('div', { class: 'actions' }, dueLists.map((l) => h('a', { class: 'btn', href: `#/learn/${l.id}` }, `${l.title} (${l.progress.due})`))),
     ));
   }
-  if (me.isTeacher) {
+  if (me.isTeacher && !offline) {
     sections.push(
       h('section', {},
         h('div', { class: 'section-head' },
@@ -246,7 +434,7 @@ async function renderHome() {
         h('div', { class: 'section-head' }, h('h2', {}, me.isTeacher ? 'Meinen Gruppen zugewiesen' : 'Meine Vokabellisten')),
         assigned.length
           ? h('div', { class: 'grid' }, assigned.map((l) => listCard(l, { own: false })))
-          : h('p', { class: 'empty' }, 'Für deine Klassen und Kurse gibt es noch keine Listen.'),
+          : offline ? null : h('p', { class: 'empty' }, 'Für deine Klassen und Kurse gibt es noch keine Listen.'),
       ),
     );
   }
@@ -507,8 +695,27 @@ function endOfToday() {
   return d;
 }
 
+// Liste zum Lernen: mit Internet frisch vom Server, sonst vom Gerät.
+// Zugewiesene Listen sind dasselbe Objekt wie in offlineData – Antworten landen so auch im Gerätespeicher.
+async function learnableList(id) {
+  const cached = offlineData?.lists.find((l) => l.id === Number(id));
+  if (online) {
+    try {
+      const list = await api('GET', `/lists/${id}`);
+      if (!cached) return list;
+      Object.assign(cached, list, { progress: mergeProgress(cached.progress, list.progress) });
+      store.save(`offline:${me.id}`, offlineData).catch(() => {});
+      return cached;
+    } catch (err) {
+      if (!(err instanceof OfflineError)) throw err;
+    }
+  }
+  if (!cached) throw new Error('Diese Liste ist auf diesem Gerät nicht gespeichert. Öffne sie einmal mit Internet, z. B. im Schul-WLAN.');
+  return cached;
+}
+
 async function renderLearn(id) {
-  const list = await api('GET', `/lists/${id}`);
+  const list = await learnableList(id);
   if (!list.words.length) throw new Error('Diese Liste enthält keine Wörter.');
   const progress = new Map(list.progress.map((p) => [`${p.word_id}:${p.direction}`, p]));
   const key = (wordId, dir) => `${wordId}:${dir}`;
@@ -636,52 +843,52 @@ async function renderLearn(id) {
         nothingToDo
           ? h('button', { class: 'btn primary big', onclick: () => { mode = 'free'; setupView(); } }, 'Trotzdem frei üben')
           : h('button', { class: 'btn primary big', onclick: () => startRound(pick()) }, 'Los geht’s'),
-        list.progress.length ? h('button', { class: 'btn ghost', onclick: resetProgress }, 'Lernstand zurücksetzen') : null,
+        list.progress.length ? h('button', { class: 'btn ghost', onclick: resetProgress, disabled: !online }, 'Lernstand zurücksetzen') : null,
         list.can_copy && !list.is_owner ? h('button', { class: 'btn', onclick: () => copyList(list) }, 'In meine Listen kopieren') : null,
       ),
     ));
   };
 
   async function resetProgress() {
+    if (!online) return toast('Zurücksetzen geht nur mit Internet.', 'warn');
     if (!confirm('Deinen Lernstand für diese Liste wirklich zurücksetzen?')) return;
+    // Noch nicht übertragene Antworten dieser Liste verwerfen, sonst kämen sie danach wieder an
+    await writes;
+    const stale = (await store.pending(me.id)).filter((e) => e.list_id === list.id);
+    await store.done(stale.map((e) => e.id));
     await api('DELETE', `/lists/${id}/progress`);
     progress.clear();
     list.progress = [];
+    if (offlineData) store.save(`offline:${me.id}`, offlineData).catch(() => {});
+    renderNet();
     mode = null;
     setupView();
   }
 
-  // Antworten sammeln und an den Server schicken; der plant die nächste Wiederholung.
-  // Anfragen laufen nacheinander (Kette); wer flush() abwartet, wartet auf alles bis dahin Beantwortete.
-  const pending = [];
-  let chain = Promise.resolve();
+  // Antwort sofort auf dem Gerät verplanen (wie der Server) und für die Übertragung merken.
+  // Schreibvorgänge laufen nacheinander (writes); übertragen wird im Hintergrund, auch ohne Internet kein Fehler.
+  let writes = Promise.resolve();
   function record(card, grade, correct) {
-    pending.push({ word_id: card.word.id, direction: card.dir, grade, correct, exercise: card.exercise });
-    // Sofort als erledigt markieren, damit das Wort nicht erneut als fällig/neu zählt
+    const entry = {
+      id: newId(), user: me.id, list_id: list.id, word_id: card.word.id, direction: card.dir,
+      grade, correct, exercise: card.exercise, at: new Date().toISOString(),
+    };
     const k = key(card.word.id, card.dir);
-    progress.set(k, { ...(progress.get(k) ?? { word_id: card.word.id, direction: card.dir, box: 0 }), due: null });
-    flush();
+    progress.set(k, answer(progress.get(k), entry, review));
+    list.progress = [...progress.values()];
+    writes = writes
+      .then(() => store.queue(entry))
+      .then(() => offlineData && store.save(`offline:${me.id}`, offlineData))
+      .catch(() => toast('Antwort konnte auf dem Gerät nicht gespeichert werden.', 'error'));
+    writes.then(() => syncNow()).catch(() => {});
   }
-  function flush() {
-    chain = chain.then(async () => {
-      if (!pending.length) return;
-      const batch = pending.splice(0);
-      try {
-        const res = await api('POST', `/lists/${id}/results`, { results: batch });
-        // Noch nicht gesendete Antworten nicht mit altem Serverstand überschreiben
-        const waiting = new Set(pending.map((r) => key(r.word_id, r.direction)));
-        for (const p of res.progress) {
-          const k = key(p.word_id, p.direction);
-          if (!waiting.has(k)) progress.set(k, p);
-        }
-        list.progress = res.progress;
-      } catch {
-        pending.unshift(...batch);
-        toast('Lernstand konnte nicht gespeichert werden.', 'error');
-      }
-    });
-    return chain;
-  }
+  // Stand vom Server übernehmen, sobald Antworten übertragen sind (neuere Antworten auf dem Gerät bleiben)
+  const onProgress = (byList) => {
+    if (!byList[list.id]) return;
+    list.progress = mergeProgress(list.progress, byList[list.id]);
+    for (const p of list.progress) progress.set(key(p.word_id, p.direction), p);
+  };
+  progressListeners.add(onProgress);
 
   // ---------- Übungen ----------
 
@@ -753,7 +960,7 @@ async function renderLearn(id) {
       if (!card) return finish();
       card.exercise ??= chooseExercise(card);
       const header = h('div', { class: 'round-head' },
-        h('button', { class: 'btn ghost small', onclick: () => { if (confirm('Runde abbrechen?')) { flush(); cleanupKeys(); stopSpeaking(); setupView(); } } }, '✕ Beenden'),
+        h('button', { class: 'btn ghost small', onclick: () => { if (confirm('Runde abbrechen?')) { cleanupKeys(); stopSpeaking(); setupView(); } } }, '✕ Beenden'),
         progressBar(done, total, 'Fortschritt der Runde'),
         h('span', { class: 'small muted' }, `${Math.min(done + 1, total)} / ${total}`),
       );
@@ -983,7 +1190,7 @@ async function renderLearn(id) {
     async function finish() {
       cleanupKeys();
       const pct = total ? Math.round((right / total) * 100) : 0;
-      const outlook = h('p', { class: 'small muted' }, 'Lernstand wird gespeichert …');
+      const outlook = h('p', { class: 'small muted' });
       const remaining = h('div', {});
       view(h('section', { class: 'panel result' },
         h('h1', {}, pct === 100 ? 'Perfekt! 🎉' : pct >= 70 ? 'Gut gemacht!' : 'Weiter üben!'),
@@ -1000,8 +1207,7 @@ async function renderLearn(id) {
           h('a', { class: 'btn ghost', href: '#/' }, 'Zur Übersicht'),
         ),
       ));
-      await flush();
-      // Wann kommen die Wörter dieser Runde wieder?
+      // Wann kommen die Wörter dieser Runde wieder? (schon auf dem Gerät verplant)
       const buckets = { morgen: 0, 'in 2–7 Tagen': 0, 'in 1–4 Wochen': 0, später: 0 };
       for (const c of cards) {
         const p = progress.get(key(c.word.id, c.dir));
@@ -1021,7 +1227,7 @@ async function renderLearn(id) {
     next();
   }
 
-  leaveGuard = () => { flush(); cleanupKeys(); stopSpeaking(); return true; };
+  leaveGuard = () => { progressListeners.delete(onProgress); cleanupKeys(); stopSpeaking(); return true; };
   setupView();
 }
 
@@ -1368,6 +1574,11 @@ async function route() {
   if (!me) return renderLogin();
   const [, page, id] = location.hash.replace(/^#\/?/, '').match(/^([^/]*)\/?(.*)$/) ?? [];
   try {
+    if (!online && ['edit', 'stats', 'shared'].includes(page)) {
+      return view(h('section', { class: 'panel' }, h('h1', {}, 'Keine Internetverbindung'),
+        h('p', {}, 'Listen bearbeiten, teilen und auswerten geht nur mit Internet. Lernen geht auch offline.'),
+        h('a', { class: 'btn', href: '#/' }, 'Zur Startseite')));
+    }
     if (page === 'learn' && id) await renderLearn(id);
     else if (page === 'edit' && id && me.isTeacher) await renderEditor(id);
     else if (page === 'stats' && id && me.isTeacher) {
@@ -1400,13 +1611,28 @@ async function init() {
     document.title = settings.appName;
     document.getElementById('app-name').textContent = settings.appName;
   }
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
   try {
-    me = await api('GET', '/me');
-  } catch {
-    me = null;
+    me = await request('GET', '/me');
+    await store.save('lastUser', me).catch(() => {});
+  } catch (err) {
+    // Ohne Internet: als zuletzt angemeldete Person mit den Listen auf dem Gerät weiterlernen
+    me = err instanceof OfflineError ? await store.load('lastUser').catch(() => null) : null;
+  }
+  if (me) {
+    offlineData = await store.load(`offline:${me.id}`).catch(() => null);
+    if (online) {
+      await syncNow().catch(() => {});
+      await download().catch(() => {});
+      // Gespeicherte Daten sollen nicht bei Speicherknappheit gelöscht werden
+      navigator.storage?.persist?.().catch(() => {});
+    }
   }
   renderUser();
   route();
+  window.addEventListener('online', reconnect);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reconnect(); });
+  setInterval(reconnect, 60000);
 }
 
 init();

@@ -158,6 +158,10 @@ export const MIGRATIONS = [
    CREATE INDEX lists_shared ON lists(shared);
    ALTER TABLE words ADD COLUMN example TEXT NOT NULL DEFAULT '';
    ALTER TABLE review_log ADD COLUMN exercise TEXT NOT NULL DEFAULT '';`,
+  // 5: Lernen ohne Internet. Jede Antwort bekommt im Browser eine eindeutige ID; kommt sie beim
+  //    Übertragen doppelt an (z. B. Verbindung während des Sendens abgerissen), zählt sie nur einmal.
+  `ALTER TABLE review_log ADD COLUMN client_id TEXT;
+   CREATE UNIQUE INDEX review_log_client ON review_log(user_id, client_id) WHERE client_id IS NOT NULL;`,
 ];
 
 function migrate(db) {

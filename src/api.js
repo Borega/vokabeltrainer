@@ -7,6 +7,8 @@ export const SAFE_BOX = SAFE_LEVEL;
 const MAX_WORDS = 2000;
 const DAY = 24 * 60 * 60 * 1000;
 const HISTORY_WEEKS = 8;
+// Höchstzahl Antworten pro Übertragung (der Browser schickt größere Mengen in Teilen)
+const MAX_RESULTS = 500;
 // auto = Lernleiter: Übungsart passt sich dem Lernstand jedes Worts an (siehe public/exercises.js)
 const MODES = ['auto', 'flip', 'type', 'choice'];
 // Übungsarten, die im Verlauf protokolliert werden
@@ -122,8 +124,10 @@ export function apiRouter(db, config) {
        FROM progress p JOIN words w ON w.id = p.word_id
        WHERE p.user_id = ? GROUP BY w.list_id`,
     ),
+    // Mit allen FSRS-Werten, damit der Browser ohne Internet weiterplanen kann
     myProgress: db.prepare(
-      `SELECT p.word_id, p.direction, p.box, p.right, p.wrong, p.last_seen, p.due, p.stability
+      `SELECT p.word_id, p.direction, p.box, p.right, p.wrong, p.last_seen, p.due, p.stability,
+         p.difficulty, p.state, p.reps, p.lapses, p.scheduled_days, p.last_review
        FROM progress p JOIN words w ON w.id = p.word_id
        WHERE p.user_id = ? AND w.list_id = ?`,
     ),
@@ -135,9 +139,10 @@ export function apiRouter(db, config) {
     ownerName: db.prepare('SELECT name FROM users WHERE id = ?'),
     wordInList: db.prepare('SELECT 1 FROM words WHERE id = ? AND list_id = ?'),
     logReview: db.prepare(
-      `INSERT INTO review_log (user_id, word_id, direction, grade, stability, at, exercise)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO review_log (user_id, word_id, direction, grade, stability, at, exercise, client_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     ),
+    seenClientId: db.prepare('SELECT 1 FROM review_log WHERE user_id = ? AND client_id = ?'),
     getProgress: db.prepare('SELECT * FROM progress WHERE user_id = ? AND word_id = ? AND direction = ?'),
     putProgress: db.prepare(
       `INSERT INTO progress (user_id, word_id, direction, box, right, wrong, last_seen,
@@ -146,7 +151,7 @@ export function apiRouter(db, config) {
          :stability, :difficulty, :due, :state, :reps, :lapses, :scheduled_days, :last_review)
        ON CONFLICT(user_id, word_id, direction) DO UPDATE SET
          box = excluded.box, right = right + excluded.right, wrong = wrong + excluded.wrong,
-         last_seen = excluded.last_seen, stability = excluded.stability, difficulty = excluded.difficulty,
+         last_seen = MAX(last_seen, excluded.last_seen), stability = excluded.stability, difficulty = excluded.difficulty,
          due = excluded.due, state = excluded.state, reps = excluded.reps, lapses = excluded.lapses,
          scheduled_days = excluded.scheduled_days, last_review = excluded.last_review`,
     ),
@@ -222,20 +227,32 @@ export function apiRouter(db, config) {
     return { own, assigned };
   }));
 
-  router.get('/lists/:id', wrap((req) => {
-    const list = loadList(req.params.id);
-    assertCanSee(list, req.user);
-    const isOwner = list.owner_id === req.user.id;
+  function listDetail(list, user) {
+    const isOwner = list.owner_id === user.id;
     return {
       ...listJson(list),
       is_owner: isOwner,
-      owner_name: isOwner ? req.user.name : q.ownerName.get(list.owner_id)?.name ?? '',
-      can_copy: req.user.isTeacher && (isOwner || !!list.shared),
+      owner_name: isOwner ? user.name : q.ownerName.get(list.owner_id)?.name ?? '',
+      can_copy: user.isTeacher && (isOwner || !!list.shared),
       groups: isOwner ? q.listGroups.all(list.id) : undefined,
       words: q.words.all(list.id),
-      progress: q.myProgress.all(req.user.id, list.id),
+      progress: q.myProgress.all(user.id, list.id),
     };
+  }
+
+  router.get('/lists/:id', wrap((req) => {
+    const list = loadList(req.params.id);
+    assertCanSee(list, req.user);
+    return listDetail(list, req.user);
   }));
+
+  // Alles zum Lernen ohne Internet: die zugewiesenen Listen mit Wörtern und eigenem Lernstand.
+  // Der Browser lädt das bei jeder Verbindung (in der Schule) und lernt zu Hause damit weiter.
+  router.get('/offline', wrap((req) => ({
+    user: { id: req.user.id, name: req.user.name, isTeacher: req.user.isTeacher },
+    lists: q.assignedLists.all(req.user.id, req.user.id).map((row) => listDetail(row, req.user)),
+    at: now(),
+  })));
 
   function writeList(listId, data) {
     const ts = now();
@@ -335,25 +352,36 @@ export function apiRouter(db, config) {
     return { id };
   }));
 
-  // Ergebnisse einer Lernrunde: [{ word_id, direction, grade: again|hard|good|easy, correct, exercise }]
-  // grade steuert die Wiederholungsplanung, correct die Zähler richtig/falsch,
-  // exercise (flip|type|choice|cloze|listen) wird nur im Verlauf festgehalten.
-  router.post('/lists/:id/results', wrap((req) => {
-    const list = loadList(req.params.id);
-    assertCanSee(list, req.user);
-    const results = Array.isArray(req.body?.results) ? req.body.results.slice(0, 500) : [];
-    const ts = now();
+  // Antworten übernehmen: { word_id, direction, grade: again|hard|good|easy, correct, exercise, at, id }
+  // grade steuert die Wiederholungsplanung, correct die Zähler richtig/falsch, exercise
+  // (flip|type|choice|cloze|listen) wird nur im Verlauf festgehalten.
+  // Ohne Internet gegebene Antworten kommen später: at ist der Zeitpunkt der Antwort (nie in der Zukunft
+  // und nie vor der letzten bekannten Antwort), id macht doppeltes Senden unschädlich.
+  // listFor(result) liefert die Liste des Worts oder null (dann wird die Antwort übergangen).
+  function applyResults(user, results, listFor) {
+    const nowMs = Date.now();
+    const timeOf = (r) => {
+      const t = Date.parse(r?.at);
+      return Number.isNaN(t) || t > nowMs ? nowMs : t;
+    };
+    const sorted = results.map((r) => ({ r, t: timeOf(r) })).sort((x, y) => x.t - y.t);
+    const touched = new Set();
     transaction(db, () => {
-      for (const r of results) {
+      for (const { r, t } of sorted) {
         const wordId = Number(r?.word_id);
-        const direction = r?.direction === 'ba' ? 'ba' : 'ab';
-        if (!Number.isInteger(wordId) || !q.wordInList.get(wordId, list.id)) continue;
+        const list = listFor(r);
+        if (!list || !Number.isInteger(wordId) || !q.wordInList.get(wordId, list.id)) continue;
+        const clientId = typeof r.id === 'string' && r.id.length <= 100 ? r.id : null;
+        if (clientId && q.seenClientId.get(user.id, clientId)) continue;
+        const direction = r.direction === 'ba' ? 'ba' : 'ab';
         const grade = r.grade in GRADES ? r.grade : r.correct ? 'good' : 'again';
         const correct = typeof r.correct === 'boolean' ? r.correct : grade !== 'again';
-        const previous = q.getProgress.get(req.user.id, wordId, direction);
+        const previous = q.getProgress.get(user.id, wordId, direction);
+        const last = previous?.last_review ? Date.parse(previous.last_review) : 0;
+        const ts = new Date(Math.max(t, last)).toISOString();
         const next = review(previous, grade, new Date(ts));
         q.putProgress.run({
-          user_id: req.user.id,
+          user_id: user.id,
           word_id: wordId,
           direction,
           right: correct ? 1 : 0,
@@ -362,10 +390,45 @@ export function apiRouter(db, config) {
           ...next,
         });
         const exercise = EXERCISES.includes(r.exercise) ? r.exercise : '';
-        q.logReview.run(req.user.id, wordId, direction, grade, next.stability, ts, exercise);
+        q.logReview.run(user.id, wordId, direction, grade, next.stability, ts, exercise, clientId);
+        touched.add(list.id);
       }
     });
+    return touched;
+  }
+
+  // Ergebnisse einer Lernrunde für eine Liste
+  router.post('/lists/:id/results', wrap((req) => {
+    const list = loadList(req.params.id);
+    assertCanSee(list, req.user);
+    const results = Array.isArray(req.body?.results) ? req.body.results.slice(0, MAX_RESULTS) : [];
+    applyResults(req.user, results, () => list);
     return { progress: q.myProgress.all(req.user.id, list.id) };
+  }));
+
+  // Antworten aus mehreren Listen auf einmal – so überträgt der Browser, was ohne Internet gelernt wurde.
+  // Antwort: der neue Lernstand der betroffenen Listen, { progress: { <list_id>: [...] } }.
+  router.post('/results', wrap((req) => {
+    const results = Array.isArray(req.body?.results) ? req.body.results.slice(0, MAX_RESULTS) : [];
+    const visible = new Map();
+    const listFor = (r) => {
+      const id = Number(r?.list_id);
+      if (!visible.has(id)) {
+        const list = Number.isInteger(id) ? q.list.get(id) : null;
+        let ok = !!list;
+        try {
+          if (list) assertCanSee(list, req.user);
+        } catch {
+          ok = false; // z. B. nicht mehr in der Gruppe: Antwort verfällt
+        }
+        visible.set(id, ok ? list : null);
+      }
+      return visible.get(id);
+    };
+    const touched = applyResults(req.user, results, listFor);
+    const progress = {};
+    for (const id of touched) progress[id] = q.myProgress.all(req.user.id, id);
+    return { progress };
   }));
 
   router.delete('/lists/:id/progress', wrap((req) => {
