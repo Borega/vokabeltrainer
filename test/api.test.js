@@ -61,6 +61,16 @@ const listBody = {
   ],
 };
 
+test('Planungs-Bibliothek für den Browser mit ihrem Lizenzhinweis', async () => {
+  const res = await fetch(`${base}/vendor/ts-fsrs.js`);
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get('content-type'), /javascript/);
+  const js = await res.text();
+  assert.match(js.slice(0, 2000), /MIT License[\s\S]*Copyright/);
+  const mod = await import(`data:text/javascript,${encodeURIComponent(js)}`);
+  assert.equal(typeof mod.fsrs, 'function', 'bleibt ein gültiges Modul');
+});
+
 test('ohne Anmeldung kein Zugriff', async () => {
   const r = await fetch(`${base}/api/me`);
   assert.equal(r.status, 401);
