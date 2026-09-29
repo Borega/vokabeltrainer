@@ -85,6 +85,34 @@ function pref(name, value) {
   return value;
 }
 
+// Darstellung: wie das Gerät, hell oder dunkel. Die Wahl wird im Browser gemerkt;
+// theme.js setzt sie beim nächsten Laden schon vor dem ersten Zeichnen.
+const THEMES = [
+  ['auto', '🌓', 'wie Gerät'],
+  ['light', '☀️', 'hell'],
+  ['dark', '🌙', 'dunkel'],
+];
+
+function themeToggle(button) {
+  let current = THEMES.findIndex(([name]) => name === pref('theme'));
+  if (current < 0) current = 0;
+  const apply = () => {
+    const [name, icon, label] = THEMES[current];
+    const [, , nextLabel] = THEMES[(current + 1) % THEMES.length];
+    if (name === 'auto') delete document.documentElement.dataset.theme;
+    else document.documentElement.dataset.theme = name;
+    button.textContent = icon;
+    button.title = `Darstellung: ${label} – klicken für ${nextLabel}`;
+    button.setAttribute('aria-label', button.title);
+  };
+  button.addEventListener('click', () => {
+    current = (current + 1) % THEMES.length;
+    pref('theme', THEMES[current][0]);
+    apply();
+  });
+  apply();
+}
+
 function directionLabel(list, dir) {
   if (dir === 'mixed') return 'Gemischt';
   const [from, to] = dir === 'ab' ? ['a', 'b'] : ['b', 'a'];
@@ -1366,6 +1394,7 @@ window.addEventListener('hashchange', () => {
 });
 
 async function init() {
+  themeToggle(document.getElementById('theme'));
   settings = await fetch('/config.json').then((r) => r.json()).catch(() => ({}));
   if (settings.appName) {
     document.title = settings.appName;

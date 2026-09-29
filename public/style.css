@@ -17,8 +17,10 @@
   color-scheme: light;
 }
 
+/* Dunkel: automatisch nach Gerät, außer „hell“ ist gewählt – oder ausdrücklich „dunkel“ (data-theme, siehe theme.js).
+   Beide Blöcke müssen gleich bleiben. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #11151c;
     --surface: #1a2029;
     --text: #e7ebf2;
@@ -35,6 +37,24 @@
     --shadow: 0 1px 3px rgb(0 0 0 / 40%);
     color-scheme: dark;
   }
+}
+
+:root[data-theme="dark"] {
+  --bg: #11151c;
+  --surface: #1a2029;
+  --text: #e7ebf2;
+  --muted: #9aa5b6;
+  --border: #2d3645;
+  --primary: #5b8ff0;
+  --primary-text: #0b1220;
+  --right: #4cc27c;
+  --right-bg: #173024;
+  --wrong: #f07a7a;
+  --wrong-bg: #3a1d1f;
+  --warn: #e0a84a;
+  --chip: #243149;
+  --shadow: 0 1px 3px rgb(0 0 0 / 40%);
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -59,6 +79,8 @@ a { color: var(--primary); }
 }
 .brand { display: flex; align-items: center; gap: .5rem; font-weight: 700; color: var(--text); text-decoration: none; font-size: 1.1rem; }
 .logo { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; background: var(--primary); color: var(--primary-text); font-size: .9rem; }
+.topbar-right { display: flex; align-items: center; gap: .5rem; }
+.theme-toggle { font-size: 1.05rem; padding: .3rem .55rem; line-height: 1; }
 .user { display: flex; align-items: center; gap: .75rem; }
 .user form { margin: 0; }
 .who { display: flex; align-items: center; gap: .4rem; color: var(--muted); }

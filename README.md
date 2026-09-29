@@ -31,6 +31,9 @@ Gruppen (Klassen/Kurse) und die Rolle „Lehrkraft“ werden direkt aus IServ ü
   - Einzelansicht per Klick auf den Namen: Lernstand jedes Worts in beiden Richtungen
   - schwierigste Wörter der Gruppe und Export als CSV
 
+**Für alle**
+- Darstellung hell, dunkel oder wie das Gerät (Knopf oben rechts, wird im Browser gemerkt)
+
 **Für Schüler:innen**
 - sehen nur Listen ihrer Gruppen
 - Zwei Modi:
