@@ -4,6 +4,8 @@ Ein schlanker Vokabeltrainer für Schulen. Lehrkräfte legen Wortlisten an (im E
 und weisen sie Klassen bzw. Kursen zu. Schüler:innen lernen mit der **Lernleiter**, deren Aufgaben mit
 dem Lernstand jedes Worts schwerer werden (kennenlernen → auswählen → eintippen → Lückentext und Hörübung),
 oder wahlweise nur mit **Karteikarten**, **Eintippen** oder **Auswählen** – in beide Richtungen.
+Dazu gibt es **Grammatiklisten** mit Regeln und Aufgaben (Lücke, Auswählen, Fehler finden, Satzbau,
+Umformen/Übersetzen), geplant pro Regel – siehe [Grammatik](#grammatik).
 
 Die Anmeldung läuft über **OpenID Connect**, z. B. über das Single-Sign-On von **IServ**.
 Gruppen (Klassen/Kurse) und die Rolle „Lehrkraft“ werden direkt aus IServ übernommen.
@@ -11,6 +13,8 @@ Gruppen (Klassen/Kurse) und die Rolle „Lehrkraft“ werden direkt aus IServ ü
 ## Funktionen
 
 **Für Lehrkräfte**
+- **Vokabellisten und Grammatiklisten** anlegen („+ Neue Vokabelliste“, „+ Neue Grammatikliste“) – zur Grammatik
+  siehe [unten](#grammatik)
 - Listen im Browser-Editor anlegen und bearbeiten (Enter springt in die nächste Zeile), mit Werkzeugleiste:
   **✱ Lücke** (Wort im Beispielsatz markieren – automatisch oder die Auswahl), **( ) optional**, **; Alternative**,
   Sonderzeichen der Sprache (é, ñ, ā …) und **Alle Lücken setzen**. Sätze, aus denen noch kein Lückentext wird,
@@ -31,14 +35,15 @@ Gruppen (Klassen/Kurse) und die Rolle „Lehrkraft“ werden direkt aus IServ ü
   „Geteilte Listen“, können sie ausprobieren und eine eigene Kopie anlegen, die sie frei bearbeiten und
   ihren Gruppen zuweisen. Das Original bleibt unverändert, Lernstände werden nicht geteilt.
 - Pro Liste die **Jahrgangsstufe** (1–13) angeben – Pflichtfeld; ältere Listen bekommen sie beim nächsten Speichern.
-  Unter „Geteilte Listen“ lässt sich nach **Sprache** und **Jahrgang** filtern und nach Änderungsdatum, Jahrgang
-  oder Titel sortieren; die Auswahl wird im Browser gemerkt.
+  Unter „Geteilte Listen“ lässt sich nach **Art** (Vokabeln/Grammatik), **Sprache** und **Jahrgang** filtern und nach
+  Änderungsdatum, Jahrgang oder Titel sortieren; die Auswahl wird im Browser gemerkt.
 - **Auswertung** pro Liste und Gruppe:
   - Kennzahlen: Schüler:innen, aktiv in den letzten 7 Tagen, Ø sicher, Ø geübt, heute fällig
   - Verlauf der letzten 8 Wochen: Ø sicher und Abfragen pro Woche (Diagramm und Tabelle)
   - Tabelle pro Schüler:in (sortierbar): sicher, geübt, fällig, richtig/falsch, zuletzt aktiv
   - Einzelansicht per Klick auf den Namen: Lernstand jedes Worts in beiden Richtungen
   - schwierigste Wörter der Gruppe und Export als CSV
+  - bei Grammatik mit Regeln statt Wörtern, dazu **häufigste Fehler** (siehe [Grammatik](#grammatik))
 
 **Für alle**
 - Darstellung hell, dunkel oder wie das Gerät (Knopf oben rechts, wird im Browser gemerkt)
@@ -46,8 +51,8 @@ Gruppen (Klassen/Kurse) und die Rolle „Lehrkraft“ werden direkt aus IServ ü
 **Für Schüler:innen**
 - sehen nur Listen ihrer Gruppen
 - Zwei Modi:
-  - **Heute fällig** – verteiltes Wiederholen: Das Programm plant für jedes Wort, wann es wiederkommt
-    (siehe unten). Die Startseite zeigt, wie viele Wörter heute fällig sind.
+  - **Heute fällig** – verteiltes Wiederholen: Das Programm plant für jedes Wort (bei Grammatik: jede Regel), wann
+    es wiederkommt (siehe unten). Die Startseite zeigt, wie viele Wörter und Regeln heute fällig sind.
   - **Frei üben** – beliebige Wörter, unsichere zuerst (z. B. vor einem Test); zählt trotzdem für die Planung
 - Abfrageart wählen, sofern erlaubt – z. B. sonst mit der Lernleiter, vor einem Test schnell mit Karteikarten
   (wird pro Liste gemerkt; für die Planung zählt jede Art wie oben beschrieben, Auswählen also nur als „mit Mühe“)
@@ -130,10 +135,143 @@ Beispielsätze passend zum Jahrgang mit markierter Lücke. Liefert die KI stattd
 Liste mit Gedankenstrichen, wird das ebenfalls erkannt. KI-Listen können Fehler enthalten – vor dem Freigeben
 bitte gegenlesen.
 
+## Grammatik
+
+Neben Vokabellisten gibt es **Grammatiklisten**: Eine Liste besteht aus **Regeln** (z. B. „Present perfect mit
+*since* und *for*“), jede mit Merksatz, Erklärung und Aufgaben. Beim Anlegen wählt die Lehrkraft
+**+ Neue Vokabelliste** oder **+ Neue Grammatikliste**. Grammatiklisten werden wie Vokabellisten Gruppen zugewiesen,
+für Kolleg:innen freigegeben, kopiert (mit Regeln und Aufgaben), offline geladen und ausgewertet; unter „Geteilte
+Listen“ lässt sich nach **Art** filtern. Weil Grammatik aufeinander aufbaut, kommen neue Regeln in der Reihenfolge
+der Lehrkraft dran.
+
+### Aufgaben schreiben
+
+Pro Regel ein Textfeld, **eine Aufgabe pro Zeile** – schnell zu tippen und leicht aus Arbeitsblättern zu übernehmen.
+Der Editor zeigt die Aufgaben live als Vorschau und meldet Fehler zeilengenau; beim Speichern prüft der Server mit
+demselben Code. Die Werkzeugleiste fügt die Bausteine ein (auch Sonderzeichen der Sprache).
+
+```
+She *has lived* (live) here since 2010.
+I *haven’t seen|have not seen* (not see) him for weeks.
+They {have known|knew|are knowing} each other since school.
+! knew = Seit wann? Mit „since“ steht das present perfect.
+! lived = Die Handlung dauert bis jetzt an – present perfect.
+Fehler: He have worked here for ten years. → He has worked here for ten years.
+Ordnen: I / have never been / to Spain
+Übersetzen: Ich kenne sie seit drei Jahren. → I have known her for three years. | I’ve known her for three years.
+Umformen: Ins Passiv: They built the house. → The house was built.
+```
+
+| Aufgabe | Schreibweise |
+|---|---|
+| **Lücke** zum Eintippen | `*Form*` – `\|` trennt gültige Varianten, `(Grundform)` direkt dahinter ist der Hinweis, `(…)` in der Lücke ist optional; mehrere Lücken pro Satz möglich |
+| **Auswählen** | `{richtig\|falsch\|falsch}` – die erste Form ist richtig (wird gemischt), 2 bis 4 Formen; die falschen sollten typische Fehler sein |
+| **Fehler finden** | `Fehler: falscher Satz → richtiger Satz` – der falsche Satz steht im Eingabefeld und wird korrigiert |
+| **Satzbau** | `Ordnen: Teil / Teil / Teil` – die Teile erscheinen gemischt und werden in die richtige Reihenfolge getippt; weitere gültige Reihenfolgen mit `\|` |
+| **Übersetzen** / **Umformen** | `Übersetzen: Deutscher Satz → Lösung \| andere Lösung`, `Umformen: Anweisung und Satz → Lösung` |
+| **Hinweis** | `! falsche Antwort = Hinweis` in der Zeile darunter (`\|` für mehrere falsche Antworten); ohne `=` gilt der Hinweis für jede falsche Antwort |
+
+Regeln haben außerdem: **Merksatz** (eine Zeile, Pflicht – erscheint als Hinweis, wenn es keinen besseren gibt),
+**Erklärung** (kurzer Text; `*Sternchen*` heben Formen hervor; eine Zeile mit `?` am Anfang ist die Frage beim
+Entdecken) und die Option **Regel entdecken lassen** (erst Beispiele und eine Frage, dann die Regel). Regeln lassen
+sich mit ↑/↓ umsortieren; **Import und Export als Textdatei** (`## Titel`, `Merksatz:`, `Erklärung:`, `Aufgaben:`)
+erleichtern das Übernehmen aus Dokumenten. Beim Bearbeiten bleibt die Verknüpfung zu Lernstand und Fehlerstatistik
+erhalten, solange eine Aufgabe erkennbar dieselbe ist. Richtwert: mindestens 8 Aufgaben pro Regel – mit
+wechselnden Sätzen lernen Schüler:innen die Regel statt die Sätze.
+
+Geprüft wird wie bei Vokabeln (Groß-/Kleinschreibung und Akzente je nach Listeneinstellung), Kommas und
+Anführungszeichen zählen nicht. Bei **Tippfehlern ist die Prüfung strenger**: Nur vertauschte oder ausgelassene
+Buchstaben mitten im Wort gelten als „Fast!“ – eine andere Form (*knew* statt *know*, *live* statt *lived*) ist in
+der Grammatik kein Tippfehler, sondern der Fehler, um den es geht.
+
+### Ablauf für Schüler:innen
+
+| Stufe der Regel | Ablauf |
+|---|---|
+| **neu** | Regelkarte (Merksatz, Erklärung, Beispiele mit hervorgehobener Form; bei „Entdecken“ erst die Beispiele mit Frage), danach 2 × Auswählen und 2 × Lücke dieser Regel – im Block |
+| **Anfang** (< 3 Tage Stabilität) | vor allem Lücke und Satzbau, gemischt mit anderen Regeln; Auswählen nur als Erleichterung nach einem Fehler |
+| **ab „lernt“** (≥ 3 Tage) | Lücke, Fehler finden, Satzbau, Umformen/Übersetzen im Wechsel, gemischt |
+
+- **Heute fällig:** fällige Regeln (älteste zuerst, 3 / 5 / 10 pro Runde), je 2 Aufgaben, alle Aufgaben der Runde
+  gemischt. Dazu höchstens **eine neue Regel** als geschlossener Block vorweg.
+- **Frei üben:** eine oder mehrere Regeln wählen, gemischt oder nach Regeln geordnet (z. B. vor einer Arbeit);
+  zählt für die Planung wie bei Vokabeln.
+- Pro Regel kommen die Aufgaben dran, die am längsten nicht dran waren – nicht zweimal hintereinander derselbe Satz.
+- Nach der Antwort steht der **ganze richtige Satz** da und wird bei „Ton an“ vorgelesen.
+- **Nicht geschafft:** Später in derselben Runde kommt eine *andere* Aufgabe derselben Regel (nur wenn es keine gibt,
+  dieselbe).
+
+**Feedback in zwei Stufen:** Bei einer falschen Antwort zeigt die App nicht gleich die Lösung, sondern markiert die
+Fehlerstelle (falsche Lücke, falsche Wörter, falsch stehende Satzteile) und gibt einen **Hinweis** – den der
+Lehrkraft zu genau dieser falschen Antwort, sonst den Merksatz. Die Eingabe bleibt stehen: zweiter Versuch. Erst
+danach folgen die Lösung mit markiertem Unterschied, der Merksatz und „📖 Regel ansehen“. Bei „Fast!“ zählt die
+Antwort als „mit Mühe“, „Ich hatte recht“ ist möglich.
+
+**📖 Regel** lässt sich jederzeit aufrufen – *vor* der Antwort zählt das aber als Hilfe (die Aufgabe gilt dann als
+„mit Mühe gewusst“), damit Abrufen Vorrang vor Nachlesen behält.
+
+### Bewertung für die Planung
+
+| Ergebnis einer Aufgabe | Bewertung |
+|---|---|
+| richtig beim ersten Versuch (Lücke, Fehler finden, Satzbau, Umformen/Übersetzen) | *good* |
+| richtig beim ersten Versuch beim Auswählen | *hard* – nur Wiedererkennen, wie bei Vokabeln |
+| richtig nach Hinweis, nach Blick auf die Regel vor der Antwort oder „Fast!“ | *hard* |
+| falsch (auch nach dem zweiten Versuch) | *again* |
+
+Geplant wird **pro Regel, nicht pro Satz** – sonst würde irgendwann der Satz auswendig gelernt statt der Regel.
+Pro Regel und Runde zählt **eine** Bewertung: die schlechteste der Runde. Mehrere Bewertungen am selben Tag
+erhöhen die Stabilität kaum, ein einzelnes *again* würde sie aber senken. Im Verlauf wird trotzdem jede Aufgabe
+einzeln gespeichert. Beim Beenden oder Verlassen einer Runde werden die schon beantworteten Aufgaben übernommen.
+
+### Auswertung für Lehrkräfte
+
+Wie bei Vokabeln (Kennzahlen, Verlauf, Tabelle pro Schüler:in, CSV-Export, Einzelansicht) – mit Regeln statt Wörtern.
+Dazu: **Schwierigste Regeln** und **Häufigste Fehler** pro Aufgabe („*knew* – 9 ×“): Das zeigt, welche Fehlvorstellung
+in der Klasse verbreitet ist, und eignet sich direkt für die nächste Stunde. Die Klassenliste zeigt nur Anzahlen je
+Antwort, **ohne Namen**; die falschen Antworten einer Person stehen nur in deren Einzelansicht. Mit **Hinweis
+anlegen** wird aus einem häufigen Fehler ein `! Antwort = Hinweis` unter der Aufgabe.
+
+### Wissenschaftliche Grundlagen der Grammatik
+
+Die Gestaltung folgt dem Forschungsstand zum Grammatiklernen; die ausführliche Herleitung steht in
+[docs/grammatik-plan.md](docs/grammatik-plan.md).
+
+| Befund | Umsetzung |
+|---|---|
+| Explizite Regel plus Übung wirkt stärker als „nur Beispiele“; angeleitetes Entdecken ist mindestens so gut (Norris & Ortega 2000; Spada & Tomita 2010; Cerezo et al. 2016) | Regelkarte zu jeder Regel, optional „Beispiele → Frage → Regel“ |
+| Übung muss Form mit Bedeutung verbinden (DeKeyser 2007; Wong & VanPatten 2003) | ganze Sätze mit Signalwörtern statt reiner Formentabellen |
+| Erst erkennen, dann selbst bilden (Shintani 2015) | neue Regeln: erst Auswählen, dann Lücke; „sicher“ heißt selbst gebildet |
+| Hinweise, die zum Selbstkorrigieren anregen, und Markierung der Fehlerstelle wirken besser als Vorsagen (Lyster & Saito 2010; Heift 2004; Nagata 1993) | zweiter Versuch mit Hinweis, danach erst die Lösung |
+| Verteiltes Wiederholen (Bird 2010; Rogers 2015; Kasprowicz et al. 2019) | FSRS wie bei Vokabeln |
+| Gemischtes Üben verbessert das langfristige Behalten, aber nicht beim ersten Kontakt (Nakata & Suzuki 2019; Pan et al. 2019) | Einführung im Block, Wiederholungen gemischt |
+| Wechselnde Beispiele fördern die Übertragung (Schmidt & Bjork 1992) | Planung pro Regel, Sätze wechseln |
+| Abrufen statt Nachlesen (Roediger & Karpicke 2006) | Regel vor der Antwort zählt als Hilfe |
+
+**Bewusst nicht vorgesehen:** Vokabeln und Grammatik in einer Liste (zwei Listen derselben Lektion lassen sich
+gemeinsam zuweisen), Tempo-Runden mit Zeitdruck sowie KI zum Prüfen oder Erzeugen von Aufgaben in der App selbst.
+
+**Literatur (Grammatik)**
+- Bird, S. (2010). Effects of distributed practice on the acquisition of second language English syntax. *Applied Psycholinguistics, 31*, 635–650.
+- Cerezo, L., Caras, A., & Leow, R. P. (2016). The effectiveness of guided induction versus deductive instruction on the development of complex Spanish *gustar* structures. *Studies in Second Language Acquisition, 38*, 265–291.
+- DeKeyser, R. (2007). Skill acquisition theory. In B. VanPatten & J. Williams (Hrsg.), *Theories in Second Language Acquisition* (S. 97–113). Erlbaum.
+- Heift, T. (2004). Corrective feedback and learner uptake in CALL. *ReCALL, 16*(2), 416–431.
+- Kasprowicz, R. E., Marsden, E., & Sephton, N. (2019). Investigating distribution of practice effects for the learning of foreign language verb morphology in the young learner classroom. *The Modern Language Journal, 103*(3), 580–606.
+- Lyster, R., & Saito, K. (2010). Oral feedback in classroom SLA: A meta-analysis. *Studies in Second Language Acquisition, 32*(2), 265–302.
+- Nagata, N. (1993). Intelligent computer feedback for second language instruction. *The Modern Language Journal, 77*(3), 330–339.
+- Nakata, T., & Suzuki, Y. (2019). Mixing grammar exercises facilitates long-term retention: Effects of blocking, interleaving, and increasing practice. *The Modern Language Journal, 103*(3), 629–647.
+- Norris, J. M., & Ortega, L. (2000). Effectiveness of L2 instruction: A research synthesis and quantitative meta-analysis. *Language Learning, 50*(3), 417–528.
+- Pan, S. C., Tajran, J., Lovelett, J., Osuna, J., & Rickard, T. C. (2019). Does interleaved practice enhance foreign language learning? The effects of training schedule on Spanish verb conjugation skills. *Journal of Educational Psychology, 111*(7), 1172–1188.
+- Rogers, J. (2015). Learning second language syntax under massed and distributed conditions. *TESOL Quarterly, 49*(4), 857–866.
+- Schmidt, R. A., & Bjork, R. A. (1992). New conceptualizations of practice. *Psychological Science, 3*(4), 207–217.
+- Shintani, N. (2015). The effectiveness of processing instruction and production-based instruction on L2 grammar acquisition: A meta-analysis. *Applied Linguistics, 36*(3), 306–325.
+- Spada, N., & Tomita, Y. (2010). Interactions between type of instruction and type of language feature: A meta-analysis. *Language Learning, 60*(2), 263–308.
+- Wong, W., & VanPatten, B. (2003). The evidence is IN: Drills are OUT. *Foreign Language Annals, 36*(3), 403–423.
+
 ## Lernen ohne Internet (iPad)
 
 Für Schüler:innen, die nur in der Schule WLAN haben: Die App lädt bei jeder Verbindung alle zugewiesenen
-Listen samt Lernstand auf das Gerät. Zu Hause wird damit weitergelernt – auch „Heute fällig“ stimmt, weil
+Listen (Vokabeln und Grammatik) samt Lernstand auf das Gerät. Zu Hause wird damit weitergelernt – auch „Heute fällig“ stimmt, weil
 das Gerät genauso plant wie der Server. Die Antworten bleiben auf dem Gerät, bis es wieder im Schul-WLAN
 ist, und werden dann mit dem Zeitpunkt der Antwort übertragen. Oben rechts steht „Offline · 12 Antworten
 warten“, solange etwas aussteht.
@@ -183,6 +321,8 @@ etwa 90 % Wahrscheinlichkeit gewusst würde:
 Dass Auswählen nur als *hard* zählt, ist Absicht: „Sicher“ soll weiterhin heißen, dass ein Wort selbst
 hervorgebracht werden kann. In Listen mit „Auswählen“ dauert es deshalb länger, bis Wörter als sicher
 gelten. Welche Übung zu einer Antwort gehörte, wird im Verlauf mitgespeichert.
+
+Bei Grammatik gilt dasselbe je **Regel** statt je Wort und Richtung (siehe [Grammatik](#grammatik)).
 
 Mehrfaches Wiederholen am selben Tag erhöht die Stabilität kaum – Pauken bringt kurzfristig etwas,
 für die Planung zählt aber das Behalten über Tage. „Sicher“ in der Auswertung heißt: Das Wort würde
@@ -373,6 +513,10 @@ Gespeichert werden nur:
 - die Wortlisten der Lehrkräfte
 - je Schüler:in, Wort und Richtung: Lernstufe und Planungswerte, Anzahl richtig/falsch, Zeitpunkt der letzten Abfrage
 - ein Verlauf der Antworten (Zeitpunkt, Bewertung, Übungsart) für die Auswertung
+- bei Grammatik je Schüler:in und Regel der Lernstand, im Verlauf jede Aufgabe einzeln und – für die Fehlerauswertung –
+  die **eingegebene falsche Antwort** beim ersten Versuch (gekürzt auf 200 Zeichen). Das ist eine Leistungsangabe wie
+  die übrigen Lernstandsdaten; sie wird wie diese gelöscht (`RETENTION_DAYS`, Zurücksetzen durch die Schüler:innen).
+  Die Fehlerliste der Lehrkraft zeigt nur Anzahlen je Antwort, in der Einzelansicht einer Person auch deren Antworten.
 - bei „Angemeldet bleiben“: ein Geräteschlüssel (in der Datenbank nur als Hash), der nach `REMEMBER_DAYS` Tagen
   oder beim Abmelden verfällt
 
@@ -385,7 +529,7 @@ Lehrkräfte sehen den Lernstand der Schüler:innen aus den Gruppen, denen sie ei
 Das sind Leistungsdaten – bitte den Einsatz mit der/dem Datenschutzbeauftragten der Schule abstimmen und
 die Schüler:innen informieren. Konten ohne Anmeldung innerhalb von `RETENTION_DAYS` Tagen werden automatisch
 samt Lernstand gelöscht. Schüler:innen können ihren Lernstand je Liste selbst zurücksetzen.
-Es werden keine externen Dienste, CDNs oder Tracker eingebunden.
+Es werden keine externen Dienste, CDNs oder Tracker eingebunden – auch keine KI zum Prüfen oder Erzeugen von Aufgaben.
 
 ## Entwicklung
 
@@ -402,6 +546,9 @@ Aufbau:
 - `src/` – Express-Server: OIDC-Login (`auth.js`), REST-API (`api.js`), SQLite (`db.js`), Sessions (`session.js`)
 - `public/` – Oberfläche ohne Build-Schritt (Vanilla JS); `check.js`, `csv.js` und `exercises.js` (Übungsarten,
   Lernleiter, Ablenker, Tipps, Lückentext) werden auch in den Tests genutzt, `speech.js` für die Aussprache.
+  Grammatik: `grammar.js` (Aufgaben-Syntax, Prüfung, Hinweise, Rundenplanung, Bewertung – läuft im Browser, auf dem
+  Server beim Speichern und in den Tests), `grammar-editor.js`, `grammar-learn.js`, `grammar-stats.js`;
+  gemeinsame Bausteine: `ui.js`, `stats-ui.js`.
   Offline: `schedule.js` (FSRS-Planung, auch vom Server genutzt), `offline.js` (Abgleich), `store.js`
   (IndexedDB), `sw.js` (Service Worker), `manifest.webmanifest`
 - `test/` – Tests mit `node:test`

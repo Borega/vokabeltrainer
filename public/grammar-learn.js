@@ -63,6 +63,7 @@ export async function renderGrammarLearn(ctx, list) {
   const charsFor = specialChars(rules.flatMap((r) => r.items.map((e) => ({ a: solutionText(e.item) }))), 'a');
 
   let mode = null; // 'due' (Heute fällig) oder 'free' (Frei üben)
+  let leaveRound = null; // übernimmt die Antworten der laufenden Runde (gesetzt in runRound)
   let maxRules = '5';
   let perRule = '6';
   let blocked = false;
@@ -286,6 +287,10 @@ export async function renderGrammarLearn(ctx, list) {
       record(ruleId, roundGrade(st.grades), st.items);
     }
     const flushAll = () => [...states.keys()].forEach(flush);
+    // Wer die Seite mitten in der Runde verlässt oder schließt, behält die schon beantworteten Aufgaben
+    const onHide = () => flushAll();
+    window.addEventListener('pagehide', onHide);
+    leaveRound = () => { window.removeEventListener('pagehide', onHide); flushAll(); leaveRound = null; };
 
     function answered(task, res) {
       if (!task.retry) {
@@ -311,7 +316,7 @@ export async function renderGrammarLearn(ctx, list) {
 
     function header() {
       return h('div', { class: 'round-head' },
-        h('button', { class: 'btn ghost small', onclick: () => { if (confirm('Runde abbrechen?')) { flushAll(); ctx.cleanupKeys(); stopSpeaking(); setupView(); } } }, '✕ Beenden'),
+        h('button', { class: 'btn ghost small', onclick: () => { if (confirm('Runde abbrechen?')) { leaveRound?.(); ctx.cleanupKeys(); stopSpeaking(); setupView(); } } }, '✕ Beenden'),
         progressBar(done, total, 'Fortschritt der Runde'),
         h('span', { class: 'small muted' }, `${Math.min(done + 1, total)} / ${total}`));
     }
@@ -330,7 +335,9 @@ export async function renderGrammarLearn(ctx, list) {
     function showTask(task, rule) {
       const entry = rule.items.find((e) => e.id === task.itemId);
       const item = asKind(entry.item, task.kind) ?? entry.item;
-      const kind = task.kind;
+      // Übungsart nach der Aufgabe selbst (Umformen und Übersetzen sind beide „translate“)
+      const kind = item.type === 'transform' ? 'translate' : item.type;
+      task.kind = kind;
       const ui = { gap: buildGap, choice: buildChoice, order: buildOrder }[kind]?.(item) ?? buildText(item);
 
       let attempts = 0;
@@ -637,7 +644,7 @@ export async function renderGrammarLearn(ctx, list) {
     // ---------- Ende der Runde ----------
 
     function finish() {
-      flushAll();
+      leaveRound?.();
       ctx.cleanupKeys();
       const firstTry = results.filter((r) => r.firstTry).length;
       const pct = total ? Math.round((firstTry / total) * 100) : 0;
@@ -702,6 +709,6 @@ export async function renderGrammarLearn(ctx, list) {
     }, ch)));
   }
 
-  ctx.setLeaveGuard(() => { ctx.progressListeners.delete(onProgress); ctx.cleanupKeys(); stopSpeaking(); return true; });
+  ctx.setLeaveGuard(() => { leaveRound?.(); ctx.progressListeners.delete(onProgress); ctx.cleanupKeys(); stopSpeaking(); return true; });
   setupView();
 }
