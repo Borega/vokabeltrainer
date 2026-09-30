@@ -53,6 +53,7 @@ const listBody = {
   lang_b: 'Deutsch',
   mode: 'type',
   direction: 'ab',
+  grade: 7,
   groups: [{ id: 'klasse.7b', name: 'Klasse 7b' }],
   words: [
     { a: 'dog', b: 'Hund' },
@@ -412,6 +413,27 @@ test('Abfrageart wechseln: standardmäßig erlaubt, pro Liste abschaltbar, beim 
   assert.equal((await teacher('GET', `/lists/${copy.body.id}`)).body.allow_mode_switch, false);
   const offline = (await (await login('Schüler Wechsel', { groups: 'Klasse 9c' }))('GET', '/offline')).body;
   assert.equal(offline.lists.find((l) => l.id === id).allow_mode_switch, false, 'auch offline bekannt');
+});
+
+test('Jahrgangsstufe: Pflicht beim Speichern, in geteilten Listen und Kopien', async () => {
+  const teacher = await login('Frau Jahrgang', { teacher: true, groups: 'Klasse 5a' });
+  const colleague = await login('Herr Jahrgang', { teacher: true, groups: 'Klasse 6a' });
+  for (const grade of [undefined, '', 0, 14, 6.5, 'sieben']) {
+    const res = await teacher('POST', '/lists', { ...listBody, grade });
+    assert.equal(res.status, 400, `grade ${JSON.stringify(grade)}`);
+    assert.match(res.body.error, /Jahrgangsstufe/);
+  }
+  const { body: { id } } = await teacher('POST', '/lists', { ...listBody, title: 'Jahrgang 5', grade: 5, shared: true });
+  assert.equal((await teacher('GET', `/lists/${id}`)).body.grade, 5);
+  const shared = (await colleague('GET', '/shared')).body.find((l) => l.id === id);
+  assert.equal(shared.grade, 5);
+  const copy = await colleague('POST', `/lists/${id}/copy`, {});
+  assert.equal((await colleague('GET', `/lists/${copy.body.id}`)).body.grade, 5);
+  // Alte Liste ohne Jahrgang: wird mit null geliefert, Speichern verlangt eine Angabe
+  db.prepare('UPDATE lists SET grade = NULL WHERE id = ?').run(id);
+  assert.equal((await teacher('GET', `/lists/${id}`)).body.grade, null);
+  assert.equal((await teacher('PUT', `/lists/${id}`, { ...listBody })).status, 200);
+  assert.equal((await teacher('PUT', `/lists/${id}`, { ...listBody, grade: null })).status, 400);
 });
 
 test('Noten: grade hat Vorrang, "fast" (hard) zählt als falsch, aber als erinnert', async () => {

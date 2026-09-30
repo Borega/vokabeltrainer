@@ -12,6 +12,7 @@ const SHELL = [
   '/check.js',
   '/csv.js',
   '/exercises.js',
+  '/listfilter.js',
   '/offline.js',
   '/schedule.js',
   '/speech.js',

@@ -4,6 +4,7 @@ import {
   afterIntro, choiceOptions, clozeFor, gradeFor, hintPattern, hintTarget, langTag, maxHints, pickExercise, specialChars, speechLang, speechText,
 } from './exercises.js';
 import { canSpeak, speak, stopSpeaking, voicesReady } from './speech.js';
+import { GRADES, SORTS, filterLists, gradeLabel, languagesOf, sortLists } from './listfilter.js';
 import { answer, mergeProgress, newId, summarize } from './offline.js';
 import { createScheduler } from './schedule.js';
 import * as store from './store.js';
@@ -419,9 +420,10 @@ function renderLogin() {
 function listCard(list, { own }) {
   const total = list.word_count;
   const meta = [
+    list.grade ? gradeLabel(list.grade) : null,
     `${total} Wörter`,
     modeLabel(list.mode),
-  ];
+  ].filter(Boolean);
   if (!own && list.owner_name) meta.push(`von ${list.owner_name}`);
   return h('article', { class: 'card' },
     h('div', { class: 'card-head' },
@@ -533,6 +535,10 @@ async function renderEditor(id) {
 
   const title = h('input', { value: list.title, required: true, maxLength: 200, placeholder: 'z. B. Unit 3 – At the zoo' });
   const langA = h('input', { value: list.lang_a, list: 'langs', maxLength: 50 });
+  // Pflichtangabe; ältere Listen haben noch keine und müssen beim nächsten Speichern eine bekommen
+  const grade = h('select', { required: true },
+    h('option', { value: '', selected: !list.grade }, 'Bitte wählen …'),
+    GRADES.map((g) => h('option', { value: String(g), selected: list.grade === g }, `Jahrgang ${g}`)));
   const langB = h('input', { value: list.lang_b, list: 'langs', maxLength: 50 });
 
   const modeInputs = Object.fromEntries(['auto', 'flip', 'type', 'choice'].map((m) =>
@@ -669,6 +675,7 @@ async function renderEditor(id) {
       title: title.value,
       lang_a: langA.value,
       lang_b: langB.value,
+      grade: Number(grade.value) || null,
       mode: selectedMode(),
       case_sensitive: caseSens.checked,
       accent_sensitive: accentSens.checked,
@@ -708,6 +715,7 @@ async function renderEditor(id) {
     h('div', { class: 'panel' },
       field('Titel', title),
       h('div', { class: 'row2' }, field('Sprache / Seite A', langA), field('Sprache / Seite B', langB)),
+      h('div', { class: 'row2' }, field('Jahrgangsstufe', grade, 'Für welchen Jahrgang ist die Liste? Hilft Kolleg:innen beim Finden geteilter Listen.')),
     ),
     h('div', { class: 'panel' },
       h('h2', {}, 'Abfrage'),
@@ -1655,6 +1663,20 @@ Die Kopie gehört dir: Du kannst sie bearbeiten und deinen Gruppen zuweisen. Das
 
 async function renderShared() {
   const lists = await api('GET', '/shared');
+  const languages = languagesOf(lists);
+  // Filter werden im Browser gemerkt – wer Französisch unterrichtet, sieht beim nächsten Mal gleich Französisch
+  const saved = (name, allowed) => { const v = pref(`shared.${name}`) ?? ''; return allowed.includes(v) ? v : ''; };
+  const select = (label, name, options, current) => h('label', { class: 'filter' }, h('span', { class: 'small muted' }, label),
+    h('select', { 'aria-label': label, dataset: { name }, onchange: (e) => { pref(`shared.${name}`, e.target.value); render(); } },
+      options.map(([value, text]) => h('option', { value, selected: value === current }, text))));
+
+  const langSelect = select('Sprache', 'lang', [['', 'Alle Sprachen'], ...languages.map((l) => [l, l])], saved('lang', languages));
+  const gradeValues = GRADES.map(String);
+  const gradeSelect = select('Jahrgang', 'grade', [['', 'Alle Jahrgänge'], ...GRADES.map((g) => [String(g), `Jahrgang ${g}`]), ['none', 'ohne Angabe']],
+    saved('grade', [...gradeValues, 'none']));
+  const sortSelect = select('Sortieren', 'sort', Object.entries(SORTS), saved('sort', Object.keys(SORTS)) || 'recent');
+  const value = (wrap) => wrap.querySelector('select').value;
+
   const search = h('input', { type: 'search', placeholder: 'Suchen nach Titel, Sprache oder Lehrkraft …', 'aria-label': 'Geteilte Listen durchsuchen' });
   const grid = h('div', { class: 'grid' });
   const count = h('span', { class: 'muted small' });
@@ -1662,21 +1684,22 @@ async function renderShared() {
     h('div', { class: 'card-head' },
       h('h3', {}, list.title),
       h('span', { class: 'langs' }, `${langLabel(list, 'a')} ↔ ${langLabel(list, 'b')}`)),
+    h('div', { class: 'chips' }, h('span', { class: `chip${list.grade ? '' : ' muted'}` }, gradeLabel(list.grade))),
     h('p', { class: 'muted small' }, [`${list.word_count} Wörter`, modeLabel(list.mode), list.owner_name && `von ${list.owner_name}`, `geändert ${formatDate(list.updated_at)}`].filter(Boolean).join(' · ')),
     h('div', { class: 'actions' },
       h('button', { class: 'btn primary', onclick: () => copyList(list) }, 'Kopieren'),
       h('a', { class: 'btn', href: `#/learn/${list.id}` }, 'Ansehen & ausprobieren')));
-  const render = () => {
-    const q = search.value.trim().toLowerCase();
-    const hits = lists.filter((l) => !q || [l.title, l.lang_a, l.lang_b, l.owner_name].some((t) => t?.toLowerCase().includes(q)));
-    count.textContent = `${hits.length} ${hits.length === 1 ? 'Liste' : 'Listen'}`;
+  function render() {
+    const hits = sortLists(filterLists(lists, { q: search.value, lang: value(langSelect), grade: value(gradeSelect) }), value(sortSelect));
+    count.textContent = `${hits.length} von ${lists.length} ${lists.length === 1 ? 'Liste' : 'Listen'}`;
     fill(grid, hits.length ? hits.map(card) : h('p', { class: 'empty' }, lists.length ? 'Keine passende Liste gefunden.' : 'Noch hat niemand eine Liste freigegeben.'));
-  };
+  }
   search.oninput = render;
   render();
   view(
     h('div', { class: 'section-head' }, h('h1', {}, 'Geteilte Listen'), h('a', { class: 'btn ghost', href: '#/' }, 'Zurück')),
     h('p', { class: 'small muted' }, 'Listen, die Kolleg:innen freigegeben haben. Kopierte Listen gehören dir und können frei bearbeitet werden.'),
+    h('div', { class: 'filters' }, langSelect, gradeSelect, sortSelect),
     h('div', { class: 'search-row' }, search, count),
     grid,
   );
