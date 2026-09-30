@@ -10,6 +10,9 @@ const DAY = 24 * 60 * 60 * 1000;
 const HISTORY_WEEKS = 8;
 // Höchstzahl Antworten pro Übertragung (der Browser schickt größere Mengen in Teilen)
 const MAX_RESULTS = 500;
+// Jahrgangsstufen, für die eine Liste gedacht sein kann
+const GRADES_MIN = 1;
+const GRADES_MAX = 13;
 // auto = Lernleiter: Übungsart passt sich dem Lernstand jedes Worts an (siehe public/exercises.js)
 const MODES = ['auto', 'flip', 'type', 'choice'];
 // Übungsarten, die im Verlauf protokolliert werden
@@ -35,6 +38,14 @@ function parseListBody(body) {
   const title = text(body.title, 200, 'Titel');
   if (!title) throw new HttpError(400, 'Bitte einen Titel angeben.');
   const mode = MODES.includes(body.mode) ? body.mode : 'auto';
+  // Nur eine Zahl oder eine schlichte Dezimalzahl als Text – kein true, [7] oder "0xA"
+  const rawGrade = body.grade;
+  const grade = typeof rawGrade === 'number' || (typeof rawGrade === 'string' && /^\d{1,2}$/.test(rawGrade.trim()))
+    ? Number(rawGrade)
+    : NaN;
+  if (!Number.isInteger(grade) || grade < GRADES_MIN || grade > GRADES_MAX) {
+    throw new HttpError(400, 'Bitte die Jahrgangsstufe angeben.');
+  }
   const direction = ['ab', 'ba', 'mixed'].includes(body.direction) ? body.direction : 'ab';
   if (!Array.isArray(body.words)) throw new HttpError(400, 'Wörter fehlen.');
   if (body.words.length > MAX_WORDS) throw new HttpError(400, `Höchstens ${MAX_WORDS} Wörter pro Liste.`);
@@ -62,6 +73,7 @@ function parseListBody(body) {
     title,
     lang_a: text(body.lang_a, 50, 'Sprache A'),
     lang_b: text(body.lang_b, 50, 'Sprache B'),
+    grade,
     mode,
     case_sensitive: body.case_sensitive ? 1 : 0,
     accent_sensitive: body.accent_sensitive ? 1 : 0,
@@ -86,6 +98,7 @@ function listJson(row) {
     direction: row.direction,
     allow_switch: !!row.allow_switch,
     allow_mode_switch: !!row.allow_mode_switch,
+    grade: row.grade ?? null,
     shared: !!row.shared,
     copied_from: row.copied_from || '',
     updated_at: row.updated_at,
@@ -275,9 +288,9 @@ export function apiRouter(db, config) {
     const ts = now();
     db.prepare(
       `UPDATE lists SET title = ?, lang_a = ?, lang_b = ?, mode = ?, case_sensitive = ?, accent_sensitive = ?,
-         direction = ?, allow_switch = ?, allow_mode_switch = ?, shared = ?, updated_at = ? WHERE id = ?`,
+         direction = ?, allow_switch = ?, allow_mode_switch = ?, grade = ?, shared = ?, updated_at = ? WHERE id = ?`,
     ).run(data.title, data.lang_a, data.lang_b, data.mode, data.case_sensitive, data.accent_sensitive,
-      data.direction, data.allow_switch, data.allow_mode_switch, data.shared, ts, listId);
+      data.direction, data.allow_switch, data.allow_mode_switch, data.grade, data.shared, ts, listId);
 
     // Bestehende Wörter behalten ihre ID, damit der Lernstand erhalten bleibt.
     const existing = new Set(db.prepare('SELECT id FROM words WHERE list_id = ?').all(listId).map((r) => r.id));
@@ -353,11 +366,11 @@ export function apiRouter(db, config) {
       const { id } = db
         .prepare(
           `INSERT INTO lists (owner_id, title, lang_a, lang_b, mode, case_sensitive, accent_sensitive,
-             direction, allow_switch, allow_mode_switch, shared, copied_from, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?) RETURNING id`,
+             direction, allow_switch, allow_mode_switch, grade, shared, copied_from, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?) RETURNING id`,
         )
         .get(req.user.id, isOwner ? `${list.title} (Kopie)` : list.title, list.lang_a, list.lang_b, list.mode,
-          list.case_sensitive, list.accent_sensitive, list.direction, list.allow_switch, list.allow_mode_switch,
+          list.case_sensitive, list.accent_sensitive, list.direction, list.allow_switch, list.allow_mode_switch, list.grade,
           ownerName ? `${list.title} – ${ownerName}` : list.copied_from, ts, ts);
       db.prepare(
         `INSERT INTO words (list_id, pos, a, b, note, example)

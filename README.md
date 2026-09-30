@@ -25,6 +25,9 @@ Gruppen (Klassen/Kurse) und die Rolle „Lehrkraft“ werden direkt aus IServ ü
 - Listen **für Kolleg:innen freigeben** (freiwillig, pro Liste): Andere Lehrkräfte finden sie unter
   „Geteilte Listen“, können sie ausprobieren und eine eigene Kopie anlegen, die sie frei bearbeiten und
   ihren Gruppen zuweisen. Das Original bleibt unverändert, Lernstände werden nicht geteilt.
+- Pro Liste die **Jahrgangsstufe** (1–13) angeben – Pflichtfeld; ältere Listen bekommen sie beim nächsten Speichern.
+  Unter „Geteilte Listen“ lässt sich nach **Sprache** und **Jahrgang** filtern und nach Änderungsdatum, Jahrgang
+  oder Titel sortieren; die Auswahl wird im Browser gemerkt.
 - **Auswertung** pro Liste und Gruppe:
   - Kennzahlen: Schüler:innen, aktiv in den letzten 7 Tagen, Ø sicher, Ø geübt, heute fällig
   - Verlauf der letzten 8 Wochen: Ø sicher und Abfragen pro Woche (Diagramm und Tabelle)

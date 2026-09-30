@@ -173,6 +173,9 @@ export const MIGRATIONS = [
    CREATE INDEX device_tokens_user ON device_tokens(user_id);`,
   // 7: Schüler:innen dürfen die Abfrageart (Lernleiter, Karteikarten, …) selbst wählen – pro Liste abschaltbar
   `ALTER TABLE lists ADD COLUMN allow_mode_switch INTEGER NOT NULL DEFAULT 1;`,
+  // 8: Jahrgangsstufe einer Liste (1–13), zum Filtern und Sortieren der geteilten Listen.
+  //    Bestehende Listen haben noch keine; beim nächsten Speichern muss sie gewählt werden.
+  `ALTER TABLE lists ADD COLUMN grade INTEGER;`,
 ];
 
 function migrate(db) {
