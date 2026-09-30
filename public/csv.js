@@ -2,7 +2,7 @@
 // Trennzeichen (Semikolon, Komma, Tab) wird automatisch erkannt – Excel speichert
 // in Deutschland meist mit Semikolon.
 
-const HEADER_WORDS = /^(deutsch|englisch|französisch|franzoesisch|latein|spanisch|italienisch|russisch|german|english|french|spanish|latin|wort|begriff|vokabel|übersetzung|uebersetzung|bedeutung|a|b|word|term|translation|definition|notiz|note|hinweis)$/i;
+const HEADER_WORDS = /^(deutsch|englisch|französisch|franzoesisch|latein|spanisch|italienisch|russisch|german|english|french|spanish|latin|français|francais|español|espanol|wort|begriff|vokabel|übersetzung|uebersetzung|bedeutung|a|b|word|term|translation|definition|notiz|note|hinweis)$/i;
 
 export function detectDelimiter(text) {
   const lines = text.split(/\r?\n/).filter((l) => l.trim()).slice(0, 20);

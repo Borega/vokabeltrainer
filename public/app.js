@@ -1,7 +1,7 @@
-import { checkAnswer } from './check.js';
+import { almostReason, checkAnswer } from './check.js';
 import { csvToWords, rowsToCsv, wordsToCsv } from './csv.js';
 import {
-  afterIntro, choiceOptions, clozeFor, gradeFor, hintPattern, hintTarget, maxHints, pickExercise, speechLang, speechText,
+  afterIntro, choiceOptions, clozeFor, gradeFor, hintPattern, hintTarget, langTag, maxHints, pickExercise, specialChars, speechLang, speechText,
 } from './exercises.js';
 import { canSpeak, speak, stopSpeaking, voicesReady } from './speech.js';
 import { answer, mergeProgress, newId, summarize } from './offline.js';
@@ -813,6 +813,10 @@ async function renderLearn(id) {
   await voicesReady();
   const langs = { langA: list.lang_a, langB: list.lang_b };
   const speech = { a: speechLang(list.lang_a), b: speechLang(list.lang_b) };
+  // lang-Attribute: eigene Kennung, auch für Sprachen ohne Stimme (Latein → la)
+  const tags = { a: langTag(list.lang_a), b: langTag(list.lang_b) };
+  // Sonderzeichen je Antwortseite (é, ñ, ¿ …), einmal pro Liste berechnet
+  const charsFor = { a: specialChars(list.words, 'a'), b: specialChars(list.words, 'b') };
   const speakable = (side) => canSpeak(speech[side]);
   const isGerman = (side) => speech[side]?.startsWith('de') ?? false;
   // Seite, deren Aussprache geübt wird: die Fremdsprache, im Zweifel Seite A
@@ -1009,7 +1013,7 @@ async function renderLearn(id) {
   ];
   const promptBlock = (side, text, label = langLabel(list, side)) => h('div', { class: 'prompt' },
     h('span', { class: 'lang' }, label),
-    h('span', { class: 'word-line' }, h('span', { class: 'word' }, text), speakBtn(side, text)));
+    h('span', { class: 'word-line' }, h('span', { class: 'word', lang: tags[side] }, text), speakBtn(side, text)));
 
   function chooseExercise(card) {
     const [from, to] = sides(card.dir);
@@ -1098,8 +1102,8 @@ async function renderLearn(id) {
       const solution = card.word[to];
       let flipped = false;
       const inner = h('div', { class: 'flip-inner' },
-        h('div', { class: 'face front' }, h('span', { class: 'lang' }, langLabel(list, from)), h('span', { class: 'word' }, prompt)),
-        h('div', { class: 'face back', 'aria-hidden': 'true' }, h('span', { class: 'lang' }, langLabel(list, to)), h('span', { class: 'word' }, solution),
+        h('div', { class: 'face front' }, h('span', { class: 'lang' }, langLabel(list, from)), h('span', { class: 'word', lang: tags[from] }, prompt)),
+        h('div', { class: 'face back', 'aria-hidden': 'true' }, h('span', { class: 'lang' }, langLabel(list, to)), h('span', { class: 'word', lang: tags[to] }, solution),
           card.word.note ? h('span', { class: 'note' }, card.word.note) : null,
           card.word.example ? h('span', { class: 'example' }, exampleNode(card.word.example)) : null),
       );
@@ -1221,7 +1225,22 @@ async function renderLearn(id) {
         promptEl = promptBlock(from, prompt);
       }
 
-      const input = h('input', { class: 'answer', autocomplete: 'off', autocapitalize: 'off', spellcheck: false, 'aria-label': `Übersetzung (${langLabel(list, to)})`, placeholder: langLabel(list, to) });
+      const input = h('input', { class: 'answer', lang: tags[to], autocomplete: 'off', autocapitalize: 'off', spellcheck: false, 'aria-label': `Übersetzung (${langLabel(list, to)})`, placeholder: langLabel(list, to) });
+      // Leiste mit den Sonderzeichen der Sprache (ñ, ç, œ, ¿ …) – auf deutschen Tastaturen fehlen sie.
+      // pointerdown verhindern: Das Eingabefeld behält den Fokus, die Bildschirmtastatur bleibt offen.
+      const chars = charsFor[to];
+      const charBar = chars.length
+        ? h('div', { class: 'charbar', role: 'group', 'aria-label': 'Sonderzeichen einfügen' }, chars.map((ch) => h('button', {
+            type: 'button', class: 'char', lang: tags[to], 'aria-label': `${ch} einfügen`,
+            onpointerdown: (e) => e.preventDefault(),
+            onclick: () => {
+              if (input.readOnly) return;
+              const start = input.selectionStart ?? input.value.length;
+              input.setRangeText(ch, start, input.selectionEnd ?? start, 'end');
+              input.focus();
+            },
+          }, ch)))
+        : null;
       const feedback = h('div', { class: 'feedback', 'aria-live': 'polite' });
       const submit = h('button', { class: 'btn primary', type: 'submit' }, 'Prüfen');
 
@@ -1257,6 +1276,9 @@ async function renderLearn(id) {
           form.classList.add(ok ? 'is-right' : 'is-wrong');
           fill(feedback,
             h('strong', {}, ok ? 'Richtig!' : result === 'almost' ? 'Fast!' : 'Leider falsch.'),
+            result === 'almost'
+              ? h('span', {}, { accents: ' Achte auf Akzente und Sonderzeichen.', case: ' Achte auf Groß- und Kleinschreibung.' }[almostReason(input.value, solution, options)] ?? ' Kleiner Tippfehler.')
+              : null,
             ok && !hasVariants(solution) ? null : h('span', {}, ' Lösung: ', h('b', {}, solution)),
             cloze && cloze.gap !== card.word[to] ? h('span', { class: 'muted' }, `· Vokabel: ${card.word[to]}`) : null,
             speakBtn(to, cloze ? cloze.gap : card.word[to]),
@@ -1270,7 +1292,7 @@ async function renderLearn(id) {
       } },
         promptEl,
         h('div', { class: 'hint-row' }, hintBtn, pattern),
-        input, submit, feedback);
+        input, submit, charBar, feedback);
       function proceed() {
         // Tippfehler („fast“) = erinnert, aber mit Mühe; zählt als falsch und wird wiederholt.
         const correct = result === 'correct' || result === 'override';

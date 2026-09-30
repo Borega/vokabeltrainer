@@ -7,11 +7,15 @@ const synth = globalThis.speechSynthesis;
 
 const norm = (lang) => lang.replace('_', '-').toLowerCase();
 
+// Nur Stimmen genau dieser Region – keine kanadische Stimme für Französisch, keine lateinamerikanische für
+// Spanisch. Ohne passende Stimme gibt es dann keinen Ton.
+const STRICT = new Set(['fr-fr', 'es-es']);
+
 export function voicesFor(lang) {
   if (!synth || !lang) return [];
   const local = synth.getVoices().filter((v) => v.localService);
   const exact = local.filter((v) => norm(v.lang) === norm(lang));
-  if (exact.length) return exact;
+  if (exact.length || STRICT.has(norm(lang))) return exact;
   const base = norm(lang).split('-')[0];
   return local.filter((v) => norm(v.lang).split('-')[0] === base);
 }

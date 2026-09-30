@@ -7,7 +7,7 @@
 // Leitidee: Aufgaben, die gerade noch lösbar sind, bringen am meisten (desirable difficulties,
 // Bjork 1994); Wiedererkennen vor Selbst-Hervorbringen (Webb 2009, Nakata 2011).
 
-import { normalize, variants } from './check.js';
+import { endingForms, normalize, variants } from './check.js';
 
 // Stufe, ab der Lückentexte und Hörübungen vorkommen (Stabilität ≥ 3 Tage, siehe scheduler.js)
 export const ADVANCED_LEVEL = 2;
@@ -53,16 +53,28 @@ export function gradeFor(exercise, { correct, almost = false, hints = 0 }) {
 // ---------- Auswählen (Multiple Choice) ----------
 
 const firstToken = (s) => s.trim().split(/\s+/)[0].toLowerCase();
-// Signalwörter, die eine Wortart verraten: to go, the dog, der Hund, le chien …
-const MARKERS = new Set(['to', 'the', 'a', 'an', 'der', 'die', 'das', 'ein', 'eine', 'le', 'la', 'les', "l'", 'un', 'une', 'el', 'los', 'las', 'il', 'lo', 'gli', 'uno', 'una', 'sich']);
+// Signalwörter, die eine Wortart verraten: to go, the dog, der Hund, le chien, el perro …
+const MARKERS = new Set([
+  'to', 'the', 'a', 'an', 'der', 'die', 'das', 'ein', 'eine', 'sich',
+  'le', 'la', 'les', 'un', 'une', 'des', 'du', 'se', // Französisch
+  'el', 'los', 'las', 'unos', 'unas', // Spanisch (la, un, una, se wie oben)
+  'il', 'lo', 'gli', 'uno', // Italienisch
+]);
+
+// Signalwort am Anfang; französische Elision zählt als eigenes: l'arbre → "l'", s'appeler → "s'"
+function markerOf(text) {
+  const tok = firstToken(text).replace(/’/g, "'");
+  const elided = tok.match(/^(l|d|s|qu|j|m|t|n)'/);
+  if (elided) return `${elided[1]}'`;
+  return MARKERS.has(tok) ? tok : '';
+}
 
 function shape(s) {
   const t = s.trim();
-  const tok = firstToken(t);
   return {
     len: t.length,
     words: t.split(/\s+/).length,
-    marker: MARKERS.has(tok) ? tok : '',
+    marker: markerOf(t),
     upper: /^\p{Lu}/u.test(t),
   };
 }
@@ -178,15 +190,41 @@ export function plainExample(example) {
 
 // ---------- Aussprache ----------
 
-// Text zum Vorlesen: Varianten nacheinander, Klammern weg („(to) go; walk“ → „to go, walk“)
+// Text zum Vorlesen: Varianten nacheinander, Klammern weg („(to) go; walk“ → „to go, walk“),
+// Endungen ausgeschrieben („bueno/a“ → „bueno, buena“)
 export function speechText(solution) {
-  return solution.split(/[;|]/).map((s) => s.replace(/[()*]/g, '').replace(/\s+/g, ' ').trim()).filter(Boolean).join(', ');
+  return solution
+    .split(/[;|]/)
+    .map((s) => s.replace(/[()*]/g, '').replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+    .map((s) => endingForms(s).join(', ') || s)
+    .join(', ');
+}
+
+// ---------- Sonderzeichen ----------
+
+// Zeichen, die auf einer deutschen Tastatur fehlen oder umständlich sind
+const EASY = /[\p{N}\s.,;:!?'"()\-\/*+&%$§=_<>[\]{}@#~|\\a-zA-ZäöüÄÖÜß]/u;
+
+// Sonderzeichen der Antworten einer Liste (Seite side) für die Leiste unter dem Eingabefeld – Buchstaben sowie
+// ¿ und ¡, die in den Wörtern tatsächlich vorkommen (z. B. é, ç, œ für Französisch; á, ñ, ¿ für Spanisch).
+// Satzzeichen am Ende (. ! ? und Auslassungspunkte) braucht es nicht: Die Prüfung ignoriert sie.
+export function specialChars(words, side) {
+  const found = new Set();
+  for (const w of words) {
+    for (const ch of (w[side] ?? '').normalize('NFC')) {
+      if (!EASY.test(ch) && /[\p{L}¿¡]/u.test(ch)) found.add(ch);
+    }
+  }
+  const rank = (ch) => (/[¿¡]/.test(ch) ? 2 : /\p{Lu}/u.test(ch) ? 1 : 0);
+  return [...found].sort((x, y) => rank(x) - rank(y) || x.localeCompare(y, 'fr'));
 }
 
 const LANG_CODES = [
   [/^(englisch|english|en)\b.*\b(usa?|amerik|american)/, 'en-US'],
   [/^(englisch|english)/, 'en-GB'],
   [/^(deutsch|german)/, 'de-DE'],
+  // Französisch aus Frankreich und Spanisch aus Spanien – so wie im Unterricht
   [/^(französisch|franzoesisch|french|français)/, 'fr-FR'],
   [/^(spanisch|spanish|español)/, 'es-ES'],
   [/^(italienisch|italian)/, 'it-IT'],
@@ -205,11 +243,24 @@ const LANG_CODES = [
   [/^(neugriechisch|griechisch|greek)/, 'el-GR'],
 ];
 
+// Sprachkennung (BCP 47) für lang-Attribute (Screenreader, Rechtschreibung) – unabhängig davon, ob es eine
+// Stimme gibt: Latein und Altgriechisch werden nicht vorgelesen, sind aber trotzdem ausgezeichnet.
+const LANG_TAGS = [[/^(latein|latin)/, 'la'], [/^altgriech/, 'grc']];
+export function langTag(label) {
+  const lower = (label ?? '').trim().toLowerCase();
+  return LANG_TAGS.find(([re]) => re.test(lower))?.[1] ?? speechLang(label);
+}
+
 // Sprachcode für die Sprachausgabe aus der Sprachbezeichnung der Liste. Latein und Altgriechisch
 // haben keine Stimme und bekommen null. Ein Code wie „en-US“ wird direkt übernommen.
 export function speechLang(label) {
   const t = (label ?? '').trim();
-  if (/^[a-z]{2,3}(-[A-Za-z]{2,4})?$/.test(t)) return t;
+  if (/^[a-z]{2,3}(-[A-Za-z]{2,4})?$/.test(t)) {
+    // Auch als Code immer europäisches Französisch und Spanisch
+    if (/^fr\b/.test(t)) return 'fr-FR';
+    if (/^es\b/.test(t)) return 'es-ES';
+    return t;
+  }
   const lower = t.toLowerCase();
   if (/^(latein|latin|altgriechisch)/.test(lower)) return null;
   return LANG_CODES.find(([re]) => re.test(lower))?.[1] ?? null;

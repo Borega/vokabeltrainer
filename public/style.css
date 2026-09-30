@@ -277,6 +277,13 @@ div.example, span.example { color: var(--muted); font-size: .95rem; font-style: 
 }
 .choice-btn.is-right { opacity: 1; border-color: var(--right); background: var(--right-bg); color: var(--right); font-weight: 600; }
 .choice-btn.is-wrong { opacity: 1; border-color: var(--wrong); background: var(--wrong-bg); color: var(--wrong); }
+.charbar { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: .4rem; }
+.charbar .char {
+  min-width: 2.5rem; min-height: 2.5rem; padding: .2rem .5rem; font: inherit; font-size: 1.15rem;
+  color: var(--text); background: var(--chip); border: 1px solid var(--border); border-radius: 8px; cursor: pointer;
+}
+.charbar .char:hover { border-color: var(--primary); }
+.type-form.is-right .charbar, .type-form.is-wrong .charbar { display: none; }
 .hint-row { grid-column: 1 / -1; display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; min-height: 2rem; }
 .hint-pattern { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 1.1rem; white-space: pre-wrap; }
 .sentence { margin: 0; font-size: clamp(1.15rem, 3.5vw, 1.5rem); text-align: center; overflow-wrap: anywhere; }

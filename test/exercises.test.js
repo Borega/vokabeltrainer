@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  choiceOptions, clozeFor, exampleSide, gradeFor, hintPattern, hintTarget, maxHints, pickExercise, speechLang, speechText,
+  choiceOptions, clozeFor, exampleSide, gradeFor, hintPattern, hintTarget, langTag, maxHints, pickExercise, specialChars, speechLang, speechText,
 } from '../public/exercises.js';
 
 const fixed = (v) => () => v;
@@ -83,8 +83,46 @@ test('Sprachausgabe: Sprachcode aus der Bezeichnung, Text ohne Klammern', () => 
   assert.equal(speechLang('Englisch'), 'en-GB');
   assert.equal(speechLang('Englisch (USA)'), 'en-US');
   assert.equal(speechLang('Französisch'), 'fr-FR');
-  assert.equal(speechLang('fr-CA'), 'fr-CA');
+  assert.equal(speechLang('en-AU'), 'en-AU');
   assert.equal(speechLang('Latein'), null);
   assert.equal(speechLang(''), null);
   assert.equal(speechText('(to) go; walk'), 'to go, walk');
+});
+
+test('Französisch: elidierte Artikel gelten als Signalwort beim Auswählen', () => {
+  const fr = [
+    { id: 1, a: "l'arbre", b: 'der Baum' }, { id: 2, a: 'manger', b: 'essen' }, { id: 3, a: "l'école", b: 'die Schule' },
+    { id: 4, a: 'courir', b: 'laufen' }, { id: 5, a: "l'eau", b: 'das Wasser' }, { id: 6, a: 'parler', b: 'sprechen' },
+  ];
+  const { options } = choiceOptions(fr, fr[0], 'a', { random: fixed(0) });
+  assert.deepEqual(options.filter((o) => o.startsWith("l'")).length, 3, 'Nomen mit l\' als Ablenker für ein Nomen mit l\'');
+});
+
+test('Sonderzeichen aus den Wörtern der Liste, ohne Zeichen der deutschen Tastatur', () => {
+  const words = [
+    { a: 'le cœur', b: 'das Herz' }, { a: 'le garçon', b: 'der Junge' }, { a: 'l’été', b: 'der Sommer' },
+    { a: 'Été', b: 'Sommer' }, { a: '¿Qué tal?', b: 'Wie geht’s?' }, { a: 'el niño', b: 'das Kind' },
+  ];
+  assert.deepEqual(specialChars(words, 'a'), ['ç', 'é', 'ñ', 'œ', 'É', '¿']);
+  assert.deepEqual(specialChars(words, 'b'), [], 'ä, ö, ü, ß hat die deutsche Tastatur');
+});
+
+test('Vorlesen: Französisch aus Frankreich, Spanisch aus Spanien', () => {
+  assert.equal(speechText('bueno/a'), 'bueno, buena');
+  assert.equal(speechLang('Französisch'), 'fr-FR');
+  assert.equal(speechLang('Französisch (Kanada)'), 'fr-FR');
+  assert.equal(speechLang('Spanisch (Lateinamerika)'), 'es-ES');
+  assert.equal(speechLang('Español'), 'es-ES');
+  assert.equal(speechLang('fr-CA'), 'fr-FR', 'auch als Code');
+  assert.equal(speechLang('es-MX'), 'es-ES');
+  assert.equal(speechLang('en-AU'), 'en-AU');
+});
+
+test('Sprachkennung für lang-Attribute, auch ohne Stimme', () => {
+  assert.equal(langTag('Latein'), 'la');
+  assert.equal(langTag('Altgriechisch'), 'grc');
+  assert.equal(langTag('Französisch'), 'fr-FR');
+  assert.equal(langTag('Deutsch'), 'de-DE');
+  assert.equal(langTag('Klingonisch'), null);
+  assert.equal(speechLang('Latein'), null, 'Vorlesen bleibt für Latein aus');
 });
