@@ -61,10 +61,13 @@ test('Endungen für die weibliche Form', () => {
   assert.deepEqual(variants('bueno/a'), ['bueno/a', 'bueno', 'buena']);
   for (const [input, solution] of [
     ['bueno', 'bueno/a'], ['buena', 'bueno/-a'], ['trabajadora', 'trabajador, -a'], ['alemán', 'alemán/a'],
+    ['alemana', 'alemán/a'], ['inglesa', 'inglés, -a'], ['dormilona', 'dormilón/a'], ['japonesa', 'japonés/a'],
     ['heureuse', 'heureux, -euse'], ['active', 'actif, -ive'], ['italienne', 'italien, -ienne'],
     ['francesa', 'francés/-esa'], ['grande', 'grande/e'], ['el chico', 'el chico/a'],
   ]) assert.equal(checkAnswer(input, solution), 'correct', `${input} ↔ ${solution}`);
   assert.equal(withEnding('petit', 'e'), 'petite');
+  assert.equal(withEnding('alemán', 'a'), 'alemana', 'Akzent fällt weg, kein „alemána“');
+  assert.equal(checkAnswer('alemána', 'alemán/a'), 'almost', 'falsche Form wird nicht mehr akzeptiert');
   assert.equal(checkAnswer('bueni', 'bueno/a'), 'almost');
   assert.deepEqual(variants('Hund/Hündin'), ['Hund/Hündin'], 'ganze Wörter mit Großbuchstaben sind keine Endung');
   assert.deepEqual(variants('rojo; roja'), ['rojo', 'roja'], 'Alternativen wie bisher mit ;');

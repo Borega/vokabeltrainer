@@ -28,17 +28,23 @@ const bare = (ch) => ch.normalize('NFD')[0].toLowerCase();
 
 // Weibliche Form aus Grundform und Endung: bueno + a → buena, trabajador + a → trabajadora,
 // heureux + euse → heureuse, actif + ive → active. Die Endung ersetzt ab dem letzten passenden Buchstaben.
+// Spanisch: Betonte Endsilben verlieren den Akzent, wenn eine Silbe dazukommt (alemán → alemana, inglés → inglesa).
 export function withEnding(base, ending) {
   if (ending.length === 1) {
     if (bare(base.at(-1)) === ending) return base;
     if (/[oe]$/i.test(base) && ending === 'a') return base.slice(0, -1) + ending;
-    return base + ending;
+    return unstress(base) + ending;
   }
   const chars = [...base];
   for (let i = chars.length - 1; i > 0; i--) {
     if (bare(chars[i]) === bare(ending[0])) return chars.slice(0, i).join('') + ending;
   }
   return base + ending;
+}
+
+// alemán → aleman, inglés → ingles (nur ein akzentuierter Vokal vor n/s am Wortende)
+function unstress(word) {
+  return word.replace(/([áéíóú])([ns])$/iu, (_, vowel, end) => vowel.normalize('NFD')[0] + end);
 }
 
 // "bueno/a", "bueno/-a", "trabajador, -a" → ["bueno", "buena"] (sonst leer)

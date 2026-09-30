@@ -206,8 +206,9 @@ export function speechText(solution) {
 // Zeichen, die auf einer deutschen Tastatur fehlen oder umständlich sind
 const EASY = /[\p{N}\s.,;:!?'"()\-\/*+&%$§=_<>[\]{}@#~|\\a-zA-ZäöüÄÖÜß]/u;
 
-// Sonderzeichen der Antworten einer Liste (Seite side) für die Leiste unter dem Eingabefeld:
-// é è ç œ … für Französisch, á ñ ¿ ¡ … für Spanisch – was in den Wörtern tatsächlich vorkommt.
+// Sonderzeichen der Antworten einer Liste (Seite side) für die Leiste unter dem Eingabefeld – Buchstaben sowie
+// ¿ und ¡, die in den Wörtern tatsächlich vorkommen (z. B. é, ç, œ für Französisch; á, ñ, ¿ für Spanisch).
+// Satzzeichen am Ende (. ! ? und Auslassungspunkte) braucht es nicht: Die Prüfung ignoriert sie.
 export function specialChars(words, side) {
   const found = new Set();
   for (const w of words) {
@@ -241,6 +242,14 @@ const LANG_CODES = [
   [/^(arabisch|arabic)/, 'ar'],
   [/^(neugriechisch|griechisch|greek)/, 'el-GR'],
 ];
+
+// Sprachkennung (BCP 47) für lang-Attribute (Screenreader, Rechtschreibung) – unabhängig davon, ob es eine
+// Stimme gibt: Latein und Altgriechisch werden nicht vorgelesen, sind aber trotzdem ausgezeichnet.
+const LANG_TAGS = [[/^(latein|latin)/, 'la'], [/^altgriech/, 'grc']];
+export function langTag(label) {
+  const lower = (label ?? '').trim().toLowerCase();
+  return LANG_TAGS.find(([re]) => re.test(lower))?.[1] ?? speechLang(label);
+}
 
 // Sprachcode für die Sprachausgabe aus der Sprachbezeichnung der Liste. Latein und Altgriechisch
 // haben keine Stimme und bekommen null. Ein Code wie „en-US“ wird direkt übernommen.

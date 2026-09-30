@@ -97,7 +97,7 @@ Latein und Altgriechisch werden nicht vorgelesen.
 
 **Französisch, Spanisch und andere Sprachen**
 - Unter dem Eingabefeld erscheint eine **Sonderzeichen-Leiste** mit den Zeichen, die in den Wörtern der Liste
-  vorkommen und auf der deutschen Tastatur fehlen (é è ç œ … bzw. á ñ ¿ ¡ …). Antippen fügt das Zeichen ein, die
+  vorkommen und auf der deutschen Tastatur fehlen (z. B. é, è, ç, œ bzw. á, ñ, ¿, ¡). Antippen fügt das Zeichen ein, die
   Bildschirmtastatur bleibt offen.
 - Artikel gehören zur Lösung, wenn das Genus mitgelernt werden soll (`le chien`, `la casa`); optional mit Klammern:
   `(le) chien`. Bei Wörtern mit `l'` die Genus-Angabe in die Notiz schreiben (`l'arbre` – Notiz „m“).

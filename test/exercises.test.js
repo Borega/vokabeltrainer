@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  choiceOptions, clozeFor, exampleSide, gradeFor, hintPattern, hintTarget, maxHints, pickExercise, specialChars, speechLang, speechText,
+  choiceOptions, clozeFor, exampleSide, gradeFor, hintPattern, hintTarget, langTag, maxHints, pickExercise, specialChars, speechLang, speechText,
 } from '../public/exercises.js';
 
 const fixed = (v) => () => v;
@@ -116,4 +116,13 @@ test('Vorlesen: Französisch aus Frankreich, Spanisch aus Spanien', () => {
   assert.equal(speechLang('fr-CA'), 'fr-FR', 'auch als Code');
   assert.equal(speechLang('es-MX'), 'es-ES');
   assert.equal(speechLang('en-AU'), 'en-AU');
+});
+
+test('Sprachkennung für lang-Attribute, auch ohne Stimme', () => {
+  assert.equal(langTag('Latein'), 'la');
+  assert.equal(langTag('Altgriechisch'), 'grc');
+  assert.equal(langTag('Französisch'), 'fr-FR');
+  assert.equal(langTag('Deutsch'), 'de-DE');
+  assert.equal(langTag('Klingonisch'), null);
+  assert.equal(speechLang('Latein'), null, 'Vorlesen bleibt für Latein aus');
 });
