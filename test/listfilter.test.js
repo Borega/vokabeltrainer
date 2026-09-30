@@ -49,3 +49,17 @@ test('Bezeichnung des Jahrgangs', () => {
   assert.equal(gradeLabel(7), 'Jahrgang 7');
   assert.equal(gradeLabel(null), 'ohne Jahrgang');
 });
+
+test('Filter nach Art: Vokabeln oder Grammatik (ältere Einträge ohne kind sind Vokabeln)', () => {
+  const mixed = [
+    { title: 'A', lang_a: 'Englisch', lang_b: 'Deutsch', grade: 7 },
+    { title: 'B', kind: 'vocab', lang_a: 'Englisch', lang_b: 'Deutsch', grade: 7 },
+    { title: 'C', kind: 'grammar', lang_a: 'Englisch', lang_b: '', grade: 7 },
+    { title: 'D', kind: 'grammar', lang_a: 'Französisch', lang_b: '', grade: 8 },
+  ];
+  assert.deepEqual(titles(filterLists(mixed, { kind: 'grammar' })), ['C', 'D']);
+  assert.deepEqual(titles(filterLists(mixed, { kind: 'vocab' })), ['A', 'B']);
+  assert.equal(filterLists(mixed, { kind: '' }).length, 4);
+  assert.deepEqual(titles(filterLists(mixed, { kind: 'grammar', lang: 'englisch' })), ['C']);
+  assert.deepEqual(languagesOf(mixed.filter((l) => l.kind === 'grammar')).map((l) => l.label), ['Englisch', 'Französisch'], 'leere zweite Sprache stört nicht');
+});

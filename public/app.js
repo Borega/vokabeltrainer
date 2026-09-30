@@ -1,21 +1,27 @@
 import { almostReason, checkAnswer } from './check.js';
-import { aiPrompt, rowsToCsv, textToWords, wordsToCsv } from './csv.js';
+import { aiPrompt, textToWords, wordsToCsv } from './csv.js';
 import {
   afterIntro, choiceOptions, clozeFor, editorChars, gapProblem, gradeFor, hintPattern, hintTarget, langTag, markGap, maxHints, pickExercise,
   specialChars, speechLang, speechText,
 } from './exercises.js';
 import { canSpeak, speak, stopSpeaking, voicesReady } from './speech.js';
-import { GRADES, SORTS, filterLists, gradeLabel, languagesOf, sortLists } from './listfilter.js';
-import { answer, mergeProgress, newId, summarize } from './offline.js';
+import { renderGrammarEditor } from './grammar-editor.js';
+import { renderGrammarLearn } from './grammar-learn.js';
+import { renderGrammarStats, renderGrammarStudent } from './grammar-stats.js';
+import { GRADES, KINDS, SORTS, filterLists, gradeLabel, languagesOf, sortLists } from './listfilter.js';
+import { answer, mergeProgress, mergeRuleProgress, newId, ruleKey, summarize } from './offline.js';
 import { createScheduler } from './schedule.js';
 import * as store from './store.js';
 import * as FSRS from './vendor/ts-fsrs.js';
+import { exportGroupsCsv, groupPanels, historyPanel, levelChip, pct, sortableTable, statTiles } from './stats-ui.js';
+import {
+  LANGUAGES, endOfToday, field, fill, formatDate, formatDue, groupPicker, h, pref, progressBar, segmented, shuffle, toast, view,
+} from './ui.js';
 
 // Dieselbe Planung wie auf dem Server – so geht Lernen auch ohne Internet weiter
 const { review } = createScheduler(FSRS);
 
 const SAFE_BOX = 3;
-const app = document.getElementById('app');
 const userBox = document.getElementById('user');
 let me = null;
 let settings = {};
@@ -28,23 +34,6 @@ let leaveGuard = null; // Rückfrage bei ungespeicherten Änderungen
 
 // ---------- Hilfsfunktionen ----------
 
-// Baut DOM-Elemente, ohne Nutzereingaben als HTML zu interpretieren.
-function h(tag, attrs = {}, ...children) {
-  const el = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs ?? {})) {
-    if (v == null || v === false) continue;
-    if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
-    else if (k === 'class') el.className = v;
-    else if (k === 'dataset') Object.assign(el.dataset, v);
-    else if (k in el && typeof v !== 'string') el[k] = v;
-    else el.setAttribute(k, v === true ? '' : v);
-  }
-  for (const c of children.flat(Infinity)) {
-    if (c == null || c === false) continue;
-    el.append(c instanceof Node ? c : document.createTextNode(String(c)));
-  }
-  return el;
-}
 
 class OfflineError extends Error {}
 class AuthError extends Error {}
@@ -125,24 +114,6 @@ async function api(method, path, body) {
   }
 }
 
-function shuffle(arr) {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
-
-function formatDate(iso) {
-  if (!iso) return '–';
-  const d = new Date(iso);
-  const days = Math.floor((Date.now() - d) / 86400000);
-  if (days === 0) return 'heute';
-  if (days === 1) return 'gestern';
-  if (days < 7) return `vor ${days} Tagen`;
-  return d.toLocaleDateString('de-DE');
-}
-
 function langLabel(list, side) {
   return (side === 'a' ? list.lang_a : list.lang_b) || (side === 'a' ? 'Seite A' : 'Seite B');
 }
@@ -155,17 +126,6 @@ const MODE_HINTS = {
   type: 'Die Übersetzung eintippen, sie wird automatisch geprüft. Tipps gibt es auf Wunsch.',
   choice: 'Aus vier Antworten die richtige wählen. Leichter – zählt für die Planung aber nur als „mit Mühe gewusst“.',
 };
-
-// Einstellungen, die nur im Browser gemerkt werden (z. B. Ton an/aus)
-function pref(name, value) {
-  try {
-    if (value === undefined) return localStorage.getItem(`vokabeltrainer.${name}`);
-    localStorage.setItem(`vokabeltrainer.${name}`, value);
-  } catch {
-    return null;
-  }
-  return value;
-}
 
 // Darstellung: wie das Gerät, hell oder dunkel. Die Wahl wird im Browser gemerkt;
 // theme.js setzt sie beim nächsten Laden schon vor dem ersten Zeichnen.
@@ -199,31 +159,6 @@ function directionLabel(list, dir) {
   if (dir === 'mixed') return 'Gemischt';
   const [from, to] = dir === 'ab' ? ['a', 'b'] : ['b', 'a'];
   return `${langLabel(list, from)} → ${langLabel(list, to)}`;
-}
-
-function toast(message, kind = 'info') {
-  document.querySelectorAll(`.toast.${kind}`).forEach((old) => old.remove()); // nicht übereinander stapeln
-  const el = h('div', { class: `toast ${kind}`, role: 'status' }, message);
-  document.body.append(el);
-  setTimeout(() => el.remove(), 3500);
-}
-
-function progressBar(value, max, label) {
-  const pct = max ? Math.round((value / max) * 100) : 0;
-  const fill = h('span');
-  fill.style.width = `${pct}%`; // CSSOM statt style-Attribut – das erlaubt die Content-Security-Policy
-  return h('div', { class: 'bar', role: 'progressbar', 'aria-valuenow': pct, 'aria-valuemin': 0, 'aria-valuemax': 100, 'aria-label': label }, fill);
-}
-
-// replaceChildren ohne null/false und mit verschachtelten Arrays
-function fill(el, ...children) {
-  el.replaceChildren(...children.flat(Infinity).filter((c) => c != null && c !== false));
-}
-
-function view(...children) {
-  fill(app, ...children);
-  app.focus({ preventScroll: true });
-  window.scrollTo(0, 0);
 }
 
 function showError(err) {
@@ -283,21 +218,42 @@ function setOnline(value) {
 
 // ---------- Lernen ohne Internet: Abgleich ----------
 
-// Antworten, die gerade erst in den Gerätespeicher geschrieben werden (record → store.queue)
+// Antworten, die gerade erst in den Gerätespeicher geschrieben werden (persistEntry → store.queue)
 const unqueued = new Map();
 
-// Welche Wörter haben noch Antworten, die nicht beim Server sind? → pendingFor(listId) = Set "<word_id>:<direction>"
+// Antwort für die Übertragung merken: in die Warteschlange des Geräts, Listen auf dem Gerät auffrischen, im
+// Hintergrund übertragen (auch ohne Internet kein Fehler). writes: die vorherigen Schreibvorgänge der Lernansicht –
+// sie laufen nacheinander. Ergebnis: die neue Kette, auf die etwa das Zurücksetzen wartet.
+function persistEntry(entry, writes = Promise.resolve()) {
+  unqueued.set(entry.id, entry);
+  const next = writes
+    .then(() => store.queue(entry))
+    .finally(() => unqueued.delete(entry.id))
+    .then(() => offlineData && store.save(`offline:${me.id}`, offlineData))
+    .catch(() => toast('Antwort konnte auf dem Gerät nicht gespeichert werden.', 'error'));
+  next.then(() => syncNow()).catch(() => {});
+  return next;
+}
+
+// Welche Wörter (Grammatik: Regeln) haben noch Antworten, die nicht beim Server sind?
+// → pendingFor(listId) = Set "<word_id>:<direction>" bzw. ruleKey(rule_id)
 async function pendingKeys() {
   const entries = [...(me ? await store.pending(me.id).catch(() => []) : []), ...unqueued.values()];
   const byList = new Map();
   for (const e of entries) {
     if (!byList.has(e.list_id)) byList.set(e.list_id, new Set());
-    byList.get(e.list_id).add(`${e.word_id}:${e.direction}`);
+    byList.get(e.list_id).add(e.rule_id != null ? ruleKey(e.rule_id) : `${e.word_id}:${e.direction}`);
   }
   return (listId) => byList.get(listId) ?? new Set();
 }
 
 const wordIdsOf = (list) => new Set(list.words.map((w) => w.id));
+const isGrammar = (list) => list.kind === 'grammar';
+
+// Lernstand der Liste mit dem vom Server abgleichen; filter: Zeilen gelöschter Wörter/Regeln fallen weg
+const mergeFor = (list, local, server, pending, filter = true) => (isGrammar(list)
+  ? mergeRuleProgress(local, server, pending, filter ? new Set(list.rules.map((r) => r.id)) : null)
+  : mergeProgress(local, server, pending, filter ? wordIdsOf(list) : null));
 
 // Listen und eigenen Lernstand auf das Gerät laden (bei jeder Verbindung, z. B. im Schul-WLAN).
 // Antworten, die das Gerät hat und der Server noch nicht, bleiben erhalten.
@@ -309,7 +265,7 @@ async function download() {
   data.lists = data.lists.map((fresh) => {
     const old = before.get(fresh.id);
     if (!old) return fresh;
-    return Object.assign(old, fresh, { progress: mergeProgress(old.progress, fresh.progress, pendingFor(fresh.id), wordIdsOf(fresh)) });
+    return Object.assign(old, fresh, { progress: mergeFor(fresh, old.progress, fresh.progress, pendingFor(fresh.id)) });
   });
   offlineData = data;
   await store.save(`offline:${me.id}`, data);
@@ -356,7 +312,7 @@ async function pushAnswers() {
     const pendingFor = await pendingKeys(); // was inzwischen neu beantwortet wurde
     if (offlineData) {
       for (const list of offlineData.lists) {
-        if (res.progress[list.id]) list.progress = mergeProgress(list.progress, res.progress[list.id], pendingFor(list.id));
+        if (res.progress[list.id]) list.progress = mergeFor(list, list.progress, res.progress[list.id], pendingFor(list.id), false);
       }
       await store.save(`offline:${me.id}`, offlineData);
     }
@@ -384,7 +340,7 @@ function renderLogin() {
   renderUser();
   const parts = [
     h('h1', {}, settings.appName || 'Vokabeltrainer'),
-    h('p', { class: 'lead' }, 'Vokabeln lernen – mit Karteikarten, Auswählen, Eintippen, Lückensätzen und Hörübungen, mit den Listen deiner Lehrkräfte.'),
+    h('p', { class: 'lead' }, 'Vokabeln und Grammatik lernen – mit Karteikarten, Auswählen, Eintippen, Lückensätzen und Hörübungen, mit den Listen deiner Lehrkräfte.'),
   ];
   if (settings.oidc) parts.push(h('a', { class: 'btn primary big', href: '/auth/login' }, settings.loginLabel || 'Anmelden'));
   if (settings.remember) parts.push(h('label', { class: 'check remember' },
@@ -419,19 +375,28 @@ function renderLogin() {
 
 // ---------- Startseite ----------
 
+// Sprachzeile einer Karte: Vokabeln „Englisch ↔ Deutsch“, Grammatik nur die Sprache
+const langsLine = (list) => (isGrammar(list) ? list.lang_a || 'Grammatik' : `${langLabel(list, 'a')} ↔ ${langLabel(list, 'b')}`);
+// Größe einer Liste: Wörter bzw. Regeln und Aufgaben
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+const sizeParts = (list) => (isGrammar(list)
+  ? [plural(list.rule_count, 'Regel', 'Regeln'), plural(list.item_count, 'Aufgabe', 'Aufgaben')]
+  : [plural(list.word_count, 'Wort', 'Wörter')]);
+
 function listCard(list, { own }) {
-  const total = list.word_count;
+  const total = isGrammar(list) ? list.rule_count : list.word_count;
   const meta = [
     list.grade ? gradeLabel(list.grade) : null,
-    `${total} Wörter`,
-    modeLabel(list.mode),
+    ...sizeParts(list),
+    isGrammar(list) ? null : modeLabel(list.mode),
   ].filter(Boolean);
   if (!own && list.owner_name) meta.push(`von ${list.owner_name}`);
   return h('article', { class: 'card' },
     h('div', { class: 'card-head' },
       h('h3', {}, list.title),
-      h('span', { class: 'langs' }, `${langLabel(list, 'a')} ↔ ${langLabel(list, 'b')}`),
+      h('span', { class: 'langs' }, langsLine(list)),
     ),
+    isGrammar(list) ? h('div', { class: 'chips' }, h('span', { class: 'chip grammar' }, 'Grammatik')) : null,
     h('p', { class: 'muted small' }, meta.join(' · ')),
     own && list.copied_from ? h('p', { class: 'muted small' }, `Kopie von: ${list.copied_from}`) : null,
     own && list.shared ? h('div', { class: 'chips' }, h('span', { class: 'chip shared' }, 'Für Kolleg:innen freigegeben')) : null,
@@ -442,7 +407,7 @@ function listCard(list, { own }) {
     !own || list.progress.seen
       ? h('div', { class: 'progress' },
           progressBar(list.progress.safe, total, 'Sicher gelernt'),
-          h('span', { class: 'small muted' }, `${list.progress.safe} von ${total} sicher · zuletzt ${formatDate(list.progress.last_seen)}`))
+          h('span', { class: 'small muted' }, `${list.progress.safe} von ${total} ${isGrammar(list) ? 'Regeln ' : ''}sicher · zuletzt ${formatDate(list.progress.last_seen)}`))
       : null,
     h('div', { class: 'actions' },
       h('a', { class: 'btn primary', href: `#/learn/${list.id}` }, 'Lernen'),
@@ -468,7 +433,13 @@ async function renderHome() {
 // Ohne Internet: die auf dem Gerät gespeicherten Listen mit dem Lernstand auf dem Gerät
 function renderHomeOffline() {
   const lists = offlineData?.lists ?? [];
-  const assigned = lists.map((l) => ({ ...l, word_count: l.words.length, progress: summarize(l.progress, endOfToday()) }));
+  const assigned = lists.map((l) => ({
+    ...l,
+    word_count: l.words?.length ?? 0,
+    rule_count: l.rules?.length ?? 0,
+    item_count: (l.rules ?? []).reduce((sum, r) => sum + r.items.length, 0),
+    progress: summarize(l.progress, endOfToday(), isGrammar(l) ? 'rule_id' : 'word_id'),
+  }));
   const note = h('section', { class: 'panel offline-note' },
     h('h2', {}, 'Du bist offline'),
     h('p', { class: 'small muted' }, lists.length
@@ -482,10 +453,13 @@ function renderHomeOffline() {
 function renderHomeLists({ own, assigned }, { offline = false, note = null } = {}) {
   const sections = [note];
   const dueLists = [...own, ...assigned].filter((l) => l.progress.due);
-  const dueTotal = dueLists.reduce((sum, l) => sum + l.progress.due, 0);
-  if (dueTotal) {
+  const dueOf = (grammar) => dueLists.filter((l) => isGrammar(l) === grammar).reduce((sum, l) => sum + l.progress.due, 0);
+  const dueWords = dueOf(false);
+  const dueRules = dueOf(true);
+  if (dueWords + dueRules) {
+    const what = [dueWords && `${dueWords} ${dueWords === 1 ? 'Wort' : 'Wörter'}`, dueRules && `${dueRules} ${dueRules === 1 ? 'Regel' : 'Regeln'}`].filter(Boolean).join(' und ');
     sections.push(h('section', { class: 'panel due-banner' },
-      h('h2', {}, `🔔 Heute fällig: ${dueTotal} ${dueTotal === 1 ? 'Wort' : 'Wörter'}`),
+      h('h2', {}, `🔔 Heute fällig: ${what}`),
       h('p', { class: 'small muted' }, 'Jetzt wiederholen, bevor du sie vergisst – das dauert nur ein paar Minuten.'),
       h('div', { class: 'actions' }, dueLists.map((l) => h('a', { class: 'btn', href: `#/learn/${l.id}` }, `${l.title} (${l.progress.due})`))),
     ));
@@ -497,17 +471,18 @@ function renderHomeLists({ own, assigned }, { offline = false, note = null } = {
           h('h2', {}, 'Meine Listen'),
           h('div', { class: 'actions' },
             h('a', { class: 'btn', href: '#/shared' }, 'Geteilte Listen'),
-            h('a', { class: 'btn primary', href: '#/edit/new' }, '+ Neue Liste'))),
+            h('a', { class: 'btn primary', href: '#/edit/new' }, '+ Neue Vokabelliste'),
+            h('a', { class: 'btn primary', href: '#/edit/new-grammar' }, '+ Neue Grammatikliste'))),
         own.length
           ? h('div', { class: 'grid' }, own.map((l) => listCard(l, { own: true })))
-          : h('p', { class: 'empty' }, 'Du hast noch keine Listen. Lege eine neue an oder importiere eine CSV-Datei.'),
+          : h('p', { class: 'empty' }, 'Du hast noch keine Listen. Lege eine Vokabel- oder Grammatikliste an oder importiere eine CSV-Datei.'),
       ),
     );
   }
   if (!me.isTeacher || assigned.length) {
     sections.push(
       h('section', {},
-        h('div', { class: 'section-head' }, h('h2', {}, me.isTeacher ? 'Meinen Gruppen zugewiesen' : 'Meine Vokabellisten')),
+        h('div', { class: 'section-head' }, h('h2', {}, me.isTeacher ? 'Meinen Gruppen zugewiesen' : 'Meine Listen')),
         assigned.length
           ? h('div', { class: 'grid' }, assigned.map((l) => listCard(l, { own: false })))
           : offline ? null : h('p', { class: 'empty' }, 'Für deine Klassen und Kurse gibt es noch keine Listen.'),
@@ -519,21 +494,26 @@ function renderHomeLists({ own, assigned }, { offline = false, note = null } = {
 
 // ---------- Editor (Lehrkräfte) ----------
 
-const LANGUAGES = ['Deutsch', 'Englisch', 'Französisch', 'Spanisch', 'Latein', 'Italienisch', 'Russisch', 'Niederländisch', 'Polnisch', 'Türkisch', 'Altgriechisch', 'Chinesisch'];
+// Editor öffnen: neue Vokabelliste, neue Grammatikliste oder eine bestehende (je nach Art)
+async function openEditor(id) {
+  if (id === 'new') return renderEditor('new');
+  if (id === 'new-grammar') return renderGrammarEditor(ctx, null);
+  const list = await api('GET', `/lists/${id}`);
+  if (!list.is_owner) throw new Error('Nur die Ersteller:in darf diese Liste bearbeiten.');
+  return isGrammar(list) ? renderGrammarEditor(ctx, list) : renderEditor(id, list);
+}
 
-async function renderEditor(id) {
+async function renderEditor(id, loaded = null) {
   const isNew = id === 'new';
   const list = isNew
     ? { title: '', lang_a: 'Englisch', lang_b: 'Deutsch', mode: 'auto', case_sensitive: false, accent_sensitive: true, direction: 'ab', allow_switch: true, allow_mode_switch: true, shared: false, groups: [], words: [] }
-    : await api('GET', `/lists/${id}`);
+    : loaded ?? await api('GET', `/lists/${id}`);
   if (!isNew && !list.is_owner) throw new Error('Nur die Ersteller:in darf diese Liste bearbeiten.');
 
   let dirty = false;
   const markDirty = () => { dirty = true; };
   leaveGuard = () => !dirty || confirm('Ungespeicherte Änderungen verwerfen?');
   window.onbeforeunload = (e) => { if (dirty) e.preventDefault(); };
-
-  const field = (label, input, hint) => h('label', { class: 'field' }, h('span', {}, label), input, hint ? h('small', { class: 'muted' }, hint) : null);
 
   const title = h('input', { value: list.title, required: true, maxLength: 200, placeholder: 'z. B. Unit 3 – At the zoo' });
   const langA = h('input', { value: list.lang_a, list: 'langs', maxLength: 50 });
@@ -571,25 +551,7 @@ async function renderEditor(id) {
   const shared = h('input', { type: 'checkbox', checked: list.shared });
 
   // Gruppen: eigene Gruppen der Lehrkraft + bereits zugewiesene
-  const groupMap = new Map(me.groups.map((g) => [g.id, g]));
-  for (const g of list.groups ?? []) if (!groupMap.has(g.id)) groupMap.set(g.id, g);
-  const selected = new Set((list.groups ?? []).map((g) => g.id));
-  const groupFilter = h('input', { type: 'search', placeholder: 'Gruppe suchen …' });
-  const groupBox = h('div', { class: 'group-list' });
-  const renderGroups = () => {
-    const q = groupFilter.value.trim().toLowerCase();
-    const groups = [...groupMap.values()]
-      .filter((g) => !q || g.name.toLowerCase().includes(q) || g.id.toLowerCase().includes(q))
-      .sort((x, y) => Number(selected.has(y.id)) - Number(selected.has(x.id)) || x.name.localeCompare(y.name, 'de'));
-    fill(groupBox,
-      ...groups.map((g) => h('label', { class: 'check' },
-        h('input', { type: 'checkbox', checked: selected.has(g.id), onchange: (e) => { e.target.checked ? selected.add(g.id) : selected.delete(g.id); markDirty(); } }),
-        g.name)),
-      groups.length ? null : h('p', { class: 'small muted' }, groupMap.size ? 'Keine passende Gruppe.' : 'Du bist in keiner Gruppe Mitglied.'),
-    );
-  };
-  groupFilter.oninput = renderGroups;
-  renderGroups();
+  const groups = groupPicker(list, me.groups, markDirty);
 
   // Wortliste
   const colA = h('th', {});
@@ -831,7 +793,7 @@ async function renderEditor(id) {
       allow_switch: allowSwitch.checked,
       allow_mode_switch: allowModeSwitch.checked,
       shared: shared.checked,
-      groups: [...selected].map((gid) => groupMap.get(gid)).filter(Boolean),
+      groups: groups.selected(),
       words: readWords(),
     };
     saveBtn.disabled = true;
@@ -884,8 +846,8 @@ async function renderEditor(id) {
     h('div', { class: 'panel' },
       h('h2', {}, 'Für wen?'),
       h('p', { class: 'small muted' }, 'Nur Mitglieder der gewählten Gruppen sehen die Liste.'),
-      groupFilter,
-      groupBox,
+      groups.filter,
+      groups.box,
       h('label', { class: 'check share-option' }, shared,
         h('span', {}, h('strong', {}, 'Für Kolleg:innen freigeben'),
           h('small', { class: 'muted' }, ' – andere Lehrkräfte können die Liste ansehen und eine eigene Kopie anlegen. Lernstände werden nicht geteilt.'))),
@@ -923,13 +885,6 @@ async function renderEditor(id) {
 
 // ---------- Lernen ----------
 
-// Ende des heutigen Tages (lokale Zeit): Bis dahin fällige Wörter zählen als „heute fällig“.
-function endOfToday() {
-  const d = new Date();
-  d.setHours(23, 59, 59, 999);
-  return d;
-}
-
 // Liste zum Lernen: mit Internet frisch vom Server, sonst vom Gerät.
 // Zugewiesene Listen sind dasselbe Objekt wie in offlineData – Antworten landen so auch im Gerätespeicher.
 async function learnableList(id) {
@@ -939,7 +894,7 @@ async function learnableList(id) {
       const list = await api('GET', `/lists/${id}`);
       if (!cached) return list;
       const pendingFor = await pendingKeys();
-      Object.assign(cached, list, { progress: mergeProgress(cached.progress, list.progress, pendingFor(cached.id), wordIdsOf(list)) });
+      Object.assign(cached, list, { progress: mergeFor(list, cached.progress, list.progress, pendingFor(cached.id)) });
       store.save(`offline:${me.id}`, offlineData).catch(() => {});
       return cached;
     } catch (err) {
@@ -952,6 +907,7 @@ async function learnableList(id) {
 
 async function renderLearn(id) {
   const list = await learnableList(id);
+  if (isGrammar(list)) return renderGrammarLearn(ctx, list);
   if (!list.words.length) throw new Error('Diese Liste enthält keine Wörter.');
   const progress = new Map(list.progress.map((p) => [`${p.word_id}:${p.direction}`, p]));
   const key = (wordId, dir) => `${wordId}:${dir}`;
@@ -1031,13 +987,6 @@ async function renderLearn(id) {
   }
 
   const pick = () => (mode === 'due' ? pickDue() : pickFree());
-
-  const segmented = (label, options, current, onPick) =>
-    h('div', { class: 'segmented', role: 'radiogroup', 'aria-label': label },
-      options.map(([value, text]) => h('button', {
-        type: 'button', role: 'radio', 'aria-checked': String(current === value), class: current === value ? 'active' : '',
-        onclick: () => onPick(value),
-      }, text)));
 
   const setupView = () => {
     const due = dueItems().length;
@@ -1130,13 +1079,7 @@ async function renderLearn(id) {
     const k = key(card.word.id, card.dir);
     progress.set(k, answer(progress.get(k), entry, review));
     list.progress = [...progress.values()];
-    unqueued.set(entry.id, entry);
-    writes = writes
-      .then(() => store.queue(entry))
-      .finally(() => unqueued.delete(entry.id))
-      .then(() => offlineData && store.save(`offline:${me.id}`, offlineData))
-      .catch(() => toast('Antwort konnte auf dem Gerät nicht gespeichert werden.', 'error'));
-    writes.then(() => syncNow()).catch(() => {});
+    writes = persistEntry(entry, writes);
   }
   // Stand vom Server übernehmen, sobald Antworten übertragen sind (wartende Antworten auf dem Gerät bleiben)
   const onProgress = (byList, pendingFor) => {
@@ -1506,15 +1449,6 @@ async function renderLearn(id) {
   setupView();
 }
 
-// „heute“, „morgen“, „am Montag“ oder Datum
-function formatDue(date) {
-  const days = Math.round((new Date(date).setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0)) / 86400000);
-  if (days <= 0) return 'heute';
-  if (days === 1) return 'morgen';
-  if (days < 7) return `am ${new Date(date).toLocaleDateString('de-DE', { weekday: 'long' })}`;
-  return `am ${new Date(date).toLocaleDateString('de-DE')}`;
-}
-
 // Bei mehreren Varianten wird die Lösung auch nach einer richtigen Antwort gezeigt.
 function hasVariants(solution) {
   return /[;|()]/.test(solution);
@@ -1533,198 +1467,17 @@ function cleanupKeys() {
 
 // ---------- Auswertung (Lehrkräfte) ----------
 
-const SVG_NS = 'http://www.w3.org/2000/svg';
-function svg(tag, attrs = {}, ...children) {
-  const el = document.createElementNS(SVG_NS, tag);
-  for (const [k, v] of Object.entries(attrs)) if (v != null) el.setAttribute(k, v);
-  for (const c of children.flat()) if (c != null) el.append(c instanceof Node ? c : document.createTextNode(String(c)));
-  return el;
-}
-
-// Achsenmaximum auf eine runde Zahl (1, 2, 5 × 10^n), durch 2 teilbar für die Mittellinie
-function niceMax(v) {
-  if (v <= 4) return 4;
-  const pow = 10 ** Math.floor(Math.log10(v));
-  return [1, 2, 5, 10].map((m) => m * pow).find((c) => c >= v);
-}
-
-const shortDate = (iso) => new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
-const pct = (value, total) => (total ? Math.round((value / total) * 100) : 0);
-
-// Kleines Diagramm für eine Messgröße über die Wochen: Linie (Anteil) oder Säulen (Anzahl).
-// Hover/Fokus zeigt den Wert der Woche; mit ← → lässt sich per Tastatur durchgehen.
-function weekChart({ title, points, value, format, kind, max }) {
-  const W = 320, H = 150, L = 34, R = 34, T = 14, B = 26;
-  const iw = W - L - R, ih = H - T - B;
-  const values = points.map(value);
-  const top = max ?? niceMax(Math.max(...values));
-  const x = (i) => L + (points.length === 1 ? iw / 2 : (i / (points.length - 1)) * iw);
-  const y = (v) => T + ih - (v / top) * ih;
-  const ticks = [0, top / 2, top];
-
-  const grid = ticks.map((t) => svg('g', {},
-    svg('line', { x1: L, x2: W - R, y1: y(t), y2: y(t), class: 'chart-grid' }),
-    svg('text', { x: L - 6, y: y(t) + 4, class: 'chart-axis', 'text-anchor': 'end' }, kind === 'line' ? `${t}` : `${Math.round(t)}`)));
-  const xLabels = [0, points.length - 1].map((i) =>
-    svg('text', { x: x(i), y: H - 8, class: 'chart-axis', 'text-anchor': i === 0 ? 'start' : 'end' }, i === points.length - 1 ? 'heute' : shortDate(points[i].at)));
-
-  let marks;
-  if (kind === 'line') {
-    const d = values.map((v, i) => `${i ? 'L' : 'M'}${x(i)},${y(v)}`).join('');
-    const last = values.length - 1;
-    marks = svg('g', {},
-      svg('path', { d: `${d}L${x(last)},${y(0)}L${x(0)},${y(0)}Z`, class: 'chart-area' }),
-      svg('path', { d, class: 'chart-line' }),
-      svg('circle', { cx: x(last), cy: y(values[last]), r: 4, class: 'chart-dot' }),
-      svg('text', { x: x(last) + 8, y: y(values[last]) + 4, class: 'chart-value' }, format(values[last])));
-  } else {
-    const slot = iw / points.length;
-    const bw = Math.min(24, slot * 0.6);
-    const col = (i) => L + slot * i + (slot - bw) / 2;
-    marks = svg('g', {}, values.map((v, i) => {
-      const h0 = y(0) - y(v);
-      if (!v) return null;
-      const r = Math.min(4, h0, bw / 2);
-      const x0 = col(i), y0 = y(v);
-      // oben abgerundet, an der Grundlinie eckig
-      return svg('path', {
-        class: 'chart-bar', 'data-i': i,
-        d: `M${x0},${y(0)}V${y0 + r}Q${x0},${y0} ${x0 + r},${y0}H${x0 + bw - r}Q${x0 + bw},${y0} ${x0 + bw},${y0 + r}V${y(0)}Z`,
-      });
-    }));
-    xLabels.forEach((t, k) => t.setAttribute('x', k === 0 ? col(0) : col(points.length - 1) + bw));
-  }
-
-  const cross = svg('line', { y1: T, y2: T + ih, class: 'chart-cross', visibility: 'hidden' });
-  const tip = h('div', { class: 'chart-tip', hidden: true, role: 'status' });
-  const hit = svg('rect', { x: L, y: T, width: iw, height: ih, fill: 'transparent' });
-  const chart = svg('svg', { viewBox: `0 0 ${W} ${H}`, class: 'chart', role: 'img', 'aria-label': `${title}: aktuell ${format(values.at(-1))}`, tabindex: 0 },
-    grid, marks, xLabels, cross, hit);
-  const wrap = h('figure', { class: 'chart-wrap' }, h('figcaption', {}, title), chart, tip);
-
-  let current = -1;
-  function show(i) {
-    current = Math.max(0, Math.min(points.length - 1, i));
-    const cx = kind === 'line' ? x(current) : L + (iw / points.length) * (current + 0.5);
-    cross.setAttribute('x1', cx);
-    cross.setAttribute('x2', cx);
-    cross.setAttribute('visibility', 'visible');
-    chart.querySelectorAll('.chart-bar').forEach((b) => b.classList.toggle('active', Number(b.dataset.i) === current));
-    fill(tip, h('strong', {}, format(values[current])), h('span', {}, ` · Woche bis ${shortDate(points[current].at)}`));
-    tip.hidden = false;
-    const box = chart.getBoundingClientRect();
-    tip.style.left = `${Math.min(box.width - 150, Math.max(0, (cx / W) * box.width - 60))}px`;
-  }
-  function hide() {
-    cross.setAttribute('visibility', 'hidden');
-    chart.querySelectorAll('.chart-bar.active').forEach((b) => b.classList.remove('active'));
-    tip.hidden = true;
-  }
-  chart.addEventListener('pointermove', (e) => {
-    const box = chart.getBoundingClientRect();
-    const px = ((e.clientX - box.left) / box.width) * W;
-    const i = kind === 'line'
-      ? Math.round(((px - L) / iw) * (points.length - 1))
-      : Math.floor(((px - L) / iw) * points.length);
-    show(i);
-  });
-  chart.addEventListener('pointerleave', hide);
-  chart.addEventListener('focus', () => show(points.length - 1));
-  chart.addEventListener('blur', hide);
-  chart.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowLeft') { e.preventDefault(); show(current - 1); }
-    if (e.key === 'ArrowRight') { e.preventDefault(); show(current + 1); }
-  });
-  return wrap;
-}
-
-// Verlauf: „Ø sicher“ als Linie, Abfragen pro Woche als Säulen, dazu eine Tabellenansicht.
-function historyPanel(history, { safeLabel }) {
-  return h('div', { class: 'history' },
-    h('div', { class: 'charts' },
-      weekChart({ title: safeLabel, points: history, value: (p) => p.safe_pct, format: (v) => `${Math.round(v)} %`, kind: 'line', max: 100 }),
-      weekChart({ title: 'Abfragen pro Woche', points: history, value: (p) => p.reviews, format: (v) => `${v} Abfragen`, kind: 'bar' }),
-    ),
-    h('details', { class: 'table-view' },
-      h('summary', {}, 'Verlauf als Tabelle'),
-      h('table', { class: 'stats' },
-        h('thead', {}, h('tr', {}, h('th', {}, 'Woche bis'), h('th', {}, safeLabel), h('th', {}, 'Abfragen'))),
-        h('tbody', {}, history.map((p) => h('tr', {}, h('td', {}, shortDate(p.at)), h('td', {}, `${Math.round(p.safe_pct)} %`), h('td', {}, p.reviews)))))),
-  );
-}
-
-function statTiles(tiles) {
-  return h('div', { class: 'tiles' }, tiles.map(([label, value, sub]) =>
-    h('div', { class: 'tile' }, h('span', { class: 'tile-label' }, label), h('span', { class: 'tile-value' }, value), sub ? h('span', { class: 'tile-sub' }, sub) : null)));
-}
-
-// Tabelle mit sortierbaren Spalten: columns = [{ label, value(row), render(row), numeric }]
-function sortableTable(rows, columns, { initial = 0, rowClass } = {}) {
-  let sortBy = initial;
-  let asc = initial == null ? true : !columns[initial].numeric;
-  const tbody = h('tbody', {});
-  const heads = columns.map((c, i) => h('th', { 'aria-sort': 'none' },
-    h('button', { type: 'button', class: 'sort', onclick: () => { asc = sortBy === i ? !asc : !c.numeric; sortBy = i; render(); } }, c.label)));
-  function render() {
-    const col = columns[sortBy];
-    const sorted = col == null ? rows : [...rows].sort((a, b) => {
-      const va = col.value(a), vb = col.value(b);
-      const cmp = typeof va === 'string' ? va.localeCompare(vb, 'de') : (va ?? -Infinity) - (vb ?? -Infinity);
-      return asc ? cmp : -cmp;
-    });
-    heads.forEach((th, i) => th.setAttribute('aria-sort', i === sortBy ? (asc ? 'ascending' : 'descending') : 'none'));
-    fill(tbody, sorted.map((r) => h('tr', { class: rowClass?.(r) ?? '' }, columns.map((c) => h('td', { class: c.class ?? '' }, c.render(r))))));
-  }
-  render();
-  return h('div', { class: 'table-wrap' }, h('table', { class: 'stats' }, h('thead', {}, h('tr', {}, heads)), tbody));
-}
-
-function downloadCsv(filename, rows) {
-  const a = h('a', { href: URL.createObjectURL(new Blob([rowsToCsv(rows)], { type: 'text/csv;charset=utf-8' })), download: filename });
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
-
 async function renderStats(id) {
   const stats = await api('GET', `/lists/${id}/stats`);
+  if (isGrammar(stats.list)) return renderGrammarStats(ctx, stats, id);
   const n = stats.word_count;
 
-  const groups = stats.groups.map((g) => {
-    const s = g.summary;
-    const columns = [
-      { label: 'Name', value: (r) => r.name, render: (r) => h('a', { href: `#/stats/${id}/${r.id}` }, r.name) },
-      { label: 'Sicher', numeric: true, value: (r) => r.safe, render: (r) => h('div', { class: 'bar-cell' }, progressBar(r.safe, n, `Sicher: ${r.name}`), h('span', { class: 'small' }, `${r.safe}/${n}`)) },
-      { label: 'Geübt', numeric: true, value: (r) => r.seen, render: (r) => `${r.seen}/${n}` },
-      { label: 'Fällig', numeric: true, value: (r) => r.due, render: (r) => (r.due ? h('span', { class: 'chip due' }, `${r.due} fällig`) : '–') },
-      { label: 'Richtig / Falsch', numeric: true, value: (r) => r.right + r.wrong, render: (r) => `${r.right} / ${r.wrong}` },
-      { label: 'Zuletzt', numeric: true, value: (r) => (r.last_seen ? Date.parse(r.last_seen) : null), render: (r) => formatDate(r.last_seen) },
-    ];
-    return h('section', { class: 'panel' },
-      h('h2', {}, g.name),
-      g.students.length
-        ? [
-            statTiles([
-              ['Schüler:innen', s.students],
-              ['Aktiv (7 Tage)', `${s.active_7d}`, `von ${s.students}`],
-              ['Ø sicher', `${Math.round(s.safe_pct)} %`, `von ${n} Wörtern`],
-              ['Ø geübt', `${Math.round(s.seen_pct)} %`],
-              ['Heute fällig', s.due, 'Wörter, alle zusammen'],
-            ]),
-            historyPanel(g.history, { safeLabel: 'Ø sicher (%)' }),
-            sortableTable(g.students, columns, { rowClass: (r) => (r.seen ? '' : 'inactive') }),
-            h('p', { class: 'small muted' }, 'Auf einen Namen klicken, um den Lernstand pro Wort zu sehen.'),
-          ]
-        : h('p', { class: 'empty' }, 'Aus dieser Gruppe hat sich noch niemand angemeldet.'),
-    );
+  const groups = groupPanels(stats.groups, {
+    listId: id,
+    total: n,
+    unit: { of: 'Wörtern', many: 'Wörter', safeLabel: 'Ø sicher (%)', hint: 'Auf einen Namen klicken, um den Lernstand pro Wort zu sehen.' },
   });
-
-  const exportCsv = () => downloadCsv(`${stats.list.title} – Auswertung.csv`, [
-    ['Gruppe', 'Name', 'Sicher', 'Geübt', 'Wörter', 'Sicher %', 'Fällig', 'Richtig', 'Falsch', 'Zuletzt aktiv'],
-    ...stats.groups.flatMap((g) => g.students.map((r) => [
-      g.name, r.name, r.safe, r.seen, n, pct(r.safe, n), r.due, r.right, r.wrong,
-      r.last_seen ? new Date(r.last_seen).toLocaleString('de-DE') : '',
-    ])),
-  ]);
+  const exportCsv = () => exportGroupsCsv(stats.list.title, stats.groups, n, 'Wörter');
 
   view(
     h('div', { class: 'section-head' },
@@ -1744,18 +1497,9 @@ async function renderStats(id) {
   );
 }
 
-const LEVEL_NAMES = ['neu', 'Anfang', 'lernt', 'sicher', 'sehr sicher', 'gefestigt'];
-
-function levelChip(p) {
-  if (!p) return h('span', { class: 'level level-0' }, 'neu');
-  const due = p.due && new Date(p.due) <= new Date();
-  return h('span', { class: 'level-cell' },
-    h('span', { class: `level level-${p.box}` }, LEVEL_NAMES[p.box] ?? '–'),
-    due ? h('span', { class: 'chip due' }, 'fällig') : null);
-}
-
 async function renderStudentStats(listId, userId) {
   const data = await api('GET', `/lists/${listId}/stats/students/${userId}`);
+  if (isGrammar(data.list)) return renderGrammarStudent(ctx, data, listId);
   const { list, student, words } = data;
   const n = words.length;
   const maxLevel = (w) => Math.max(w.ab?.box ?? 0, w.ba?.box ?? 0);
@@ -1825,6 +1569,7 @@ async function renderShared() {
   const gradeValues = GRADES.map(String);
   const gradeSelect = select('Jahrgang', 'grade', [['', 'Alle Jahrgänge'], ...GRADES.map((g) => [String(g), `Jahrgang ${g}`]), ['none', 'ohne Angabe']],
     saved('grade', [...gradeValues, 'none']));
+  const kindSelect = select('Art', 'kind', [['', 'Vokabeln und Grammatik'], ...Object.entries(KINDS)], saved('kind', Object.keys(KINDS)));
   const sortSelect = select('Sortieren', 'sort', Object.entries(SORTS), saved('sort', Object.keys(SORTS)) || 'recent');
   const value = (wrap) => wrap.querySelector('select').value;
 
@@ -1834,14 +1579,15 @@ async function renderShared() {
   const card = (list) => h('article', { class: 'card' },
     h('div', { class: 'card-head' },
       h('h3', {}, list.title),
-      h('span', { class: 'langs' }, `${langLabel(list, 'a')} ↔ ${langLabel(list, 'b')}`)),
-    h('div', { class: 'chips' }, h('span', { class: `chip${list.grade ? '' : ' muted'}` }, gradeLabel(list.grade))),
-    h('p', { class: 'muted small' }, [`${list.word_count} Wörter`, modeLabel(list.mode), list.owner_name && `von ${list.owner_name}`, `geändert ${formatDate(list.updated_at)}`].filter(Boolean).join(' · ')),
+      h('span', { class: 'langs' }, langsLine(list))),
+    h('div', { class: 'chips' }, isGrammar(list) ? h('span', { class: 'chip grammar' }, 'Grammatik') : null,
+      h('span', { class: `chip${list.grade ? '' : ' muted'}` }, gradeLabel(list.grade))),
+    h('p', { class: 'muted small' }, [...sizeParts(list), isGrammar(list) ? null : modeLabel(list.mode), list.owner_name && `von ${list.owner_name}`, `geändert ${formatDate(list.updated_at)}`].filter(Boolean).join(' · ')),
     h('div', { class: 'actions' },
       h('button', { class: 'btn primary', onclick: () => copyList(list) }, 'Kopieren'),
       h('a', { class: 'btn', href: `#/learn/${list.id}` }, 'Ansehen & ausprobieren')));
   function render() {
-    const hits = sortLists(filterLists(lists, { q: search.value, lang: value(langSelect), grade: value(gradeSelect) }), value(sortSelect));
+    const hits = sortLists(filterLists(lists, { q: search.value, lang: value(langSelect), grade: value(gradeSelect), kind: value(kindSelect) }), value(sortSelect));
     count.textContent = `${hits.length} von ${lists.length} ${lists.length === 1 ? 'Liste' : 'Listen'}`;
     fill(grid, hits.length ? hits.map(card) : h('p', { class: 'empty' }, lists.length ? 'Keine passende Liste gefunden.' : 'Noch hat niemand eine Liste freigegeben.'));
   }
@@ -1850,12 +1596,33 @@ async function renderShared() {
   view(
     h('div', { class: 'section-head' }, h('h1', {}, 'Geteilte Listen'), h('a', { class: 'btn ghost', href: '#/' }, 'Zurück')),
     h('p', { class: 'small muted' }, 'Listen, die Kolleg:innen freigegeben haben. Kopierte Listen gehören dir und können frei bearbeitet werden.'),
-    h('div', { class: 'filters' }, langSelect, gradeSelect, sortSelect),
+    h('div', { class: 'filters' }, kindSelect, langSelect, gradeSelect, sortSelect),
     h('div', { class: 'search-row' }, search, count),
     grid,
   );
   search.focus();
 }
+
+// ---------- Grammatik-Module ----------
+
+// Was grammar-editor.js, grammar-learn.js und grammar-stats.js von der App brauchen (me, online, offlineData
+// ändern sich im Lauf – deshalb Getter)
+const ctx = {
+  get me() { return me; },
+  get online() { return online; },
+  get offlineData() { return offlineData; },
+  api,
+  store,
+  review,
+  persistEntry,
+  progressListeners,
+  syncNow,
+  renderNet,
+  copyList,
+  setKeys,
+  cleanupKeys,
+  setLeaveGuard(fn) { leaveGuard = fn; },
+};
 
 // ---------- Router ----------
 
@@ -1871,7 +1638,7 @@ async function route() {
         h('a', { class: 'btn', href: '#/' }, 'Zur Startseite')));
     }
     if (page === 'learn' && id) await renderLearn(id);
-    else if (page === 'edit' && id && me.isTeacher) await renderEditor(id);
+    else if (page === 'edit' && id && me.isTeacher) await openEditor(id);
     else if (page === 'stats' && id && me.isTeacher) {
       const [listId, userId] = id.split('/');
       if (userId) await renderStudentStats(listId, userId);

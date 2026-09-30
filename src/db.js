@@ -84,6 +84,8 @@ export function openDb(dataDir) {
   // Fremdschlüssel erst nach den Migrationen einschalten (node:sqlite schaltet sie standardmäßig ein):
   // Beim Neuaufbau einer Tabelle würde DROP TABLE sonst abhängige Zeilen (z. B. alle Wörter einer Liste) mitlöschen.
   db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = OFF; PRAGMA busy_timeout = 5000;');
+  // SQLites LOWER() kennt nur ASCII („Étais“ ≠ „étais“); die Auswertung fasst Antworten Unicode-fest zusammen
+  db.function('unicode_lower', { deterministic: true }, (value) => (value == null ? null : String(value).normalize('NFC').toLocaleLowerCase('de').replace(/\s+/g, ' ').trim()));
   db.exec(SCHEMA);
   migrate(db);
   db.exec('PRAGMA foreign_keys = ON;');
@@ -176,6 +178,63 @@ export const MIGRATIONS = [
   // 8: Jahrgangsstufe einer Liste (1–13), zum Filtern und Sortieren der geteilten Listen.
   //    Bestehende Listen haben noch keine; beim nächsten Speichern muss sie gewählt werden.
   `ALTER TABLE lists ADD COLUMN grade INTEGER;`,
+  // 9: Grammatik. Eine Liste ist entweder eine Vokabelliste oder eine Grammatikliste (kind). Grammatik besteht
+  //    aus Regeln mit Aufgaben; geplant wird pro Regel (rule_progress, gleiche Spalten wie progress ohne Richtung).
+  //    grammar_log hält jede Aufgabe einzeln fest (mit der ersten falschen Antwort, für die Fehlerauswertung)
+  //    und je Runde eine Zeile der Regel (exercise = 'round', mit der Stabilität danach).
+  `ALTER TABLE lists ADD COLUMN kind TEXT NOT NULL DEFAULT 'vocab' CHECK (kind IN ('vocab', 'grammar'));
+   CREATE TABLE rules (
+     id           INTEGER PRIMARY KEY,
+     list_id      INTEGER NOT NULL REFERENCES lists(id) ON DELETE CASCADE,
+     pos          INTEGER NOT NULL,
+     title        TEXT NOT NULL,
+     summary      TEXT NOT NULL,
+     explanation  TEXT NOT NULL DEFAULT '',
+     discover     INTEGER NOT NULL DEFAULT 0
+   );
+   CREATE INDEX rules_list ON rules(list_id, pos);
+   CREATE TABLE items (
+     id       INTEGER PRIMARY KEY,
+     rule_id  INTEGER NOT NULL REFERENCES rules(id) ON DELETE CASCADE,
+     pos      INTEGER NOT NULL,
+     source   TEXT NOT NULL
+   );
+   CREATE INDEX items_rule ON items(rule_id, pos);
+   CREATE TABLE rule_progress (
+     user_id         INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     rule_id         INTEGER NOT NULL REFERENCES rules(id) ON DELETE CASCADE,
+     box             INTEGER NOT NULL DEFAULT 0,
+     right           INTEGER NOT NULL DEFAULT 0,
+     wrong           INTEGER NOT NULL DEFAULT 0,
+     last_seen       TEXT NOT NULL,
+     stability       REAL,
+     difficulty      REAL,
+     due             TEXT,
+     state           INTEGER,
+     reps            INTEGER NOT NULL DEFAULT 0,
+     lapses          INTEGER NOT NULL DEFAULT 0,
+     scheduled_days  INTEGER NOT NULL DEFAULT 0,
+     last_review     TEXT,
+     PRIMARY KEY (user_id, rule_id)
+   );
+   CREATE INDEX rule_progress_due ON rule_progress(user_id, due);
+   CREATE TABLE grammar_log (
+     id         INTEGER PRIMARY KEY,
+     user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     rule_id    INTEGER NOT NULL REFERENCES rules(id) ON DELETE CASCADE,
+     item_id    INTEGER REFERENCES items(id) ON DELETE SET NULL,
+     grade      TEXT NOT NULL,
+     exercise   TEXT NOT NULL,
+     attempts   INTEGER NOT NULL DEFAULT 1,
+     answer     TEXT,
+     stability  REAL,
+     at         TEXT NOT NULL,
+     client_id  TEXT
+   );
+   CREATE INDEX grammar_log_rule ON grammar_log(rule_id, at);
+   CREATE INDEX grammar_log_user ON grammar_log(user_id, at);
+   CREATE INDEX grammar_log_item ON grammar_log(item_id);
+   CREATE UNIQUE INDEX grammar_log_client ON grammar_log(user_id, client_id) WHERE client_id IS NOT NULL;`,
 ];
 
 function migrate(db) {

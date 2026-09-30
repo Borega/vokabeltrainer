@@ -1,6 +1,6 @@
 # Plan: Grammatik üben
 
-Stand: 30.09.2026 · Status: Entwurf zur Abstimmung, noch nichts umgesetzt
+Stand: 30.09.2026 · Status: **Phase 1 und 2 umgesetzt** (siehe „Umsetzung“ am Ende von Abschnitt 4), Phase 3 offen
 
 Der Vokabeltrainer soll um Grammatikübungen erweitert werden. Dieses Dokument fasst zusammen, was die
 Forschung zum Grammatiklernen sagt, und leitet daraus einen Umsetzungsplan ab, der zur bestehenden
@@ -336,7 +336,7 @@ bestehende `/results`. Der Service Worker muss die neuen JS-Dateien vorhalten (`
 
 ## 4. Phasen
 
-### Phase 1 – Kern (MVP)
+### Phase 1 – Kern (MVP) ✅ umgesetzt
 
 1. Migration 9, `kind` in Listen-API und Editor-Auswahl
 2. `grammar.js`: Parser für Lücke und Auswählen inkl. `!`-Feedback, Prüfung, Diff, Bewertung + Tests
@@ -349,13 +349,13 @@ bestehende `/results`. Der Service Worker muss die neuen JS-Dateien vorhalten (`
 Ergebnis: Lehrkräfte können z. B. „Present perfect vs. simple past“ oder „passé composé mit *être*“
 anlegen, zuweisen und auswerten; Schüler:innen üben verteilt, gemischt und mit Feedback.
 
-### Phase 2 – Mehr Aufgabentypen und Fehlerauswertung
+### Phase 2 – Mehr Aufgabentypen und Fehlerauswertung ✅ umgesetzt
 
 1. Fehler finden, Satzbau, Umformen/Übersetzen
 2. „Häufigste Fehler“ in der Auswertung, `!`-Feedback per Klick daraus anlegen
 3. Regel entdecken lassen (`discover`): Beispiele → Frage → Regel
 
-### Phase 3 – Ausbau (nach Rückmeldung aus dem Unterricht)
+### Phase 3 – Ausbau (nach Rückmeldung aus dem Unterricht) – offen
 
 - **Formengenerator** für regelmäßige Konjugationen (Französisch/Spanisch), der aus Verb + Zeit Aufgaben
   erzeugt – spart viel Tipparbeit, erzeugt aber nur Formen; die Lehrkraft ergänzt Kontextsätze.
@@ -364,6 +364,43 @@ anlegen, zuweisen und auswerten; Schüler:innen üben verteilt, gemischt und mit
 - **Tempo-Runde** für sichere Regeln (Automatisierung, DeKeyser) – nur freiwillig, ohne Einfluss auf die
   Planung, da Zeitdruck für manche Schüler:innen demotivierend ist.
 - Startpakete zum Teilen (von Lehrkräften erstellt; keine Schulbuchinhalte wegen Urheberrecht).
+
+### Umsetzung: Entscheidungen und Abweichungen vom Entwurf
+
+Phase 1 und 2 sind vollständig gebaut (Migration 9, `public/grammar.js`, Editor, Lernansicht, Auswertung, Offline,
+Tests, README). Phase 3 wartet, wie vorgesehen, auf Rückmeldungen aus dem Unterricht. Beim Bauen haben sich
+folgende Festlegungen ergeben:
+
+- **Tippfehler-Toleranz strenger als bei Vokabeln.** In einer Grammatikübung ist ein „Tippfehler“ oft die falsche
+  Form (*knew ↔ know* ist ein Buchstabe Abstand, *lived → live* ebenfalls). „Fast!“ gibt es deshalb nur für
+  Akzent, Groß-/Kleinschreibung, zwei vertauschte Buchstaben oder einen ausgelassenen/doppelten Buchstaben mitten
+  im Wort (nie am Wortanfang oder -ende: *here ↔ there*). Kommas und Anführungszeichen zählen nicht.
+- **Hinweise:** Eine `!`-Zeile ohne `=` gilt als allgemeiner Hinweis für jede falsche Antwort der Aufgabe. Bei
+  mehreren passenden Hinweisen gewinnt der genaueste (gleiche Antwort vor „kommt als Wort vor“, dann der längere
+  Schlüssel). Reihenfolge: passender Hinweis → allgemeiner Hinweis → Merksatz.
+- **Auswählen aus Lückenaufgaben:** Eine Lückenaufgabe mit genau einer Lücke wird auch zur Auswahl, wenn ihre
+  `!`-Hinweise falsche Antworten nennen – diese werden die Ablenker („typische Fehler“). Umgekehrt wird eine
+  Auswahl nie zur Lücke, weil ohne Grundform mehrere richtige Antworten möglich wären.
+- **Stufenleiter:** Fehler finden, Umformen und Übersetzen kommen erst ab Stufe 2; fehlt eine freie Aufgabe für die
+  geplante Art, nimmt die Runde eine passende andere Art (auf den unteren Stufen nie eine schwerere) oder hat
+  weniger Aufgaben. Nach einem Fehler auf Stufe 0–1 ist die Wiederholung eine Auswahl (Erleichterung).
+- **Regelkarte:** Beispielsätze stammen aus den Aufgaben der Regel (bei < 6 Aufgaben nur zum Entdecken) und kommen
+  in der Einführung nicht gleich als Aufgabe dran. Die Frage beim Entdecken steht in der Erklärung als Zeile mit
+  `?` am Anfang (sonst ein Standardtext).
+- **Eine Bewertung pro Regel und Runde** wird gesendet, sobald alle Aufgaben der Regel in der Runde beantwortet
+  sind; beim Beenden oder Verlassen der Runde und beim Wechsel der App in den Hintergrund gehen die schon beantworteten
+  Aufgaben ebenfalls raus, auch eine schon abgeschickte, aber noch nicht mit „Weiter“ bestätigte Antwort (dann ist „Ich hatte
+  recht“ nicht mehr möglich; der Rest der Regel bekommt eine zweite Bewertung). Wiederholungen nach Fehlern zählen nicht.
+- **Speichern im Editor:** Aufgaben werden beim Bearbeiten wiedererkannt (gleicher Text, sonst ähnlichste
+  Zeile mit derselben Hauptlösung und ≥ 60 % gleichen Wörtern; bei einer Auswahl zählt die richtige Form), sodass Lernstand und Fehlerstatistik erhalten bleiben. Der Textdatei-Import hängt Regeln nur an und
+  ersetzt nichts. Jede Regel braucht einen Titel, einen Merksatz und mindestens eine Aufgabe.
+- **Hinweis per Klick:** `POST /api/lists/:id/feedback` legt `! Antwort = Hinweis` unter der Aufgabe an (oder ersetzt
+  den Hinweis zur selben Antwort). Antworten mit `|` oder `=` lassen sich so nicht anlegen (im Editor eintragen).
+- **Offene Fragen (Abschnitt 5) wurden wie vorgeschlagen entschieden:** alle Sprachen ohne Sonderbehandlung
+  (Latein später), Planung pro Regel, falsche Antworten werden gespeichert (vor dem Einsatz mit der/dem
+  Datenschutzbeauftragten abstimmen – README, „Datenschutz“), keine gemischten Listen.
+- **Technik:** Geteilte Hilfen aus `app.js` liegen jetzt in `ui.js` und `stats-ui.js` (unverändert verschoben);
+  `app.js` enthält nur die Weichen. Der Migrationstest spielt auch den Sprung von Stand 8 auf 9 durch.
 
 ---
 

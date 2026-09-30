@@ -2,6 +2,7 @@ import express from 'express';
 import { now, transaction } from './db.js';
 import { forgetDevice, forgetDeviceToken, issueDeviceToken } from './devices.js';
 import { GRADES, SAFE_LEVEL, levelFor, review } from './scheduler.js';
+import { LIMITS, parseItem, roundGrade, validateRules } from '../public/grammar.js';
 
 // Ab dieser Stufe gilt ein Wort als „sicher“ (0 = neu … 5, siehe scheduler.js).
 export const SAFE_BOX = SAFE_LEVEL;
@@ -17,6 +18,11 @@ const GRADES_MAX = 13;
 const MODES = ['auto', 'flip', 'type', 'choice'];
 // Übungsarten, die im Verlauf protokolliert werden
 const EXERCISES = ['flip', 'type', 'choice', 'cloze', 'listen'];
+const GRAMMAR_EXERCISES = ['choice', 'gap', 'error', 'order', 'translate'];
+// Höchstzahl Aufgaben, die eine Regel-Antwort (eine Runde) enthalten darf
+const MAX_ROUND_ITEMS = 30;
+// Wie viele häufige Fehler die Auswertung zeigt
+const MAX_ERRORS = 30;
 
 class HttpError extends Error {
   constructor(status, message) {
@@ -33,19 +39,69 @@ function text(value, max, field) {
   return t;
 }
 
-function parseListBody(body) {
-  if (!body || typeof body !== 'object') throw new HttpError(400, 'Ungültige Daten.');
-  const title = text(body.title, 200, 'Titel');
-  if (!title) throw new HttpError(400, 'Bitte einen Titel angeben.');
-  const mode = MODES.includes(body.mode) ? body.mode : 'auto';
+function parseGrade(rawGrade) {
   // Nur eine Zahl oder eine schlichte Dezimalzahl als Text – kein true, [7] oder "0xA"
-  const rawGrade = body.grade;
   const grade = typeof rawGrade === 'number' || (typeof rawGrade === 'string' && /^\d{1,2}$/.test(rawGrade.trim()))
     ? Number(rawGrade)
     : NaN;
   if (!Number.isInteger(grade) || grade < GRADES_MIN || grade > GRADES_MAX) {
     throw new HttpError(400, 'Bitte die Jahrgangsstufe angeben.');
   }
+  return grade;
+}
+
+function parseGroups(raw) {
+  return Array.isArray(raw)
+    ? raw
+        .filter((g) => g && typeof g.id === 'string' && g.id.trim())
+        .map((g) => ({ id: g.id.trim().slice(0, 200), name: text(g.name || g.id, 200, 'Gruppe') }))
+    : [];
+}
+
+// Regeln einer Grammatikliste: { id?, title, summary, explanation, discover, items: [{ id?, source }] }.
+// Die Aufgaben werden mit demselben Parser geprüft wie im Browser (public/grammar.js).
+function parseRules(raw) {
+  if (!Array.isArray(raw)) throw new HttpError(400, 'Regeln fehlen.');
+  if (raw.length > LIMITS.rules) throw new HttpError(400, `Höchstens ${LIMITS.rules} Regeln pro Liste.`);
+  const rules = raw.map((r) => ({
+    id: Number.isInteger(r?.id) ? r.id : null,
+    title: text(r?.title, LIMITS.title, 'Titel der Regel'),
+    summary: text(r?.summary, LIMITS.summary, 'Merksatz'),
+    explanation: text(r?.explanation, LIMITS.explanation, 'Erklärung'),
+    discover: r?.discover ? 1 : 0,
+    items: (Array.isArray(r?.items) ? r.items : [])
+      .map((it) => ({ id: Number.isInteger(it?.id) ? it.id : null, source: text(it?.source, LIMITS.source, 'Aufgabe') }))
+      .filter((it) => it.source),
+  }));
+  const error = validateRules(rules);
+  if (error) throw new HttpError(400, error);
+  // gespeichert wird die bereinigte Fassung (getrimmte Zeilen, keine Leerzeilen)
+  for (const rule of rules) for (const it of rule.items) it.source = parseItem(it.source).source;
+  return rules;
+}
+
+function parseListBody(body) {
+  if (!body || typeof body !== 'object') throw new HttpError(400, 'Ungültige Daten.');
+  const kind = body.kind === 'grammar' ? 'grammar' : 'vocab';
+  const title = text(body.title, 200, 'Titel');
+  if (!title) throw new HttpError(400, 'Bitte einen Titel angeben.');
+  const grade = parseGrade(body.grade);
+  const common = {
+    kind,
+    title,
+    lang_a: text(body.lang_a, 50, 'Sprache A'),
+    lang_b: text(body.lang_b, 50, 'Sprache B'),
+    grade,
+    case_sensitive: body.case_sensitive ? 1 : 0,
+    accent_sensitive: body.accent_sensitive ? 1 : 0,
+    shared: body.shared ? 1 : 0,
+    groups: parseGroups(body.groups),
+  };
+  if (kind === 'grammar') {
+    // Eine Sprache; Richtung und Abfrageart gibt es bei Grammatik nicht
+    return { ...common, lang_b: '', mode: 'auto', direction: 'ab', allow_switch: 1, allow_mode_switch: 1, rules: parseRules(body.rules) };
+  }
+  const mode = MODES.includes(body.mode) ? body.mode : 'auto';
   const direction = ['ab', 'ba', 'mixed'].includes(body.direction) ? body.direction : 'ab';
   if (!Array.isArray(body.words)) throw new HttpError(400, 'Wörter fehlen.');
   if (body.words.length > MAX_WORDS) throw new HttpError(400, `Höchstens ${MAX_WORDS} Wörter pro Liste.`);
@@ -64,31 +120,20 @@ function parseListBody(body) {
     });
   }
   if (!words.length) throw new HttpError(400, 'Die Liste enthält keine Wörter.');
-  const groups = Array.isArray(body.groups)
-    ? body.groups
-        .filter((g) => g && typeof g.id === 'string' && g.id.trim())
-        .map((g) => ({ id: g.id.trim().slice(0, 200), name: text(g.name || g.id, 200, 'Gruppe') }))
-    : [];
   return {
-    title,
-    lang_a: text(body.lang_a, 50, 'Sprache A'),
-    lang_b: text(body.lang_b, 50, 'Sprache B'),
-    grade,
+    ...common,
     mode,
-    case_sensitive: body.case_sensitive ? 1 : 0,
-    accent_sensitive: body.accent_sensitive ? 1 : 0,
     direction,
     allow_switch: body.allow_switch === false ? 0 : 1,
     allow_mode_switch: body.allow_mode_switch === false ? 0 : 1,
-    shared: body.shared ? 1 : 0,
     words,
-    groups,
   };
 }
 
 function listJson(row) {
   return {
     id: row.id,
+    kind: row.kind,
     title: row.title,
     lang_a: row.lang_a,
     lang_b: row.lang_b,
@@ -105,6 +150,11 @@ function listJson(row) {
   };
 }
 
+// Anzahl der Einheiten einer Liste: Wörter (Vokabeln) bzw. Regeln und Aufgaben (Grammatik)
+const COUNTS = `(SELECT COUNT(*) FROM words w WHERE w.list_id = l.id) AS word_count,
+  (SELECT COUNT(*) FROM rules r WHERE r.list_id = l.id) AS rule_count,
+  (SELECT COUNT(*) FROM items i JOIN rules r ON r.id = i.rule_id WHERE r.list_id = l.id) AS item_count`;
+
 export function apiRouter(db, config) {
   const router = express.Router();
   router.use(express.json({ limit: '2mb' }));
@@ -120,12 +170,10 @@ export function apiRouter(db, config) {
        WHERE lg.list_id = ? AND ug.user_id = ? LIMIT 1`,
     ),
     ownLists: db.prepare(
-      `SELECT l.*, (SELECT COUNT(*) FROM words w WHERE w.list_id = l.id) AS word_count
-       FROM lists l WHERE l.owner_id = ? ORDER BY l.updated_at DESC`,
+      `SELECT l.*, ${COUNTS} FROM lists l WHERE l.owner_id = ? ORDER BY l.updated_at DESC`,
     ),
     assignedLists: db.prepare(
-      `SELECT DISTINCT l.*, u.name AS owner_name,
-         (SELECT COUNT(*) FROM words w WHERE w.list_id = l.id) AS word_count
+      `SELECT DISTINCT l.*, u.name AS owner_name, ${COUNTS}
        FROM lists l
        JOIN list_groups lg ON lg.list_id = l.id
        JOIN user_groups ug ON ug.group_id = lg.group_id AND ug.user_id = ?
@@ -140,6 +188,15 @@ export function apiRouter(db, config) {
        FROM progress p JOIN words w ON w.id = p.word_id
        WHERE p.user_id = ? GROUP BY w.list_id`,
     ),
+    // Grammatik: dasselbe je Regel
+    myRuleSummary: db.prepare(
+      `SELECT r.list_id, COUNT(*) AS seen,
+         COUNT(CASE WHEN p.box >= ${SAFE_BOX} THEN 1 END) AS safe,
+         COUNT(CASE WHEN p.due <= ? THEN 1 END) AS due,
+         MAX(p.last_seen) AS last_seen
+       FROM rule_progress p JOIN rules r ON r.id = p.rule_id
+       WHERE p.user_id = ? GROUP BY r.list_id`,
+    ),
     // Mit allen FSRS-Werten, damit der Browser ohne Internet weiterplanen kann
     myProgress: db.prepare(
       `SELECT p.word_id, p.direction, p.box, p.right, p.wrong, p.last_seen, p.due, p.stability,
@@ -148,12 +205,49 @@ export function apiRouter(db, config) {
        WHERE p.user_id = ? AND w.list_id = ?`,
     ),
     sharedLists: db.prepare(
-      `SELECT l.*, u.name AS owner_name, (SELECT COUNT(*) FROM words w WHERE w.list_id = l.id) AS word_count
+      `SELECT l.*, u.name AS owner_name, ${COUNTS}
        FROM lists l LEFT JOIN users u ON u.id = l.owner_id
        WHERE l.shared = 1 AND l.owner_id IS NOT ? ORDER BY l.updated_at DESC LIMIT 1000`,
     ),
+    myRuleProgress: db.prepare(
+      `SELECT p.rule_id, p.box, p.right, p.wrong, p.last_seen, p.due, p.stability,
+         p.difficulty, p.state, p.reps, p.lapses, p.scheduled_days, p.last_review
+       FROM rule_progress p JOIN rules r ON r.id = p.rule_id
+       WHERE p.user_id = ? AND r.list_id = ?`,
+    ),
+    rules: db.prepare('SELECT id, pos, title, summary, explanation, discover FROM rules WHERE list_id = ? ORDER BY pos, id'),
+    ruleCount: db.prepare('SELECT COUNT(*) AS n FROM rules WHERE list_id = ?'),
+    wordCount: db.prepare('SELECT COUNT(*) AS n FROM words WHERE list_id = ?'),
+    ruleItems: db.prepare(
+      `SELECT i.id, i.rule_id, i.source FROM items i JOIN rules r ON r.id = i.rule_id
+       WHERE r.list_id = ? ORDER BY r.pos, r.id, i.pos, i.id`,
+    ),
+    // Wann hat diese Person die Aufgabe zuletzt bearbeitet? (für die Auswahl „am längsten nicht gesehen“)
+    itemSeen: db.prepare(
+      `SELECT g.item_id, MAX(g.at) AS seen FROM grammar_log g JOIN rules r ON r.id = g.rule_id
+       WHERE g.user_id = ? AND r.list_id = ? AND g.item_id IS NOT NULL GROUP BY g.item_id`,
+    ),
     ownerName: db.prepare('SELECT name FROM users WHERE id = ?'),
     wordInList: db.prepare('SELECT 1 FROM words WHERE id = ? AND list_id = ?'),
+    ruleInList: db.prepare('SELECT 1 FROM rules WHERE id = ? AND list_id = ?'),
+    itemInRule: db.prepare('SELECT 1 FROM items WHERE id = ? AND rule_id = ?'),
+    logGrammar: db.prepare(
+      `INSERT INTO grammar_log (user_id, rule_id, item_id, grade, exercise, attempts, answer, stability, at, client_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ),
+    seenGrammarClientId: db.prepare('SELECT 1 FROM grammar_log WHERE user_id = ? AND client_id = ?'),
+    getRuleProgress: db.prepare('SELECT * FROM rule_progress WHERE user_id = ? AND rule_id = ?'),
+    putRuleProgress: db.prepare(
+      `INSERT INTO rule_progress (user_id, rule_id, box, right, wrong, last_seen,
+         stability, difficulty, due, state, reps, lapses, scheduled_days, last_review)
+       VALUES (:user_id, :rule_id, :box, :right, :wrong, :last_seen,
+         :stability, :difficulty, :due, :state, :reps, :lapses, :scheduled_days, :last_review)
+       ON CONFLICT(user_id, rule_id) DO UPDATE SET
+         box = excluded.box, right = right + excluded.right, wrong = wrong + excluded.wrong,
+         last_seen = MAX(last_seen, excluded.last_seen), stability = excluded.stability, difficulty = excluded.difficulty,
+         due = excluded.due, state = excluded.state, reps = excluded.reps, lapses = excluded.lapses,
+         scheduled_days = excluded.scheduled_days, last_review = excluded.last_review`,
+    ),
     logReview: db.prepare(
       `INSERT INTO review_log (user_id, word_id, direction, grade, stability, at, exercise, client_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -240,13 +334,16 @@ export function apiRouter(db, config) {
   router.get('/lists', wrap((req) => {
     const until = new Date(String(req.query.due_until ?? ''));
     const dueUntil = Number.isNaN(until.getTime()) ? now() : until.toISOString();
-    const summary = new Map(q.myProgressSummary.all(dueUntil, req.user.id).map((s) => [s.list_id, s]));
+    const summary = new Map([...q.myProgressSummary.all(dueUntil, req.user.id), ...q.myRuleSummary.all(dueUntil, req.user.id)]
+      .map((s) => [s.list_id, s]));
     const withProgress = (row) => {
       const s = summary.get(row.id);
       return {
         ...listJson(row),
         owner_name: row.owner_name,
         word_count: row.word_count,
+        rule_count: row.rule_count,
+        item_count: row.item_count,
         progress: { seen: s?.seen ?? 0, safe: s?.safe ?? 0, due: s?.due ?? 0, last_seen: s?.last_seen ?? null },
       };
     };
@@ -257,6 +354,22 @@ export function apiRouter(db, config) {
     return { own, assigned };
   }));
 
+  // Regeln mit ihren Aufgaben; seen = wann diese Person die Aufgabe zuletzt bearbeitet hat
+  function rulesOf(listId, userId) {
+    const seen = new Map(q.itemSeen.all(userId, listId).map((r) => [r.item_id, r.seen]));
+    const items = new Map();
+    for (const it of q.ruleItems.all(listId)) {
+      if (!items.has(it.rule_id)) items.set(it.rule_id, []);
+      items.get(it.rule_id).push({ id: it.id, source: it.source, seen: seen.get(it.id) ?? null });
+    }
+    return q.rules.all(listId).map((r) => ({ ...r, discover: !!r.discover, items: items.get(r.id) ?? [] }));
+  }
+
+  // Lernstand der Person: bei Vokabeln je Wort und Richtung, bei Grammatik je Regel
+  function progressOf(list, userId) {
+    return list.kind === 'grammar' ? q.myRuleProgress.all(userId, list.id) : q.myProgress.all(userId, list.id);
+  }
+
   function listDetail(list, user) {
     const isOwner = list.owner_id === user.id;
     return {
@@ -265,8 +378,8 @@ export function apiRouter(db, config) {
       owner_name: isOwner ? user.name : q.ownerName.get(list.owner_id)?.name ?? '',
       can_copy: user.isTeacher && (isOwner || !!list.shared),
       groups: isOwner ? q.listGroups.all(list.id) : undefined,
-      words: q.words.all(list.id),
-      progress: q.myProgress.all(user.id, list.id),
+      ...(list.kind === 'grammar' ? { rules: rulesOf(list.id, user.id) } : { words: q.words.all(list.id) }),
+      progress: progressOf(list, user.id),
     };
   }
 
@@ -284,20 +397,13 @@ export function apiRouter(db, config) {
     at: now(),
   })));
 
-  function writeList(listId, data) {
-    const ts = now();
-    db.prepare(
-      `UPDATE lists SET title = ?, lang_a = ?, lang_b = ?, mode = ?, case_sensitive = ?, accent_sensitive = ?,
-         direction = ?, allow_switch = ?, allow_mode_switch = ?, grade = ?, shared = ?, updated_at = ? WHERE id = ?`,
-    ).run(data.title, data.lang_a, data.lang_b, data.mode, data.case_sensitive, data.accent_sensitive,
-      data.direction, data.allow_switch, data.allow_mode_switch, data.grade, data.shared, ts, listId);
-
-    // Bestehende Wörter behalten ihre ID, damit der Lernstand erhalten bleibt.
+  // Bestehende Wörter behalten ihre ID, damit der Lernstand erhalten bleibt.
+  function writeWords(listId, words) {
     const existing = new Set(db.prepare('SELECT id FROM words WHERE list_id = ?').all(listId).map((r) => r.id));
     const keep = new Set();
     const update = db.prepare('UPDATE words SET pos = ?, a = ?, b = ?, note = ?, example = ? WHERE id = ? AND list_id = ?');
     const insert = db.prepare('INSERT INTO words (list_id, pos, a, b, note, example) VALUES (?, ?, ?, ?, ?, ?)');
-    data.words.forEach((w, pos) => {
+    words.forEach((w, pos) => {
       if (w.id && existing.has(w.id) && !keep.has(w.id)) {
         update.run(pos, w.a, w.b, w.note, w.example, w.id, listId);
         keep.add(w.id);
@@ -307,6 +413,54 @@ export function apiRouter(db, config) {
     });
     const remove = db.prepare('DELETE FROM words WHERE id = ?');
     for (const id of existing) if (!keep.has(id)) remove.run(id);
+  }
+
+  // Regeln und Aufgaben mit ihren IDs: Lernstand und Fehlerstatistik bleiben erhalten, wo die ID bleibt.
+  function writeRules(listId, rules) {
+    const existingRules = new Set(db.prepare('SELECT id FROM rules WHERE list_id = ?').all(listId).map((r) => r.id));
+    const existingItems = new Set(
+      db.prepare('SELECT i.id FROM items i JOIN rules r ON r.id = i.rule_id WHERE r.list_id = ?').all(listId).map((r) => r.id),
+    );
+    const keepRules = new Set();
+    const keepItems = new Set();
+    const updateRule = db.prepare('UPDATE rules SET pos = ?, title = ?, summary = ?, explanation = ?, discover = ? WHERE id = ?');
+    const insertRule = db.prepare(
+      'INSERT INTO rules (list_id, pos, title, summary, explanation, discover) VALUES (?, ?, ?, ?, ?, ?) RETURNING id',
+    );
+    const updateItem = db.prepare('UPDATE items SET rule_id = ?, pos = ?, source = ? WHERE id = ?');
+    const insertItem = db.prepare('INSERT INTO items (rule_id, pos, source) VALUES (?, ?, ?)');
+    rules.forEach((rule, pos) => {
+      let ruleId = rule.id;
+      if (ruleId && existingRules.has(ruleId) && !keepRules.has(ruleId)) {
+        updateRule.run(pos, rule.title, rule.summary, rule.explanation, rule.discover, ruleId);
+      } else {
+        ruleId = insertRule.get(listId, pos, rule.title, rule.summary, rule.explanation, rule.discover).id;
+      }
+      keepRules.add(ruleId);
+      rule.items.forEach((it, itemPos) => {
+        if (it.id && existingItems.has(it.id) && !keepItems.has(it.id)) {
+          updateItem.run(ruleId, itemPos, it.source, it.id);
+          keepItems.add(it.id);
+        } else {
+          insertItem.run(ruleId, itemPos, it.source);
+        }
+      });
+    });
+    // Aufgaben zuerst: Eine in eine andere Regel verschobene Aufgabe hängt schon dort und bleibt erhalten.
+    for (const id of existingItems) if (!keepItems.has(id)) db.prepare('DELETE FROM items WHERE id = ?').run(id);
+    for (const id of existingRules) if (!keepRules.has(id)) db.prepare('DELETE FROM rules WHERE id = ?').run(id);
+  }
+
+  function writeList(listId, data) {
+    const ts = now();
+    db.prepare(
+      `UPDATE lists SET title = ?, lang_a = ?, lang_b = ?, mode = ?, case_sensitive = ?, accent_sensitive = ?,
+         direction = ?, allow_switch = ?, allow_mode_switch = ?, grade = ?, shared = ?, updated_at = ? WHERE id = ?`,
+    ).run(data.title, data.lang_a, data.lang_b, data.mode, data.case_sensitive, data.accent_sensitive,
+      data.direction, data.allow_switch, data.allow_mode_switch, data.grade, data.shared, ts, listId);
+
+    if (data.kind === 'grammar') writeRules(listId, data.rules);
+    else writeWords(listId, data.words);
 
     db.prepare('DELETE FROM list_groups WHERE list_id = ?').run(listId);
     const addGroup = db.prepare('INSERT OR IGNORE INTO list_groups (list_id, group_id, group_name) VALUES (?, ?, ?)');
@@ -319,8 +473,8 @@ export function apiRouter(db, config) {
     const id = transaction(db, () => {
       const ts = now();
       const { id } = db
-        .prepare('INSERT INTO lists (owner_id, title, created_at, updated_at) VALUES (?, ?, ?, ?) RETURNING id')
-        .get(req.user.id, data.title, ts, ts);
+        .prepare('INSERT INTO lists (owner_id, kind, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?) RETURNING id')
+        .get(req.user.id, data.kind, data.title, ts, ts);
       writeList(id, data);
       return id;
     });
@@ -333,6 +487,7 @@ export function apiRouter(db, config) {
     const list = loadList(req.params.id);
     assertOwner(list, req.user);
     const data = parseListBody(req.body);
+    if (data.kind !== list.kind) throw new HttpError(400, 'Die Art einer Liste (Vokabeln oder Grammatik) lässt sich nicht ändern.');
     transaction(db, () => writeList(list.id, data));
     return { id: list.id };
   }));
@@ -351,6 +506,8 @@ export function apiRouter(db, config) {
       ...listJson(row),
       owner_name: row.owner_name ?? '',
       word_count: row.word_count,
+      rule_count: row.rule_count,
+      item_count: row.item_count,
     }));
   }));
 
@@ -365,22 +522,69 @@ export function apiRouter(db, config) {
       const ts = now();
       const { id } = db
         .prepare(
-          `INSERT INTO lists (owner_id, title, lang_a, lang_b, mode, case_sensitive, accent_sensitive,
+          `INSERT INTO lists (owner_id, kind, title, lang_a, lang_b, mode, case_sensitive, accent_sensitive,
              direction, allow_switch, allow_mode_switch, grade, shared, copied_from, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?) RETURNING id`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?) RETURNING id`,
         )
-        .get(req.user.id, isOwner ? `${list.title} (Kopie)` : list.title, list.lang_a, list.lang_b, list.mode,
+        .get(req.user.id, list.kind, isOwner ? `${list.title} (Kopie)` : list.title, list.lang_a, list.lang_b, list.mode,
           list.case_sensitive, list.accent_sensitive, list.direction, list.allow_switch, list.allow_mode_switch, list.grade,
           ownerName ? `${list.title} – ${ownerName}` : list.copied_from, ts, ts);
-      db.prepare(
-        `INSERT INTO words (list_id, pos, a, b, note, example)
-         SELECT ?, pos, a, b, note, example FROM words WHERE list_id = ? ORDER BY pos, id`,
-      ).run(id, list.id);
+      if (list.kind === 'grammar') {
+        for (const rule of q.rules.all(list.id)) {
+          const copied = db
+            .prepare(
+              `INSERT INTO rules (list_id, pos, title, summary, explanation, discover)
+               VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
+            )
+            .get(id, rule.pos, rule.title, rule.summary, rule.explanation, rule.discover).id;
+          db.prepare('INSERT INTO items (rule_id, pos, source) SELECT ?, pos, source FROM items WHERE rule_id = ? ORDER BY pos, id')
+            .run(copied, rule.id);
+        }
+      } else {
+        db.prepare(
+          `INSERT INTO words (list_id, pos, a, b, note, example)
+           SELECT ?, pos, a, b, note, example FROM words WHERE list_id = ? ORDER BY pos, id`,
+        ).run(id, list.id);
+      }
       return id;
     });
     res.status(201);
     return { id };
   }));
+
+  // Grammatik: eine Runde einer Regel { list_id, rule_id, grade, items: [{ item_id, exercise, grade, attempts,
+  // answer }], at, id }. Die Regel bekommt eine Bewertung (grade, die schlechteste der Runde), jede Aufgabe steht
+  // einzeln im Verlauf – answer ist die erste falsche Antwort. Ergebnis: übernommen?
+  function applyRound(user, r, list, t) {
+    const ruleId = Number(r?.rule_id);
+    if (!Number.isInteger(ruleId) || !q.ruleInList.get(ruleId, list.id)) return false;
+    const clientId = typeof r.id === 'string' && r.id.length <= 100 ? r.id : null;
+    if (clientId && q.seenGrammarClientId.get(user.id, clientId)) return false;
+    const items = (Array.isArray(r.items) ? r.items.slice(0, MAX_ROUND_ITEMS) : []).flatMap((it) => {
+      if (!Object.hasOwn(GRADES, it?.grade)) return [];
+      const itemId = Number(it.item_id);
+      const answer = typeof it.answer === 'string' ? it.answer.trim().slice(0, 200) : '';
+      return [{
+        item_id: Number.isInteger(itemId) && q.itemInRule.get(itemId, ruleId) ? itemId : null,
+        grade: it.grade,
+        exercise: GRAMMAR_EXERCISES.includes(it.exercise) ? it.exercise : '',
+        attempts: Math.min(5, Math.max(1, Math.trunc(Number(it.attempts)) || 1)),
+        answer: answer || null,
+      }];
+    });
+    const grade = Object.hasOwn(GRADES, r.grade) ? r.grade : roundGrade(items.map((i) => i.grade));
+    if (!grade) return false;
+    const right = items.length ? items.filter((i) => i.grade !== 'again').length : grade === 'again' ? 0 : 1;
+    const wrong = items.length ? items.length - right : grade === 'again' ? 1 : 0;
+    const previous = q.getRuleProgress.get(user.id, ruleId);
+    const last = previous?.last_review ? Date.parse(previous.last_review) : 0;
+    const ts = new Date(Math.max(t, last)).toISOString();
+    const next = review(previous, grade, new Date(ts));
+    q.putRuleProgress.run({ user_id: user.id, rule_id: ruleId, right, wrong, last_seen: ts, ...next });
+    for (const it of items) q.logGrammar.run(user.id, ruleId, it.item_id, it.grade, it.exercise, it.attempts, it.answer, null, ts, null);
+    q.logGrammar.run(user.id, ruleId, null, grade, 'round', 1, null, next.stability, ts, clientId);
+    return true;
+  }
 
   // Antworten übernehmen: { word_id, direction, grade: again|hard|good|easy, correct, exercise, at, id }
   // grade steuert die Wiederholungsplanung, correct die Zähler richtig/falsch, exercise
@@ -398,8 +602,12 @@ export function apiRouter(db, config) {
     const touched = new Set();
     transaction(db, () => {
       for (const { r, t } of sorted) {
-        const wordId = Number(r?.word_id);
         const list = listFor(r);
+        if (list?.kind === 'grammar') {
+          if (applyRound(user, r, list, t)) touched.add(list.id);
+          continue;
+        }
+        const wordId = Number(r?.word_id);
         if (!list || !Number.isInteger(wordId) || !q.wordInList.get(wordId, list.id)) continue;
         const clientId = typeof r.id === 'string' && r.id.length <= 100 ? r.id : null;
         if (clientId && q.seenClientId.get(user.id, clientId)) continue;
@@ -433,7 +641,7 @@ export function apiRouter(db, config) {
     assertCanSee(list, req.user);
     const results = Array.isArray(req.body?.results) ? req.body.results.slice(0, MAX_RESULTS) : [];
     applyResults(req.user, results, () => list);
-    return { progress: q.myProgress.all(req.user.id, list.id) };
+    return { progress: progressOf(list, req.user.id) };
   }));
 
   // Antworten aus mehreren Listen auf einmal – so überträgt der Browser, was ohne Internet gelernt wurde.
@@ -457,7 +665,7 @@ export function apiRouter(db, config) {
     };
     const touched = applyResults(req.user, results, listFor);
     const progress = {};
-    for (const id of touched) progress[id] = q.myProgress.all(req.user.id, id);
+    for (const id of touched) progress[id] = progressOf(visible.get(id), req.user.id);
     return { progress };
   }));
 
@@ -468,39 +676,50 @@ export function apiRouter(db, config) {
       db.prepare(`DELETE FROM ${table} WHERE user_id = ? AND word_id IN (SELECT id FROM words WHERE list_id = ?)`)
         .run(req.user.id, list.id);
     }
+    for (const table of ['rule_progress', 'grammar_log']) {
+      db.prepare(`DELETE FROM ${table} WHERE user_id = ? AND rule_id IN (SELECT id FROM rules WHERE list_id = ?)`)
+        .run(req.user.id, list.id);
+    }
     return { ok: true };
   }));
 
-  // Verlauf der letzten Wochen: Anteil sicherer Wörter (Ø über die Lernenden) und Anzahl Abfragen pro Woche.
-  // „Sicher“ zum Zeitpunkt T = die letzte Antwort vor T ergab Stabilität ≥ 14 Tage (in einer der Richtungen).
-  function history(listId, userIds, wordCount) {
+  // Verlauf der letzten Wochen: Anteil sicherer Wörter bzw. Regeln (Ø über die Lernenden) und Anzahl Abfragen
+  // pro Woche. „Sicher“ zum Zeitpunkt T = die letzte Antwort vor T ergab Stabilität ≥ 14 Tage (bei Vokabeln in
+  // einer der Richtungen). Bei Grammatik bestimmen die Runden der Regeln „sicher“, die einzelnen Aufgaben
+  // zählen als Abfragen.
+  function history(list, userIds, unitCount) {
     const end = Date.now();
     const points = Array.from({ length: HISTORY_WEEKS }, (_, i) => end - (HISTORY_WEEKS - 1 - i) * 7 * DAY);
-    if (!userIds.length || !wordCount) {
+    if (!userIds.length || !unitCount) {
       return points.map((t) => ({ at: new Date(t).toISOString(), safe_pct: 0, reviews: 0 }));
     }
-    const rows = db
-      .prepare(
-        `SELECT user_id, word_id, direction, stability, grade, at FROM review_log
-         WHERE word_id IN (SELECT id FROM words WHERE list_id = ?)
-           AND user_id IN (${userIds.map(() => '?').join(',')})
-         ORDER BY at`,
-      )
-      .all(listId, ...userIds);
-    const latest = new Map(); // user:word:dir -> letzte Antwort
+    const users = userIds.map(() => '?').join(',');
+    // counted: zählt als Abfrage, tracked: bestimmt den Stand „sicher“
+    const rows = (list.kind === 'grammar'
+      ? db.prepare(
+          `SELECT user_id, rule_id AS unit_id, '' AS direction, stability, stability IS NULL AS counted,
+             stability IS NOT NULL AS tracked, at
+           FROM grammar_log WHERE rule_id IN (SELECT id FROM rules WHERE list_id = ?) AND user_id IN (${users}) ORDER BY at`,
+        )
+      : db.prepare(
+          `SELECT user_id, word_id AS unit_id, direction, stability, grade != 'import' AS counted, 1 AS tracked, at
+           FROM review_log WHERE word_id IN (SELECT id FROM words WHERE list_id = ?) AND user_id IN (${users}) ORDER BY at`,
+        )
+    ).all(list.id, ...userIds);
+    const latest = new Map(); // user:einheit:richtung -> letzte Antwort
     let i = 0;
     return points.map((t) => {
       let reviews = 0;
       while (i < rows.length && Date.parse(rows[i].at) <= t) {
         const r = rows[i++];
-        latest.set(`${r.user_id}:${r.word_id}:${r.direction}`, r);
-        if (r.grade !== 'import' && Date.parse(r.at) > t - 7 * DAY) reviews++;
+        if (r.tracked) latest.set(`${r.user_id}:${r.unit_id}:${r.direction}`, r);
+        if (r.counted && Date.parse(r.at) > t - 7 * DAY) reviews++;
       }
-      const safeWords = new Map(userIds.map((id) => [id, new Set()]));
+      const safeUnits = new Map(userIds.map((id) => [id, new Set()]));
       for (const r of latest.values()) {
-        if (levelFor(r.stability) >= SAFE_LEVEL) safeWords.get(r.user_id)?.add(r.word_id);
+        if (levelFor(r.stability) >= SAFE_LEVEL) safeUnits.get(r.user_id)?.add(r.unit_id);
       }
-      const avg = [...safeWords.values()].reduce((sum, set) => sum + set.size / wordCount, 0) / userIds.length;
+      const avg = [...safeUnits.values()].reduce((sum, set) => sum + set.size / unitCount, 0) / userIds.length;
       return { at: new Date(t).toISOString(), safe_pct: Math.round(avg * 1000) / 10, reviews };
     });
   }
@@ -510,26 +729,36 @@ export function apiRouter(db, config) {
     requireTeacher(req);
     const list = loadList(req.params.id);
     assertOwner(list, req.user);
-    const words = q.words.all(list.id);
-    const n = words.length;
+    const grammar = list.kind === 'grammar';
+    const n = (grammar ? q.ruleCount : q.wordCount).get(list.id).n;
     const nowIso = now();
     const weekAgo = new Date(Date.now() - 7 * DAY).toISOString();
+    // Je Schüler:in: geübt, sicher, fällig, richtig/falsch – bei Grammatik je Regel, sonst je Wort
+    const studentsSql = grammar
+      ? `SELECT u.id, u.name,
+           COUNT(p.rule_id) AS seen,
+           COUNT(CASE WHEN p.box >= ${SAFE_BOX} THEN 1 END) AS safe,
+           COUNT(CASE WHEN p.due <= ? THEN 1 END) AS due,
+           COALESCE(SUM(p.right), 0) AS right, COALESCE(SUM(p.wrong), 0) AS wrong,
+           MAX(p.last_seen) AS last_seen
+         FROM user_groups ug
+         JOIN users u ON u.id = ug.user_id AND u.is_teacher = 0
+         LEFT JOIN rule_progress p ON p.user_id = u.id AND p.rule_id IN (SELECT id FROM rules WHERE list_id = ?)
+         WHERE ug.group_id = ?
+         GROUP BY u.id ORDER BY u.name COLLATE NOCASE`
+      : `SELECT u.id, u.name,
+           COUNT(DISTINCT p.word_id) AS seen,
+           COUNT(DISTINCT CASE WHEN p.box >= ${SAFE_BOX} THEN p.word_id END) AS safe,
+           COUNT(CASE WHEN p.due <= ? THEN 1 END) AS due,
+           COALESCE(SUM(p.right), 0) AS right, COALESCE(SUM(p.wrong), 0) AS wrong,
+           MAX(p.last_seen) AS last_seen
+         FROM user_groups ug
+         JOIN users u ON u.id = ug.user_id AND u.is_teacher = 0
+         LEFT JOIN progress p ON p.user_id = u.id AND p.word_id IN (SELECT id FROM words WHERE list_id = ?)
+         WHERE ug.group_id = ?
+         GROUP BY u.id ORDER BY u.name COLLATE NOCASE`;
     const groups = q.listGroups.all(list.id).map((g) => {
-      const students = db
-        .prepare(
-          `SELECT u.id, u.name,
-             COUNT(DISTINCT p.word_id) AS seen,
-             COUNT(DISTINCT CASE WHEN p.box >= ${SAFE_BOX} THEN p.word_id END) AS safe,
-             COUNT(CASE WHEN p.due <= ? THEN 1 END) AS due,
-             COALESCE(SUM(p.right), 0) AS right, COALESCE(SUM(p.wrong), 0) AS wrong,
-             MAX(p.last_seen) AS last_seen
-           FROM user_groups ug
-           JOIN users u ON u.id = ug.user_id AND u.is_teacher = 0
-           LEFT JOIN progress p ON p.user_id = u.id AND p.word_id IN (SELECT id FROM words WHERE list_id = ?)
-           WHERE ug.group_id = ?
-           GROUP BY u.id ORDER BY u.name COLLATE NOCASE`,
-        )
-        .all(nowIso, list.id, g.id);
+      const students = db.prepare(studentsSql).all(nowIso, list.id, g.id);
       const count = students.length;
       const avg = (field) =>
         count && n ? Math.round((students.reduce((sum, st) => sum + st[field] / n, 0) / count) * 1000) / 10 : 0;
@@ -540,8 +769,31 @@ export function apiRouter(db, config) {
         seen_pct: avg('seen'),
         due: students.reduce((sum, st) => sum + st.due, 0),
       };
-      return { ...g, summary, history: history(list.id, students.map((st) => st.id), n), students };
+      return { ...g, summary, history: history(list, students.map((st) => st.id), n), students };
     });
+    if (grammar) {
+      // Schwierigste Regeln und häufigste Fehler: nur Anzahlen je Antwort, ohne Namen
+      const hardest = db
+        .prepare(
+          `SELECT r.id, r.title, SUM(p.right) AS right, SUM(p.wrong) AS wrong
+           FROM rule_progress p JOIN rules r ON r.id = p.rule_id
+           JOIN users u ON u.id = p.user_id AND u.is_teacher = 0
+           WHERE r.list_id = ? GROUP BY r.id HAVING SUM(p.wrong) > 0
+           ORDER BY CAST(SUM(p.wrong) AS REAL) / (SUM(p.right) + SUM(p.wrong)) DESC, SUM(p.wrong) DESC
+           LIMIT 10`,
+        )
+        .all(list.id);
+      const errors = db
+        .prepare(
+          `SELECT g.item_id, r.id AS rule_id, r.title AS rule_title, i.source, MIN(g.answer) AS answer, COUNT(*) AS count
+           FROM grammar_log g JOIN items i ON i.id = g.item_id JOIN rules r ON r.id = g.rule_id
+           JOIN users u ON u.id = g.user_id AND u.is_teacher = 0
+           WHERE r.list_id = ? AND g.answer IS NOT NULL
+           GROUP BY g.item_id, unicode_lower(g.answer) ORDER BY count DESC, g.item_id LIMIT ${MAX_ERRORS}`,
+        )
+        .all(list.id);
+      return { list: listJson(list), rule_count: n, safe_box: SAFE_BOX, groups, hardest, errors };
+    }
     // Schwierigste Wörter: höchste Fehlerquote über alle Lernenden
     const hardest = db
       .prepare(
@@ -556,7 +808,8 @@ export function apiRouter(db, config) {
     return { list: listJson(list), word_count: n, safe_box: SAFE_BOX, groups, hardest };
   }));
 
-  // Einzelansicht: Lernstand einer Schülerin / eines Schülers pro Wort und Richtung.
+  // Einzelansicht: Lernstand einer Schülerin / eines Schülers pro Wort und Richtung (Grammatik: pro Regel,
+  // dazu ihre falschen Antworten).
   router.get('/lists/:id/stats/students/:uid', wrap((req) => {
     requireTeacher(req);
     const list = loadList(req.params.id);
@@ -570,6 +823,18 @@ export function apiRouter(db, config) {
       )
       .get(list.id, Number(req.params.uid));
     if (!student) throw new HttpError(404, 'Diese Person ist keiner Gruppe der Liste zugeordnet.');
+    if (list.kind === 'grammar') {
+      const progress = new Map(q.myRuleProgress.all(student.id, list.id).map((p) => [p.rule_id, p]));
+      const rules = q.rules.all(list.id).map((r) => ({ id: r.id, title: r.title, progress: progress.get(r.id) ?? null }));
+      const errors = db
+        .prepare(
+          `SELECT g.item_id, r.title AS rule_title, i.source, g.answer, g.exercise, g.attempts, g.grade, g.at
+           FROM grammar_log g JOIN rules r ON r.id = g.rule_id LEFT JOIN items i ON i.id = g.item_id
+           WHERE g.user_id = ? AND r.list_id = ? AND g.answer IS NOT NULL ORDER BY g.at DESC LIMIT ${MAX_ERRORS}`,
+        )
+        .all(student.id, list.id);
+      return { list: listJson(list), student, safe_box: SAFE_BOX, rules, errors, history: history(list, [student.id], rules.length) };
+    }
     const words = q.words.all(list.id);
     const progress = db
       .prepare(
@@ -584,8 +849,38 @@ export function apiRouter(db, config) {
       student,
       safe_box: SAFE_BOX,
       words: [...byWord.values()],
-      history: history(list.id, [student.id], words.length),
+      history: history(list, [student.id], words.length),
     };
+  }));
+
+  // Häufiger Fehler → Hinweis für genau diese falsche Antwort anlegen („! Antwort = Hinweis“ unter der Aufgabe)
+  router.post('/lists/:id/feedback', wrap((req) => {
+    requireTeacher(req);
+    const list = loadList(req.params.id);
+    assertOwner(list, req.user);
+    if (list.kind !== 'grammar') throw new HttpError(400, 'Nur für Grammatiklisten.');
+    const item = db
+      .prepare('SELECT i.id, i.source FROM items i JOIN rules r ON r.id = i.rule_id WHERE i.id = ? AND r.list_id = ?')
+      .get(Number(req.body?.item_id), list.id);
+    if (!item) throw new HttpError(404, 'Aufgabe nicht gefunden.');
+    const answer = text(req.body?.answer, 200, 'Antwort').replace(/\s+/g, ' ');
+    const hint = text(req.body?.text, 300, 'Hinweis').replace(/\s+/g, ' ');
+    if (!answer || !hint) throw new HttpError(400, 'Bitte die Antwort und einen Hinweis angeben.');
+    if (/[|=]/.test(answer)) {
+      throw new HttpError(400, 'Die Antwort enthält „|“ oder „=“ und lässt sich so nicht als Hinweis anlegen – bitte im Editor eintragen.');
+    }
+    const [task, ...rest] = item.source.split('\n');
+    const line = `! ${answer} = ${hint}`;
+    const same = (l) => l.startsWith('!') && l.includes('=') && l.slice(1, l.indexOf('=')).trim().toLowerCase() === answer.toLowerCase();
+    const lines = rest.some(same) ? rest.map((l) => (same(l) ? line : l)) : [...rest, line];
+    const source = [task, ...lines].join('\n');
+    const parsed = parseItem(source);
+    if (parsed.error) throw new HttpError(400, parsed.error);
+    transaction(db, () => {
+      db.prepare('UPDATE items SET source = ? WHERE id = ?').run(source, item.id);
+      db.prepare('UPDATE lists SET updated_at = ? WHERE id = ?').run(now(), list.id);
+    });
+    return { source };
   }));
 
   router.use((err, req, res, next) => {
