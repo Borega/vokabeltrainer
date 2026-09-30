@@ -83,7 +83,7 @@ Behalten (*production effect*, MacLeod et al. 2010).
 Stimmen verwendet, die auf dem Gerät selbst laufen – Online-Stimmen (z. B. „Google …“ in Chrome), die den
 Text an den Anbieter schicken würden, bleiben außen vor. Hat das Gerät keine passende Stimme, gibt es
 keinen Ton und keine Hörübungen. Die Sprache ergibt sich aus der Sprachbezeichnung der Liste
-(„Englisch“ → britisches Englisch, „Englisch (USA)“ → amerikanisches; ein Code wie `fr-CA` geht auch).
+(„Englisch“ → britisches Englisch, „Englisch (USA)“ → amerikanisches; ein Code wie `en-AU` geht auch; Französisch und Spanisch immer europäisch, siehe unten).
 Latein und Altgriechisch werden nicht vorgelesen.
 
 **Prüfregeln beim Eintippen**
@@ -102,8 +102,8 @@ Latein und Altgriechisch werden nicht vorgelesen.
 - Artikel gehören zur Lösung, wenn das Genus mitgelernt werden soll (`le chien`, `la casa`); optional mit Klammern:
   `(le) chien`. Bei Wörtern mit `l'` die Genus-Angabe in die Notiz schreiben (`l'arbre` – Notiz „m“).
 - „Akzente beachten“ sollte für Französisch und Spanisch an bleiben; fehlt nur ein Akzent, zeigt die App das an.
-- Aussprache: „Französisch“ → fr-FR, „Spanisch“ → es-ES; „Spanisch (Lateinamerika)“ → es-MX,
-  „Französisch (Kanada)“ → fr-CA.
+- Aussprache: Französisch aus Frankreich (fr-FR) und Spanisch aus Spanien (es-ES) – nie eine kanadische bzw.
+  lateinamerikanische Stimme. Hat ein Gerät keine passende Stimme, gibt es für diese Sprache keinen Ton.
 
 ## Lernen ohne Internet (iPad)
 

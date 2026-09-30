@@ -223,9 +223,8 @@ const LANG_CODES = [
   [/^(englisch|english|en)\b.*\b(usa?|amerik|american)/, 'en-US'],
   [/^(englisch|english)/, 'en-GB'],
   [/^(deutsch|german)/, 'de-DE'],
-  [/^(französisch|franzoesisch|french|français).*(kanad|canad|québ|queb)/, 'fr-CA'],
+  // Französisch aus Frankreich und Spanisch aus Spanien – so wie im Unterricht
   [/^(französisch|franzoesisch|french|français)/, 'fr-FR'],
-  [/^(spanisch|spanish|español).*(latein|latino|latam|amerik|améri|mexi)/, 'es-MX'],
   [/^(spanisch|spanish|español)/, 'es-ES'],
   [/^(italienisch|italian)/, 'it-IT'],
   [/^(portugiesisch|portuguese)/, 'pt-PT'],
@@ -247,7 +246,12 @@ const LANG_CODES = [
 // haben keine Stimme und bekommen null. Ein Code wie „en-US“ wird direkt übernommen.
 export function speechLang(label) {
   const t = (label ?? '').trim();
-  if (/^[a-z]{2,3}(-[A-Za-z]{2,4})?$/.test(t)) return t;
+  if (/^[a-z]{2,3}(-[A-Za-z]{2,4})?$/.test(t)) {
+    // Auch als Code immer europäisches Französisch und Spanisch
+    if (/^fr\b/.test(t)) return 'fr-FR';
+    if (/^es\b/.test(t)) return 'es-ES';
+    return t;
+  }
   const lower = t.toLowerCase();
   if (/^(latein|latin|altgriechisch)/.test(lower)) return null;
   return LANG_CODES.find(([re]) => re.test(lower))?.[1] ?? null;

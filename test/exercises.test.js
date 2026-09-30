@@ -83,7 +83,7 @@ test('Sprachausgabe: Sprachcode aus der Bezeichnung, Text ohne Klammern', () => 
   assert.equal(speechLang('Englisch'), 'en-GB');
   assert.equal(speechLang('Englisch (USA)'), 'en-US');
   assert.equal(speechLang('Französisch'), 'fr-FR');
-  assert.equal(speechLang('fr-CA'), 'fr-CA');
+  assert.equal(speechLang('en-AU'), 'en-AU');
   assert.equal(speechLang('Latein'), null);
   assert.equal(speechLang(''), null);
   assert.equal(speechText('(to) go; walk'), 'to go, walk');
@@ -107,10 +107,13 @@ test('Sonderzeichen aus den Wörtern der Liste, ohne Zeichen der deutschen Tasta
   assert.deepEqual(specialChars(words, 'b'), [], 'ä, ö, ü, ß hat die deutsche Tastatur');
 });
 
-test('Vorlesen und Sprachvarianten für Französisch und Spanisch', () => {
+test('Vorlesen: Französisch aus Frankreich, Spanisch aus Spanien', () => {
   assert.equal(speechText('bueno/a'), 'bueno, buena');
-  assert.equal(speechLang('Spanisch (Lateinamerika)'), 'es-MX');
-  assert.equal(speechLang('Französisch (Kanada)'), 'fr-CA');
   assert.equal(speechLang('Französisch'), 'fr-FR');
+  assert.equal(speechLang('Französisch (Kanada)'), 'fr-FR');
+  assert.equal(speechLang('Spanisch (Lateinamerika)'), 'es-ES');
   assert.equal(speechLang('Español'), 'es-ES');
+  assert.equal(speechLang('fr-CA'), 'fr-FR', 'auch als Code');
+  assert.equal(speechLang('es-MX'), 'es-ES');
+  assert.equal(speechLang('en-AU'), 'en-AU');
 });
