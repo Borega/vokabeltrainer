@@ -89,8 +89,21 @@ Latein und Altgriechisch werden nicht vorgelesen.
 **Prüfregeln beim Eintippen**
 - Mehrere richtige Lösungen mit `;` oder `|` trennen: `big; large`
 - Teile in Klammern sind optional: `(to) go` akzeptiert `go` und `to go`
-- Leerzeichen und `.` `!` `?` am Ende zählen nicht
-- Kleine Tippfehler werden als „Fast!“ angezeigt (zählen als falsch, mit „Ich hatte recht“ korrigierbar)
+- Endungen der weiblichen Form: `bueno/a`, `trabajador, -a`, `heureux, -euse` akzeptieren die Grundform und die
+  abgeleitete Form (`buena`, `trabajadora`, `heureuse`). Für ganz verschiedene Formen `;` nehmen: `rojo; roja`
+- Leerzeichen und `.` `!` `?` `…` am Ende zählen nicht, die spanischen `¿` `¡` nirgends
+- Kleine Tippfehler werden als „Fast!“ angezeigt (zählen als falsch, mit „Ich hatte recht“ korrigierbar); stimmen nur
+  Akzente bzw. Groß-/Kleinschreibung nicht, steht das dabei
+
+**Französisch, Spanisch und andere Sprachen**
+- Unter dem Eingabefeld erscheint eine **Sonderzeichen-Leiste** mit den Zeichen, die in den Wörtern der Liste
+  vorkommen und auf der deutschen Tastatur fehlen (é è ç œ … bzw. á ñ ¿ ¡ …). Antippen fügt das Zeichen ein, die
+  Bildschirmtastatur bleibt offen.
+- Artikel gehören zur Lösung, wenn das Genus mitgelernt werden soll (`le chien`, `la casa`); optional mit Klammern:
+  `(le) chien`. Bei Wörtern mit `l'` die Genus-Angabe in die Notiz schreiben (`l'arbre` – Notiz „m“).
+- „Akzente beachten“ sollte für Französisch und Spanisch an bleiben; fehlt nur ein Akzent, zeigt die App das an.
+- Aussprache: „Französisch“ → fr-FR, „Spanisch“ → es-ES; „Spanisch (Lateinamerika)“ → es-MX,
+  „Französisch (Kanada)“ → fr-CA.
 
 ## Lernen ohne Internet (iPad)
 

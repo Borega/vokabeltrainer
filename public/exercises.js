@@ -7,7 +7,7 @@
 // Leitidee: Aufgaben, die gerade noch lösbar sind, bringen am meisten (desirable difficulties,
 // Bjork 1994); Wiedererkennen vor Selbst-Hervorbringen (Webb 2009, Nakata 2011).
 
-import { normalize, variants } from './check.js';
+import { endingForms, normalize, variants } from './check.js';
 
 // Stufe, ab der Lückentexte und Hörübungen vorkommen (Stabilität ≥ 3 Tage, siehe scheduler.js)
 export const ADVANCED_LEVEL = 2;
@@ -53,16 +53,28 @@ export function gradeFor(exercise, { correct, almost = false, hints = 0 }) {
 // ---------- Auswählen (Multiple Choice) ----------
 
 const firstToken = (s) => s.trim().split(/\s+/)[0].toLowerCase();
-// Signalwörter, die eine Wortart verraten: to go, the dog, der Hund, le chien …
-const MARKERS = new Set(['to', 'the', 'a', 'an', 'der', 'die', 'das', 'ein', 'eine', 'le', 'la', 'les', "l'", 'un', 'une', 'el', 'los', 'las', 'il', 'lo', 'gli', 'uno', 'una', 'sich']);
+// Signalwörter, die eine Wortart verraten: to go, the dog, der Hund, le chien, el perro …
+const MARKERS = new Set([
+  'to', 'the', 'a', 'an', 'der', 'die', 'das', 'ein', 'eine', 'sich',
+  'le', 'la', 'les', 'un', 'une', 'des', 'du', 'se', // Französisch
+  'el', 'los', 'las', 'unos', 'unas', // Spanisch (la, un, una, se wie oben)
+  'il', 'lo', 'gli', 'uno', // Italienisch
+]);
+
+// Signalwort am Anfang; französische Elision zählt als eigenes: l'arbre → "l'", s'appeler → "s'"
+function markerOf(text) {
+  const tok = firstToken(text).replace(/’/g, "'");
+  const elided = tok.match(/^(l|d|s|qu|j|m|t|n)'/);
+  if (elided) return `${elided[1]}'`;
+  return MARKERS.has(tok) ? tok : '';
+}
 
 function shape(s) {
   const t = s.trim();
-  const tok = firstToken(t);
   return {
     len: t.length,
     words: t.split(/\s+/).length,
-    marker: MARKERS.has(tok) ? tok : '',
+    marker: markerOf(t),
     upper: /^\p{Lu}/u.test(t),
   };
 }
@@ -178,16 +190,42 @@ export function plainExample(example) {
 
 // ---------- Aussprache ----------
 
-// Text zum Vorlesen: Varianten nacheinander, Klammern weg („(to) go; walk“ → „to go, walk“)
+// Text zum Vorlesen: Varianten nacheinander, Klammern weg („(to) go; walk“ → „to go, walk“),
+// Endungen ausgeschrieben („bueno/a“ → „bueno, buena“)
 export function speechText(solution) {
-  return solution.split(/[;|]/).map((s) => s.replace(/[()*]/g, '').replace(/\s+/g, ' ').trim()).filter(Boolean).join(', ');
+  return solution
+    .split(/[;|]/)
+    .map((s) => s.replace(/[()*]/g, '').replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+    .map((s) => endingForms(s).join(', ') || s)
+    .join(', ');
+}
+
+// ---------- Sonderzeichen ----------
+
+// Zeichen, die auf einer deutschen Tastatur fehlen oder umständlich sind
+const EASY = /[\p{N}\s.,;:!?'"()\-\/*+&%$§=_<>[\]{}@#~|\\a-zA-ZäöüÄÖÜß]/u;
+
+// Sonderzeichen der Antworten einer Liste (Seite side) für die Leiste unter dem Eingabefeld:
+// é è ç œ … für Französisch, á ñ ¿ ¡ … für Spanisch – was in den Wörtern tatsächlich vorkommt.
+export function specialChars(words, side) {
+  const found = new Set();
+  for (const w of words) {
+    for (const ch of (w[side] ?? '').normalize('NFC')) {
+      if (!EASY.test(ch) && /[\p{L}¿¡]/u.test(ch)) found.add(ch);
+    }
+  }
+  const rank = (ch) => (/[¿¡]/.test(ch) ? 2 : /\p{Lu}/u.test(ch) ? 1 : 0);
+  return [...found].sort((x, y) => rank(x) - rank(y) || x.localeCompare(y, 'fr'));
 }
 
 const LANG_CODES = [
   [/^(englisch|english|en)\b.*\b(usa?|amerik|american)/, 'en-US'],
   [/^(englisch|english)/, 'en-GB'],
   [/^(deutsch|german)/, 'de-DE'],
+  [/^(französisch|franzoesisch|french|français).*(kanad|canad|québ|queb)/, 'fr-CA'],
   [/^(französisch|franzoesisch|french|français)/, 'fr-FR'],
+  [/^(spanisch|spanish|español).*(latein|latino|latam|amerik|améri|mexi)/, 'es-MX'],
   [/^(spanisch|spanish|español)/, 'es-ES'],
   [/^(italienisch|italian)/, 'it-IT'],
   [/^(portugiesisch|portuguese)/, 'pt-PT'],
