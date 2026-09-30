@@ -364,7 +364,10 @@ function renderLogin() {
 // Sprachzeile einer Karte: Vokabeln „Englisch ↔ Deutsch“, Grammatik nur die Sprache
 const langsLine = (list) => (isGrammar(list) ? list.lang_a || 'Grammatik' : `${langLabel(list, 'a')} ↔ ${langLabel(list, 'b')}`);
 // Größe einer Liste: Wörter bzw. Regeln und Aufgaben
-const sizeParts = (list) => (isGrammar(list) ? [`${list.rule_count} Regeln`, `${list.item_count} Aufgaben`] : [`${list.word_count} Wörter`]);
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+const sizeParts = (list) => (isGrammar(list)
+  ? [plural(list.rule_count, 'Regel', 'Regeln'), plural(list.item_count, 'Aufgabe', 'Aufgaben')]
+  : [plural(list.word_count, 'Wort', 'Wörter')]);
 
 function listCard(list, { own }) {
   const total = isGrammar(list) ? list.rule_count : list.word_count;

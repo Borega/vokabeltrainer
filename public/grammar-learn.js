@@ -396,7 +396,7 @@ export async function renderGrammarLearn(ctx, list) {
           h('strong', {}, correct ? (attempts > 1 ? 'Richtig – beim zweiten Versuch.' : 'Richtig!') : almost ? 'Fast!' : 'Leider falsch.'),
           almost ? h('span', {}, ` ${reasons.map((r) => why[r]).join(' ') || why.typo}`) : null,
           h('div', { class: 'solution-line' }, ui.solution(correct ? result : null, !correct), speakBtn()),
-          correct ? null : hint(result.wrong),
+          correct || almost ? null : hint(result.wrong),
           !correct ? h('button', { type: 'button', class: 'btn ghost small', onclick: () => { outcome.override = true; proceed(); } }, 'Ich hatte recht') : null,
           !correct && !almost ? h('button', { type: 'button', class: 'btn ghost small', onclick: togglePanel }, '📖 Regel ansehen') : null,
         );
