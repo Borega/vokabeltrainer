@@ -238,6 +238,7 @@ test('Migration 4 baut die Listentabelle neu auf, ohne Wörter zu verlieren', as
     const old = new DatabaseSync(join(dir, 'vokabeltrainer.sqlite'));
     old.exec(`PRAGMA foreign_keys = OFF;
       DROP TABLE lists; DROP TABLE words; DROP TABLE review_log; DROP TABLE device_tokens;
+      DROP TABLE grammar_log; DROP TABLE rule_progress; DROP TABLE items; DROP TABLE rules;
       CREATE TABLE lists (id INTEGER PRIMARY KEY, owner_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
         title TEXT NOT NULL, lang_a TEXT NOT NULL DEFAULT '', lang_b TEXT NOT NULL DEFAULT '',
         mode TEXT NOT NULL DEFAULT 'flip' CHECK (mode IN ('flip', 'type')), case_sensitive INTEGER NOT NULL DEFAULT 0,
@@ -255,6 +256,8 @@ test('Migration 4 baut die Listentabelle neu auf, ohne Wörter zu verlieren', as
     assert.equal(db.prepare('PRAGMA user_version').get().user_version, MIGRATIONS.length);
     assert.deepEqual({ ...db.prepare('SELECT mode, shared, copied_from FROM lists WHERE id = 7').get() }, { mode: 'type', shared: 1, copied_from: 'X' });
     assert.equal(db.prepare('SELECT COUNT(*) AS n FROM words WHERE list_id = 7').get().n, 2, 'Wörter bleiben erhalten');
+    assert.equal(db.prepare('SELECT kind FROM lists WHERE id = 7').get().kind, 'vocab', 'bestehende Listen sind Vokabellisten');
+    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM rules').get().n, 0);
     assert.equal(db.prepare("SELECT example FROM words LIMIT 1").get().example, '');
     db.prepare("UPDATE lists SET mode = 'auto' WHERE id = 7").run();
     assert.throws(() => db.prepare("UPDATE lists SET mode = 'quatsch' WHERE id = 7").run());
@@ -504,4 +507,394 @@ test('Auswertung: Gruppenübersicht, Fälligkeit, Verlauf und Einzelansicht', as
   const after = (await teacher('GET', `/lists/${id}/stats`)).body.groups[0];
   assert.equal(after.history.at(-1).reviews, 0);
   assert.equal(after.summary.seen_pct, 0);
+});
+
+// ---------- Grammatik ----------
+
+const grammarBody = {
+  kind: 'grammar',
+  title: 'Present perfect',
+  lang_a: 'Englisch',
+  grade: 8,
+  groups: [{ id: 'klasse.8g', name: 'Klasse 8g' }],
+  rules: [
+    {
+      title: 'since / for',
+      summary: 'Mit since/for steht das present perfect.',
+      explanation: 'Mit *since* und *for* …',
+      discover: false,
+      items: [
+        { source: 'She *has lived* (live) here since 2010.\n! lived = Die Handlung dauert bis jetzt an.' },
+        { source: 'They {have known|knew} each other since school.' },
+        { source: 'Fehler: He have worked here. → He has worked here.' },
+      ],
+    },
+    { title: 'Simple past', summary: 'Mit yesterday steht das simple past.', items: [{ source: 'I *went* (go) home yesterday.' }] },
+  ],
+};
+
+async function grammarList(teacher, body = grammarBody) {
+  const created = await teacher('POST', '/lists', body);
+  assert.equal(created.status, 201, JSON.stringify(created.body));
+  return created.body.id;
+}
+
+test('Grammatikliste anlegen, lesen und Rechte', async () => {
+  const teacher = await login('Frau Grammatik', { teacher: true, groups: 'Klasse 8g' });
+  const student = await login('Schüler G', { groups: 'Klasse 8g' });
+  const outsider = await login('Schülerin Fremd G', { groups: 'Klasse 9z' });
+  const id = await grammarList(teacher);
+
+  assert.equal((await student('POST', '/lists', grammarBody)).status, 403, 'nur Lehrkräfte');
+  const home = (await student('GET', '/lists')).body.assigned.find((l) => l.id === id);
+  assert.deepEqual({ kind: home.kind, rules: home.rule_count, items: home.item_count, due: home.progress.due }, { kind: 'grammar', rules: 2, items: 4, due: 0 });
+  assert.equal((await outsider('GET', '/lists')).body.assigned.length, 0);
+  assert.equal((await outsider('GET', `/lists/${id}`)).status, 403);
+
+  const detail = (await student('GET', `/lists/${id}`)).body;
+  assert.equal(detail.kind, 'grammar');
+  assert.equal(detail.words, undefined);
+  assert.deepEqual(detail.progress, []);
+  assert.deepEqual(detail.rules.map((r) => r.title), ['since / for', 'Simple past']);
+  assert.equal(detail.rules[0].items.length, 3);
+  assert.equal(detail.rules[0].items[0].source, 'She *has lived* (live) here since 2010.\n! lived = Die Handlung dauert bis jetzt an.');
+  assert.equal(detail.rules[0].items[0].seen, null);
+  assert.equal(detail.rules[0].discover, false);
+  assert.equal(detail.groups, undefined, 'Gruppen nur für die Ersteller:in');
+  assert.equal(detail.lang_b, '');
+
+  const vocab = (await teacher('POST', '/lists', listBody)).body.id;
+  const vocabDetail = (await teacher('GET', `/lists/${vocab}`)).body;
+  assert.equal(vocabDetail.kind, 'vocab');
+  assert.equal(vocabDetail.rules, undefined);
+  assert.equal((await teacher('GET', '/lists')).body.own.find((l) => l.id === vocab).kind, 'vocab');
+});
+
+test('Grammatikliste: Prüfung beim Speichern mit Ort des Fehlers', async () => {
+  const teacher = await login('Herr Prüfer', { teacher: true, groups: 'Klasse 8g' });
+  const post = (patch) => teacher('POST', '/lists', { ...grammarBody, ...patch });
+  const rule = grammarBody.rules[1];
+  const cases = [
+    [{ rules: [] }, /keine Regeln/],
+    [{ rules: undefined }, /Regeln fehlen/],
+    [{ rules: [{ ...rule, title: '' }] }, /Regel 1: Bitte einen Titel/],
+    [{ rules: [{ ...rule, summary: '' }] }, /Der Merksatz fehlt/],
+    [{ rules: [{ ...rule, items: [] }] }, /noch keine Aufgaben/],
+    [{ rules: [rule, { ...rule, title: 'Zwei', items: [{ source: 'ok *x* y' }, { source: 'ohne Lücke' }] }] }, /Regel „Zwei“, Aufgabe 2: Keine Lücke/],
+    [{ rules: [{ ...rule, items: [{ source: 'Ordnen: nur ein Teil' }] }] }, /Mindestens zwei Satzteile/],
+    [{ rules: [{ ...rule, items: [{ source: 'Wir *gehen*.\n! = leer' }] }] }, /falsche Antwort/],
+    [{ rules: Array.from({ length: 101 }, () => rule) }, /Höchstens 100 Regeln/],
+    [{ rules: [{ ...rule, title: 'x'.repeat(201) }] }, /Titel der Regel ist zu lang/],
+    [{ grade: undefined }, /Jahrgangsstufe/],
+  ];
+  for (const [patch, re] of cases) {
+    const res = await post(patch);
+    assert.equal(res.status, 400, JSON.stringify(patch).slice(0, 80));
+    assert.match(res.body.error, re);
+  }
+  // Leerzeilen und Ränder werden bereinigt gespeichert
+  const id = (await post({ rules: [{ ...rule, items: [{ source: '  Wir *gehen*. \n\n  ! gehen = x  ' }, { source: '   ' }] }] })).body.id;
+  assert.equal((await teacher('GET', `/lists/${id}`)).body.rules[0].items.length, 1, 'leere Aufgaben fallen weg');
+  assert.equal((await teacher('GET', `/lists/${id}`)).body.rules[0].items[0].source, 'Wir *gehen*.\n! gehen = x');
+
+  // Die Art einer Liste bleibt
+  const vocab = (await teacher('POST', '/lists', listBody)).body.id;
+  assert.equal((await teacher('PUT', `/lists/${vocab}`, grammarBody)).status, 400);
+  assert.match((await teacher('PUT', `/lists/${id}`, listBody)).body.error, /lässt sich nicht ändern/);
+});
+
+test('Grammatikliste bearbeiten: Regeln und Aufgaben behalten ihre ID', async () => {
+  const teacher = await login('Frau Editor G', { teacher: true, groups: 'Klasse 8g' });
+  const student = await login('Schüler Editor G', { groups: 'Klasse 8g' });
+  const id = await grammarList(teacher);
+  const before = (await teacher('GET', `/lists/${id}`)).body.rules;
+  const [r1, r2] = before;
+  const [a, b] = r1.items;
+
+  // Lernstand und Verlauf anlegen
+  await student('POST', `/lists/${id}/results`, { results: [{
+    rule_id: r1.id, grade: 'good', items: [{ item_id: a.id, exercise: 'gap', grade: 'good' }, { item_id: b.id, exercise: 'choice', grade: 'hard' }],
+  }, { rule_id: r2.id, grade: 'good', items: [{ item_id: r2.items[0].id, exercise: 'gap', grade: 'good' }] }] });
+
+  const edited = {
+    ...grammarBody,
+    rules: [
+      // Reihenfolge der Regeln getauscht, erste Aufgabe bearbeitet, zweite gelöscht, eine neu
+      { id: r2.id, title: 'Simple past (neu benannt)', summary: r2.summary, items: [{ id: r2.items[0].id, source: r2.items[0].source }] },
+      { id: r1.id, title: r1.title, summary: r1.summary, explanation: 'Neu erklärt.', discover: true, items: [
+        { id: a.id, source: 'She *has lived* (live) here since 2012.' },
+        { source: 'Neue *Aufgabe* hier.' },
+      ] },
+    ],
+  };
+  assert.equal((await teacher('PUT', `/lists/${id}`, edited)).status, 200);
+  const after = (await student('GET', `/lists/${id}`)).body;
+  assert.deepEqual(after.rules.map((r) => r.id), [r2.id, r1.id], 'Reihenfolge der Lehrkraft');
+  assert.equal(after.rules[0].title, 'Simple past (neu benannt)');
+  assert.equal(after.rules[1].discover, true);
+  assert.equal(after.rules[1].explanation, 'Neu erklärt.');
+  assert.equal(after.rules[1].items[0].id, a.id, 'bearbeitete Aufgabe behält die ID');
+  assert.equal(after.rules[1].items[0].source, 'She *has lived* (live) here since 2012.');
+  assert.ok(after.rules[1].items[0].seen, 'und den Zeitpunkt der letzten Bearbeitung');
+  assert.equal(after.rules[1].items[1].seen, null, 'neue Aufgabe');
+  assert.equal(after.progress.length, 2, 'Lernstand der Regeln bleibt');
+  // gelöschte Aufgabe: der Verlauf bleibt, ohne Verknüpfung
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM items WHERE id = ?').get(b.id).n, 0);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM grammar_log WHERE item_id IS NULL AND exercise = ?').get('choice').n >= 1, true);
+
+  // Regel löschen: Lernstand der Regel verschwindet mit
+  assert.equal((await teacher('PUT', `/lists/${id}`, { ...edited, rules: [edited.rules[1]] })).status, 200);
+  const last = (await student('GET', `/lists/${id}`)).body;
+  assert.equal(last.rules.length, 1);
+  assert.deepEqual(last.progress.map((p) => p.rule_id), [r1.id]);
+
+  // fremde IDs werden nicht übernommen
+  const other = await grammarList(teacher, { ...grammarBody, title: 'Andere' });
+  const otherRules = (await teacher('GET', `/lists/${other}`)).body.rules;
+  await teacher('PUT', `/lists/${id}`, { ...edited, rules: [{ ...edited.rules[1], id: otherRules[0].id, items: [{ id: otherRules[0].items[0].id, source: 'Fremde *ID* bleibt fremd.' }] }] });
+  const untouched = (await teacher('GET', `/lists/${other}`)).body.rules[0];
+  assert.equal(untouched.title, 'since / for', 'Regel einer anderen Liste bleibt unverändert');
+  assert.equal(untouched.items[0].source.startsWith('She *has lived*'), true);
+});
+
+test('Grammatik: Ergebnisse einer Runde – eine Bewertung pro Regel, Aufgaben einzeln im Verlauf', async () => {
+  const teacher = await login('Frau Ergebnis G', { teacher: true, groups: 'Klasse 8g' });
+  const student = await login('Schüler Ergebnis G', { groups: 'Klasse 8g' });
+  const stranger = await login('Schülerin Ergebnis Fremd', { groups: 'Klasse 1x' });
+  const id = await grammarList(teacher);
+  const [r1, r2] = (await student('GET', `/lists/${id}`)).body.rules;
+  const [a, b, c] = r1.items;
+
+  const round = {
+    id: 'runde-1', rule_id: r1.id, grade: 'hard', at: new Date(Date.now() - 3 * 86400000).toISOString(),
+    items: [
+      { item_id: a.id, exercise: 'gap', grade: 'good', attempts: 1 },
+      { item_id: b.id, exercise: 'choice', grade: 'hard', attempts: 2, answer: '  knew  ' },
+      { item_id: c.id, exercise: 'error', grade: 'again', attempts: 2, answer: 'He have worked here.' },
+      { item_id: r2.items[0].id, exercise: 'gap', grade: 'good' }, // gehört zu einer anderen Regel
+      { item_id: a.id, exercise: 'quatsch', grade: 'unbekannt' }, // ungültige Bewertung: fällt weg
+    ],
+  };
+  const res = await student('POST', `/lists/${id}/results`, { results: [round] });
+  assert.equal(res.status, 200);
+  assert.equal(res.body.progress.length, 1);
+  const p = res.body.progress[0];
+  assert.equal(p.rule_id, r1.id);
+  assert.deepEqual({ right: p.right, wrong: p.wrong, reps: p.reps }, { right: 3, wrong: 1, reps: 1 }, 'Aufgaben gezählt, eine Bewertung für die Regel');
+  assert.ok(p.stability > 0 && p.due && p.box >= 1);
+  assert.equal(Date.parse(p.last_seen) < Date.now() - 2 * 86400000, true, 'Zeitpunkt der Runde');
+
+  const log = db.prepare('SELECT item_id, grade, exercise, attempts, answer, stability, client_id FROM grammar_log WHERE rule_id = ? ORDER BY id').all(r1.id);
+  assert.equal(log.length, 5, '4 Aufgaben + 1 Zeile für die Regel');
+  assert.deepEqual(log.slice(0, 2).map((l) => [l.item_id, l.grade, l.exercise, l.attempts, l.answer]), [
+    [a.id, 'good', 'gap', 1, null],
+    [b.id, 'hard', 'choice', 2, 'knew'],
+  ]);
+  assert.equal(log[3].item_id, null, 'Aufgabe einer anderen Regel wird nicht verknüpft');
+  assert.equal(log[4].exercise, 'round');
+  assert.equal(log[4].grade, 'hard');
+  assert.equal(log[4].client_id, 'runde-1');
+  assert.equal(log[4].stability, p.stability);
+  assert.equal(log.slice(0, 4).every((l) => l.stability === null && l.client_id === null), true);
+
+  // doppelt gesendet: nichts ändert sich
+  const again = await student('POST', '/results', { results: [{ ...round, list_id: id }] });
+  assert.deepEqual(again.body.progress, {});
+  assert.equal((await student('GET', `/lists/${id}`)).body.progress[0].reps, 1);
+
+  // Offline-Sammelübertragung mit Zukunftsdatum und falscher Regel
+  const offline = await student('POST', '/results', { results: [
+    { id: 'runde-2', list_id: id, rule_id: r2.id, grade: 'again', at: '2999-01-01T00:00:00Z', items: [{ item_id: r2.items[0].id, exercise: 'gap', grade: 'again', attempts: 2, answer: 'went' }] },
+    { id: 'runde-3', list_id: id, rule_id: r2.id + 999, grade: 'good', items: [] },
+    { id: 'runde-4', list_id: id, rule_id: r1.id, items: [] }, // weder Bewertung noch Aufgaben
+    { id: 'runde-5', list_id: id, word_id: a.id, direction: 'ab', grade: 'good' }, // Vokabel-Eintrag für Grammatikliste
+  ] });
+  assert.deepEqual(Object.keys(offline.body.progress), [String(id)]);
+  const p2 = offline.body.progress[id].find((x) => x.rule_id === r2.id);
+  assert.ok(Date.parse(p2.last_seen) <= Date.now(), 'Zukunft wird auf jetzt gesetzt');
+  assert.equal(p2.wrong, 1);
+  const tomorrow = (Date.parse(p2.due) - Date.now()) / 3600000;
+  assert.ok(tomorrow > 23 && tomorrow < 25, 'nicht gewusst: morgen wieder');
+  assert.equal(offline.body.progress[id].length, 2);
+
+  // Fremde Personen: Antwort verfällt
+  const foreign = await stranger('POST', '/results', { results: [{ id: 'x', list_id: id, rule_id: r1.id, grade: 'good', items: [] }] });
+  assert.deepEqual(foreign.body.progress, {});
+
+  // Startseite: fällige Regeln
+  const due = (await student('GET', `/lists?due_until=${encodeURIComponent(new Date(Date.now() + 3 * 86400000).toISOString())}`)).body.assigned.find((l) => l.id === id);
+  assert.equal(due.progress.seen, 2);
+  assert.ok(due.progress.due >= 1);
+
+  // Noch mal dieselbe Regel: Abstand zählt, Zähler wachsen
+  const second = await student('POST', `/lists/${id}/results`, { results: [{ rule_id: r1.id, grade: 'good', at: new Date().toISOString(), items: [{ item_id: a.id, exercise: 'gap', grade: 'good' }] }] });
+  const p3 = second.body.progress.find((x) => x.rule_id === r1.id);
+  assert.equal(p3.reps, 2);
+  assert.equal(p3.right, 4);
+  assert.ok(p3.stability > p.stability);
+
+  // Aufgabenzeitpunkt für die Auswahl
+  const rules = (await student('GET', `/lists/${id}`)).body.rules;
+  assert.ok(rules[0].items.find((i) => i.id === a.id).seen);
+  assert.equal(rules[0].items.find((i) => i.id === c.id).seen !== null, true);
+});
+
+test('Grammatik: offline geladen, kopiert, zurückgesetzt, mit dem Konto gelöscht', async () => {
+  const teacher = await login('Frau Kopie G', { teacher: true, groups: 'Klasse 8g' });
+  const colleague = await login('Herr Kopie G', { teacher: true, groups: 'Klasse 6z' });
+  const student = await login('Schüler Kopie G', { groups: 'Klasse 8g' });
+  const mate = await login('Mitschülerin Kopie G', { groups: 'Klasse 8g' });
+  const id = await grammarList(teacher, { ...grammarBody, title: 'Geteilt G', shared: true });
+  const rules = (await student('GET', `/lists/${id}`)).body.rules;
+
+  const offline = (await student('GET', '/offline')).body.lists.find((l) => l.id === id);
+  assert.equal(offline.kind, 'grammar');
+  assert.equal(offline.rules.length, 2);
+  assert.equal(offline.rules[0].items[0].source.startsWith('She *has lived*'), true);
+
+  // Kopie: Regeln und Aufgaben, eigene IDs, unabhängig
+  const shared = (await colleague('GET', '/shared')).body.find((l) => l.id === id);
+  assert.deepEqual({ kind: shared.kind, rules: shared.rule_count, items: shared.item_count }, { kind: 'grammar', rules: 2, items: 4 });
+  const copy = await colleague('POST', `/lists/${id}/copy`, {});
+  assert.equal(copy.status, 201);
+  const copied = (await colleague('GET', `/lists/${copy.body.id}`)).body;
+  assert.equal(copied.kind, 'grammar');
+  assert.equal(copied.rules.length, 2);
+  assert.deepEqual(copied.rules.map((r) => r.items.length), [3, 1]);
+  assert.equal(copied.rules[0].items[0].source, rules[0].items[0].source);
+  assert.notEqual(copied.rules[0].id, rules[0].id);
+  assert.equal(copied.lang_a, 'Englisch');
+  assert.equal(copied.grade, 8);
+  await colleague('PUT', `/lists/${copy.body.id}`, { ...grammarBody, title: 'Kopie', groups: [], rules: [grammarBody.rules[1]] });
+  assert.equal((await teacher('GET', `/lists/${id}`)).body.rules.length, 2, 'Original bleibt unberührt');
+
+  // Zurücksetzen: nur der eigene Lernstand
+  for (const who of [student, mate]) {
+    await who('POST', `/lists/${id}/results`, { results: [{ rule_id: rules[0].id, grade: 'good', items: [{ item_id: rules[0].items[0].id, exercise: 'gap', grade: 'good' }] }] });
+  }
+  assert.equal((await student('DELETE', `/lists/${id}/progress`)).status, 200);
+  assert.deepEqual((await student('GET', `/lists/${id}`)).body.progress, []);
+  assert.equal((await student('GET', `/lists/${id}`)).body.rules[0].items[0].seen, null, 'Verlauf ist weg');
+  assert.equal((await mate('GET', `/lists/${id}`)).body.progress.length, 1, 'Mitschülerin behält ihren Stand');
+
+  // Konto löschen (RETENTION_DAYS): Lernstand und Verlauf gehen mit
+  const mateId = (await mate('GET', '/me')).body.id;
+  assert.ok(db.prepare('SELECT COUNT(*) AS n FROM rule_progress WHERE user_id = ?').get(mateId).n > 0);
+  assert.ok(db.prepare('SELECT COUNT(*) AS n FROM grammar_log WHERE user_id = ?').get(mateId).n > 0);
+  db.prepare('DELETE FROM users WHERE id = ?').run(mateId);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM rule_progress WHERE user_id = ?').get(mateId).n, 0);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM grammar_log WHERE user_id = ?').get(mateId).n, 0);
+
+  // Liste löschen nimmt Regeln, Aufgaben, Lernstand und Verlauf mit
+  assert.equal((await teacher('DELETE', `/lists/${id}`)).status, 200);
+  for (const table of ['rules', 'rule_progress', 'grammar_log']) {
+    const column = table === 'rules' ? 'id' : 'rule_id';
+    assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE ${column} IN (?, ?)`).get(rules[0].id, rules[1].id).n, 0, table);
+  }
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM items WHERE rule_id IN (?, ?)').get(rules[0].id, rules[1].id).n, 0, 'items');
+});
+
+test('Grammatik-Auswertung: Gruppen, schwierige Regeln, häufige Fehler ohne Namen, Einzelansicht', async () => {
+  const teacher = await login('Frau Auswertung G', { teacher: true, groups: 'Klasse 8h' });
+  const other = await login('Herr Auswertung G', { teacher: true, groups: 'Klasse 8h' });
+  const s1 = await login('Anna Grammatik', { groups: 'Klasse 8h' });
+  const s2 = await login('Ben Grammatik', { groups: 'Klasse 8h' });
+  const s3 = await login('Cem Grammatik', { groups: 'Klasse 8h' });
+  const outsider = await login('Dana Fremd', { groups: 'Klasse 5q' });
+  const id = await grammarList(teacher, { ...grammarBody, groups: [{ id: 'klasse.8h', name: 'Klasse 8h' }] });
+  const [r1, r2] = (await s1('GET', `/lists/${id}`)).body.rules;
+  const [a, b] = r1.items;
+  const wrong = (item, answer) => ({ item_id: item.id, exercise: 'gap', grade: 'again', attempts: 2, answer });
+
+  await s1('POST', `/lists/${id}/results`, { results: [
+    { rule_id: r1.id, grade: 'again', items: [wrong(a, 'lived'), { item_id: b.id, exercise: 'choice', grade: 'good' }] },
+    { rule_id: r2.id, grade: 'good', items: [{ item_id: r2.items[0].id, exercise: 'gap', grade: 'good' }] },
+  ] });
+  await s2('POST', `/lists/${id}/results`, { results: [{ rule_id: r1.id, grade: 'hard', items: [wrong(a, 'Lived'), wrong(b, 'knew')] }] });
+  await s3('POST', `/lists/${id}/results`, { results: [{ rule_id: r1.id, grade: 'again', items: [wrong(a, 'has live')] }] });
+
+  const stats = await teacher('GET', `/lists/${id}/stats`);
+  assert.equal(stats.status, 200);
+  assert.equal(stats.body.rule_count, 2);
+  const group = stats.body.groups[0];
+  assert.equal(group.summary.students, 3);
+  assert.equal(group.summary.active_7d, 3);
+  assert.equal(group.summary.seen_pct, Math.round(((2 / 2 + 1 / 2 + 1 / 2) / 3) * 1000) / 10, 'Ø geübte Regeln');
+  assert.equal(group.history.length, 8);
+  assert.equal(group.history.at(-1).reviews, 6, 'Aufgaben der letzten Woche, nicht die Rundenzeilen');
+  const anna = group.students.find((st) => st.name === 'Anna Grammatik');
+  assert.deepEqual({ seen: anna.seen, right: anna.right, wrong: anna.wrong }, { seen: 2, right: 2, wrong: 1 });
+  assert.equal(group.students.some((st) => st.name === 'Dana Fremd'), false);
+
+  assert.equal(stats.body.hardest[0].title, 'since / for');
+  // Häufigste Fehler: „lived“ und „Lived“ zusammengefasst, ohne Namen
+  assert.deepEqual(stats.body.errors.map((e) => [e.item_id, e.answer.toLowerCase(), e.count]).sort((x, y) => y[2] - x[2] || x[0] - y[0] || x[1].localeCompare(y[1])), [
+    [a.id, 'lived', 2], [a.id, 'has live', 1], [b.id, 'knew', 1],
+  ].sort((x, y) => y[2] - x[2] || x[0] - y[0] || x[1].localeCompare(y[1])));
+  assert.ok(stats.body.errors[0].source.startsWith('She *has lived*'));
+  assert.equal(stats.body.errors[0].rule_title, 'since / for');
+  assert.equal(JSON.stringify(stats.body.errors).includes('Anna'), false, 'keine Namen in der Fehlerliste');
+
+  // Einzelansicht mit den Antworten der Person
+  const detail = await teacher('GET', `/lists/${id}/stats/students/${anna.id}`);
+  assert.equal(detail.status, 200);
+  assert.equal(detail.body.student.name, 'Anna Grammatik');
+  assert.deepEqual(detail.body.rules.map((r) => [r.title, r.progress?.rule_id === r.id]), [['since / for', true], ['Simple past', true]]);
+  assert.deepEqual(detail.body.errors.map((e) => e.answer), ['lived']);
+  assert.equal(detail.body.history.length, 8);
+  const ben = group.students.find((st) => st.name === 'Ben Grammatik');
+  assert.deepEqual((await teacher('GET', `/lists/${id}/stats/students/${ben.id}`)).body.errors.map((e) => e.answer).sort(), ['Lived', 'knew']);
+  assert.equal((await other('GET', `/lists/${id}/stats`)).status, 403, 'nur die Ersteller:in');
+  assert.equal((await s1('GET', `/lists/${id}/stats`)).status, 403);
+  const outsiderId = (await outsider('GET', '/me')).body.id;
+  assert.equal((await teacher('GET', `/lists/${id}/stats/students/${outsiderId}`)).status, 404);
+
+  // Häufiger Fehler → Hinweis anlegen
+  const add = (body, who = teacher) => who('POST', `/lists/${id}/feedback`, body);
+  const ok = await add({ item_id: a.id, answer: 'has live', text: 'Das Partizip braucht -ed.' });
+  assert.equal(ok.status, 200);
+  assert.equal(ok.body.source, `${a.source}\n! has live = Das Partizip braucht -ed.`);
+  const again = await add({ item_id: a.id, answer: 'HAS LIVE', text: 'Anders erklärt.' });
+  assert.equal(again.body.source, `${a.source}\n! HAS LIVE = Anders erklärt.`, 'gleiche Antwort ersetzt den Hinweis');
+  assert.equal((await teacher('GET', `/lists/${id}`)).body.rules[0].items[0].source, again.body.source);
+  assert.equal((await add({ item_id: a.id, answer: 'a|b', text: 'x' })).status, 400);
+  assert.equal((await add({ item_id: a.id, answer: 'a=b', text: 'x' })).status, 400);
+  assert.equal((await add({ item_id: a.id, answer: 'x', text: '' })).status, 400);
+  assert.equal((await add({ item_id: 999999, answer: 'x', text: 'y' })).status, 404);
+  assert.equal((await add({ item_id: a.id, answer: 'x', text: 'y' }, other)).status, 403);
+  assert.equal((await add({ item_id: a.id, answer: 'x', text: 'y' }, s1)).status, 403);
+  const vocab = (await teacher('POST', '/lists', listBody)).body.id;
+  assert.equal((await teacher('POST', `/lists/${vocab}/feedback`, { item_id: 1, answer: 'x', text: 'y' })).status, 400);
+});
+
+test('Migration 9: Stand 8 → 9, Vokabellisten bleiben unverändert', async () => {
+  const { MIGRATIONS, openDb } = await import('../src/db.js');
+  const { mkdtempSync, rmSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { DatabaseSync } = await import('node:sqlite');
+  const dir = mkdtempSync(join(tmpdir(), 'vt-'));
+  let migrated = null;
+  try {
+    openDb(dir).close();
+    const old = new DatabaseSync(join(dir, 'vokabeltrainer.sqlite'));
+    old.exec(`PRAGMA foreign_keys = OFF;
+      DROP TABLE grammar_log; DROP TABLE rule_progress; DROP TABLE items; DROP TABLE rules;
+      ALTER TABLE lists DROP COLUMN kind;
+      INSERT INTO lists (id, title, mode, created_at, updated_at) VALUES (3, 'Alt', 'type', 't', 't');
+      INSERT INTO words (list_id, pos, a, b) VALUES (3, 0, 'dog', 'Hund');
+      PRAGMA user_version = 8;`);
+    old.close();
+    assert.equal(MIGRATIONS.length, 9);
+    migrated = openDb(dir);
+    assert.equal(migrated.prepare('PRAGMA user_version').get().user_version, 9);
+    assert.deepEqual({ ...migrated.prepare('SELECT kind, title, mode FROM lists WHERE id = 3').get() }, { kind: 'vocab', title: 'Alt', mode: 'type' });
+    assert.equal(migrated.prepare('SELECT COUNT(*) AS n FROM words WHERE list_id = 3').get().n, 1);
+    assert.throws(() => migrated.prepare("UPDATE lists SET kind = 'quatsch' WHERE id = 3").run(), 'nur vocab oder grammar');
+    const tables = migrated.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map((t) => t.name);
+    for (const t of ['rules', 'items', 'rule_progress', 'grammar_log']) assert.ok(tables.includes(t), t);
+  } finally {
+    migrated?.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
