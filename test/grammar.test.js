@@ -487,3 +487,57 @@ test('expand: optionale Teile', () => {
   assert.deepEqual(expand('(have) known'), ['have known', 'known']);
   assert.deepEqual(expand('plain  text'), ['plain text']);
 });
+
+// ---------- Robustheit: der Server liest beliebige Eingaben ----------
+
+test('zufällige Zeichenfolgen: Parser und Prüfung werfen nie einen Fehler', () => {
+  const random = seeded(Number(process.env.FUZZ_SEED) || 42);
+  const pieces = ['*', '{', '}', '|', '(', ')', '→', '->', '/', '!', '=', ' ', '  ', 'a', 'has', 'lived', 'é', 'Fehler:', 'Ordnen:', 'Übersetzen:', 'Umformen:', '\n', '\n!', '.', ',', '?', "'", '’', '0'];
+  let valid = 0;
+  for (let n = 0; n < 12000; n++) {
+    const source = Array.from({ length: 1 + Math.floor(random() * 14) }, () => pieces[Math.floor(random() * pieces.length)]).join('');
+    const parsed = parseItem(source);
+    if (parsed.error) {
+      assert.equal(typeof parsed.error, 'string', source);
+      assert.ok(Number.isInteger(parsed.part) && parsed.part >= 0, source);
+      continue;
+    }
+    valid++;
+    const caps = capabilities(parsed);
+    assert.ok(caps.length >= 1, source);
+    for (const kind of caps) assert.ok(asKind(parsed, kind), `${source} → ${kind}`);
+    assert.equal(typeof solutionText(parsed), 'string');
+    segments(parsed);
+    feedbackFor(parsed, ['a', ''], { summary: 'x' });
+    if (parsed.gaps) checkGaps(parsed, parsed.gaps.map(() => 'a'), opts);
+    else if (parsed.orders) checkOrder(parsed, [...parsed.chunks].reverse(), opts);
+    else checkSentence(parsed, 'a b', opts);
+    if (parsed.type === 'choice') choiceOrder(parsed, random);
+    if (parsed.type === 'order') shuffledChunks(parsed, random);
+    // die Lösung ist immer richtig
+    if (parsed.gaps) assert.equal(checkGaps(parsed, parsed.gaps.map((g) => expand(g.answers[0])[0]), opts).state, 'correct', source);
+    else if (parsed.orders) assert.equal(checkOrder(parsed, parsed.chunks, opts).state, 'correct', source);
+    else if (parsed.type !== 'error') assert.equal(checkSentence(parsed, solutionText(parsed), opts).state, 'correct', source);
+    // das erneute Lesen des bereinigten Textes ergibt dieselbe Aufgabe
+    assert.deepEqual(parseItem(parsed.source).source, parsed.source);
+  }
+  assert.ok(valid > 100, `genug gültige Zufallsaufgaben (${valid})`);
+  // Text in Aufgaben zerlegen und Datei lesen: ebenfalls robust
+  for (let n = 0; n < 300; n++) {
+    const text = Array.from({ length: 30 }, () => pieces[Math.floor(random() * pieces.length)]).join('');
+    splitItems(text);
+    parseRulesText(`## ${text}\nMerksatz: ${text}\nAufgaben:\n${text}`);
+    matchItems([{ id: 1, source: text }], [text, text.slice(3)]);
+  }
+});
+
+test('lange Eingaben brauchen keine Sekunden (keine aufwendigen Muster)', () => {
+  const started = Date.now();
+  const long = `${'*a '.repeat(3000)}${'{a|b '.repeat(3000)}${'( '.repeat(3000)}`;
+  parseItem(long);
+  parseItem(`Fehler: ${'a '.repeat(5000)} → ${'b '.repeat(5000)}`);
+  splitItems(`${'x *y* z\n! a = b\n'.repeat(5000)}`);
+  checkText('a '.repeat(5000), ['(a) '.repeat(200)], opts);
+  diffWords('a b '.repeat(300), 'b a '.repeat(300), opts);
+  assert.ok(Date.now() - started < 3000, `dauerte ${Date.now() - started} ms`);
+});

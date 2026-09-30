@@ -401,7 +401,8 @@ th[aria-sort="descending"] button.sort::after { content: " ▼"; font-size: .7em
 .chip.grade-hard { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
 .chip.grade-good, .chip.grade-easy { background: var(--right-bg); color: var(--right); }
 
-.grammar-exercise { display: flex; flex-direction: column; gap: .75rem; }
+.grammar-exercise { display: flex; flex-direction: column; align-items: stretch; gap: .75rem; }
+.grammar-exercise .actions { justify-content: center; }
 .grammar-exercise.is-almost { border-color: var(--warn); }
 .grammar-exercise.is-almost .grammar-feedback strong { color: var(--warn); }
 .grammar-exercise.is-right .grammar-feedback strong { color: var(--right); }

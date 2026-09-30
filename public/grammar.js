@@ -66,6 +66,8 @@ const GAP = /\*([^*]*)\*(?:[ \t]?\(([^()]*)\))?|\{([^{}]*)\}/g;
 const fail = (error, part = 0) => ({ error, part });
 const list = (s) => s.split('|').map((x) => x.trim()).filter(Boolean);
 const clip = (s, max = 40) => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+// Eine Antwort ohne Buchstaben und Ziffern (nur Satzzeichen) ließe sich nie eintippen: Die Prüfung ignoriert sie
+const hasWord = (s) => /[\p{L}\p{N}]/u.test(s);
 
 // Aufgabe (Zeile plus Hinweiszeilen) lesen. Ergebnis: { type, feedback, … } oder { error, part } –
 // part ist die Zeile der Aufgabe (0 = Aufgabenzeile, 1 = erster Hinweis …).
@@ -118,6 +120,7 @@ function parseGapLine(text) {
       if (options) return fail('Nur eine Auswahl { … } pro Aufgabe.');
       const raw = m[3].split('|').map((o) => o.trim());
       if (raw.some((o) => !o)) return fail('Eine Antwortmöglichkeit in { … } ist leer.');
+      if (!raw.every(hasWord)) return fail('Eine Antwortmöglichkeit in { … } enthält kein Wort.');
       if (raw.length < 2 || raw.length > 4) return fail('Eine Auswahl braucht 2 bis 4 Antworten: {richtig|falsch|falsch}.');
       if (new Set(raw.map(loose)).size !== raw.length) return fail('Eine Antwort steht zweimal in { … }.');
       options = raw;
@@ -125,6 +128,7 @@ function parseGapLine(text) {
     } else {
       const answers = list(m[1]);
       if (!answers.length) return fail('Die Lücke zwischen den Sternchen ist leer.');
+      if (!answers.every(hasWord)) return fail('Die Lücke enthält kein Wort – nur Satzzeichen lassen sich nicht eintippen.');
       gaps.push({ answers, hint: (m[2] ?? '').trim() });
     }
     parts.push({ gap: gaps.length - 1 });
@@ -158,6 +162,7 @@ function parseSpecial(type, body) {
   if (!sides || !sides[0] || !sides[1]) return fail(`Erwartet: ${example} (mit → oder ->).`);
   const solutions = list(sides[1]);
   if (!solutions.length) return fail(`Erwartet: ${example} (mit → oder ->).`);
+  if (!solutions.every(hasWord)) return fail('Die Lösung enthält kein Wort – nur Satzzeichen lassen sich nicht eintippen.');
   if (type === 'error') {
     if (solutions.flatMap(expand).some((s) => clean(s) === clean(sides[0]))) return fail('Fehler: Der falsche Satz ist mit der Lösung identisch.');
     return { type, given: sides[0], solutions };
@@ -207,9 +212,13 @@ function isTypo(given, expected) {
 // Eingabe gegen mögliche Lösungen. Ergebnis: { state: 'correct' | 'almost' | 'wrong', reason?, match? }
 // 'almost' = nur Akzent, Groß-/Kleinschreibung oder ein Tippfehler; zählt für die Planung als „hard“.
 export function checkText(input, answers, options = {}) {
+  return checkVariants(input, answers.flatMap(expand), options);
+}
+
+// Wie checkText, aber die Schreibweisen stehen schon fest (Klammern gelten wörtlich)
+function checkVariants(input, variants, options) {
   const given = clean(input, options);
   if (!given) return { state: 'wrong' };
-  const variants = answers.flatMap(expand);
   const exact = variants.find((v) => clean(v, options) === given);
   if (exact !== undefined) return { state: 'correct', match: exact };
   const givenLoose = clean(input);
@@ -239,7 +248,8 @@ export function checkSentence(item, input, options = {}) {
 
 // Satzbau: chunks = gewählte Satzteile in der gewählten Reihenfolge
 export function checkOrder(item, chunks, options = {}) {
-  const result = checkText(chunks.join(' '), item.orders.map((o) => o.join(' ')), options);
+  // Satzteile gelten wörtlich: Klammern darin sind keine optionalen Teile
+  const result = checkVariants(chunks.join(' '), item.orders.map((o) => o.join(' ')), options);
   return { state: result.state === 'correct' ? 'correct' : 'wrong' };
 }
 
