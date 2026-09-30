@@ -11,9 +11,14 @@ Gruppen (Klassen/Kurse) und die Rolle „Lehrkraft“ werden direkt aus IServ ü
 ## Funktionen
 
 **Für Lehrkräfte**
-- Listen im Browser-Editor anlegen und bearbeiten (Enter springt in die nächste Zeile)
-- CSV-Import und -Export (Semikolon, Komma oder Tab; Kopfzeile wie `Englisch;Deutsch` wird erkannt).
-  Spalten: Wort A, Wort B, optional Notiz und Beispielsatz
+- Listen im Browser-Editor anlegen und bearbeiten (Enter springt in die nächste Zeile), mit Werkzeugleiste:
+  **✱ Lücke** (Wort im Beispielsatz markieren – automatisch oder die Auswahl), **( ) optional**, **; Alternative**,
+  Sonderzeichen der Sprache (é, ñ, ā …) und **Alle Lücken setzen**. Sätze, aus denen noch kein Lückentext wird,
+  sind rot umrandet.
+- **Mit KI erstellen** (siehe unten): fertigen Prompt kopieren, Antwort der KI einfügen, Vorschau prüfen, übernehmen
+- Import von Dateien und eingefügtem Text: CSV (Semikolon, Komma, Tab), aus Excel kopierte Tabellen,
+  Markdown-Tabellen, Zeilen wie `dog – Hund` oder `1. to go = gehen`; Kopfzeile wie `Englisch;Deutsch` wird
+  erkannt. Spalten: Wort A, Wort B, optional Notiz und Beispielsatz. Export als CSV
 - Pro Wort optional ein **Beispielsatz**: Kommt das Wort darin vor, wird daraus ein Lückentext.
   Gebeugte Formen mit Sternchen markieren: `Yesterday I *went* home.`
 - Pro Liste festlegen:
@@ -108,6 +113,23 @@ Latein und Altgriechisch werden nicht vorgelesen.
 - Aussprache: Französisch aus Frankreich (fr-FR) und Spanisch aus Spanien (es-ES) – nie eine kanadische bzw.
   lateinamerikanische Stimme. Hat ein Gerät keine passende Stimme, gibt es für diese Sprache keinen Ton.
 
+## Listen mit KI erstellen
+
+Viele Listen entstehen mit einer KI. Damit das ohne Nacharbeit klappt, erzeugt der Editor unter
+**„✨ Mit KI erstellen oder Text einfügen“** einen passenden Prompt:
+
+1. Oben Titel, Sprachen und Jahrgang eintragen, im Import-Bereich Thema und Anzahl – der Prompt passt sich an.
+2. **Prompt kopieren** und in die KI eurer Schule einfügen. Er enthält keine personenbezogenen Daten.
+3. Die Antwort komplett einfügen – Einleitungs- und Schlusssätze der KI werden ignoriert. Die Vorschau zeigt,
+   was erkannt wurde; dann **Übernehmen** oder **Anhängen**.
+4. Kurz prüfen: rot umrandete Beispielsätze mit **✱ Lücke** nacharbeiten (Wort im Satz auswählen, antippen).
+
+Der Prompt verlangt CSV mit Semikolon und den Spalten Wort, Bedeutung, Notiz, Beispielsatz: Nomen mit Artikel,
+Verben im Infinitiv, Alternativen mit `|`, optionale Teile in Klammern, weibliche Formen als `bueno/a`,
+Beispielsätze passend zum Jahrgang mit markierter Lücke. Liefert die KI stattdessen eine Tabelle oder eine
+Liste mit Gedankenstrichen, wird das ebenfalls erkannt. KI-Listen können Fehler enthalten – vor dem Freigeben
+bitte gegenlesen.
+
 ## Lernen ohne Internet (iPad)
 
 Für Schüler:innen, die nur in der Schule WLAN haben: Die App lädt bei jeder Verbindung alle zugewiesenen
@@ -165,6 +187,67 @@ gelten. Welche Übung zu einer Antwort gehörte, wird im Verlauf mitgespeichert.
 Mehrfaches Wiederholen am selben Tag erhöht die Stabilität kaum – Pauken bringt kurzfristig etwas,
 für die Planung zählt aber das Behalten über Tage. „Sicher“ in der Auswertung heißt: Das Wort würde
 auch in zwei Wochen noch mit mindestens 90 % Wahrscheinlichkeit gewusst.
+
+## Wissenschaftliche Grundlagen
+
+Die App setzt die Befunde um, die für das Vokabellernen am besten belegt sind. Übersicht:
+
+| Befund | Umsetzung in der App |
+|---|---|
+| **Abrufen statt Wiederlesen** (*testing effect*): Wer sich selbst abfragt, behält deutlich mehr als beim erneuten Lesen (Roediger & Karpicke 2006; Karpicke & Roediger 2008). | Jede Übung ist eine Abfrage; auch neue Wörter werden kurz nach dem Kennenlernen abgefragt. |
+| **Verteiltes Wiederholen** (*spacing effect*): Wiederholungen über Tage verteilt schlagen Pauken, der optimale Abstand wächst mit der Behaltensdauer (Cepeda et al. 2006, 2008; Kornell 2009). | Planung mit FSRS: jedes Wort kommt wieder, wenn es nur noch zu ~90 % gewusst würde. |
+| **Wiederholen bis zum Erfolg, über mehrere Tage** (*successive relearning*; Rawson & Dunlosky 2011). | Falsche Wörter kommen in derselben Runde wieder, bis sie einmal sitzen, und am nächsten Tag erneut. |
+| **Gezielte Schwierigkeit** (*desirable difficulties*): Aufgaben, die gerade noch lösbar sind, bringen am meisten; schwierigeres erfolgreiches Abrufen stärkt das Gedächtnis mehr (Bjork 1994; Pyc & Rawson 2009). | Lernleiter: kennenlernen → auswählen → eintippen → Lückentext/Hören, je nach Stufe des Worts. |
+| **Erst erkennen, dann selbst hervorbringen**: Rezeptives und produktives Lernen stärken je eigene Wissensarten; Karteikarten-Software sollte beides abdecken (Webb 2009; Nakata 2011). | Auswählen für neue Wörter, danach Eintippen; beide Richtungen wählbar. |
+| **Auswählen kann echtes Abrufen sein**, wenn die falschen Antworten plausibel sind; Rückmeldung verhindert, dass Falsches hängen bleibt (Little et al. 2012; Butler & Roediger 2008). | Ablenker aus derselben Liste, ähnlich in Länge und Wortart (Artikel, *to*); sofortige Rückmeldung mit Lösung. |
+| **Schrittweise Hinweise** helfen beim Erinnern (Finley et al. 2011). | Tipp-Knopf: erster Buchstabe, dann mehr; mit Tipp gelöst zählt als „mit Mühe“. |
+| **Selbsteinschätzung ist unzuverlässig**: Lernende überschätzen, was sie können (Kornell & Bjork 2008). | Objektive Prüfung beim Eintippen/Auswählen; Auswählen zählt nur als „mit Mühe“, damit „sicher“ aussagekräftig bleibt. |
+| **Kontext** unterstützt Bedeutung und Gebrauch; Aufgaben mit mehr Beteiligung (*involvement load*) werden besser behalten (Webb 2008; Laufer & Hulstijn 2001). Aber: Satzaufgaben lenken ab, solange die Wortform neu ist (Barcroft 2004). | Lückentexte aus Beispielsätzen – erst ab Stufe 2, wenn die Schreibweise sitzt. |
+| **Aussprache** gehört zum Wortwissen (Nation 2013); lautes Aussprechen verbessert das Behalten (*production effect*, MacLeod et al. 2010); wechselnde Stimmen helfen beim Lernen neuer Wörter (Barcroft & Sommers 2005). | Vorlesen mit wechselnden Gerätestimmen, Hörübungen; Karteikarten fordern auf, die Antwort laut zu sagen. |
+
+**Bewusst nicht umgesetzt**
+- **Zuordnungs- und Memory-Spiele, Buchstabensalat:** kaum echtes Abrufen, eher Motivation – würden die Planung
+  verfälschen.
+- **„Lerntypen“** (visuell, auditiv …): Für das Anpassen des Unterrichts an Lerntypen gibt es keine belastbaren
+  Belege (Pashler et al. 2008).
+- **Wortfelder gebündelt einführen** (alle Farben auf einmal): Neue, ähnliche Wörter stören sich gegenseitig
+  (Tinkham 1993; Nation 2000). Tipp für Lehrkräfte: Listen lieber thematisch gemischt als nach Wortfeldern.
+- **Spracherkennung im Browser:** In Chrome gehen die Aufnahmen an Google – an Schulen nicht vertretbar.
+
+**Mögliche Erweiterungen**
+- **Problemwörter und Eselsbrücken:** Schlüsselwort-Methode wirkt kurzfristig gut (Atkinson & Raugh 1975), wird
+  aber schneller vergessen (Wang et al. 1992) – sinnvoll gezielt für oft vergessene Wörter.
+- **Bilder für konkrete Nomen:** Befunde gemischt (Carpenter & Olson 2012); erfordert Bild-Upload.
+
+**Literatur**
+- Atkinson, R. C., & Raugh, M. R. (1975). An application of the mnemonic keyword method to the acquisition of a Russian vocabulary. *Journal of Experimental Psychology: Human Learning and Memory, 1*(2), 126–133.
+- Barcroft, J. (2004). Effects of sentence writing in second language lexical acquisition. *Second Language Research, 20*(4), 303–334.
+- Barcroft, J., & Sommers, M. S. (2005). Effects of acoustic variability on second language vocabulary learning. *Studies in Second Language Acquisition, 27*(3), 387–414.
+- Bjork, R. A. (1994). Memory and metamemory considerations in the training of human beings. In J. Metcalfe & A. P. Shimamura (Hrsg.), *Metacognition: Knowing about knowing* (S. 185–205). MIT Press.
+- Butler, A. C., & Roediger, H. L. (2008). Feedback enhances the positive effects and reduces the negative effects of multiple-choice testing. *Memory & Cognition, 36*(3), 604–616.
+- Carpenter, S. K., & Olson, K. M. (2012). Are pictures good for learning new vocabulary in a foreign language? Only if you think they are not. *Journal of Experimental Psychology: Learning, Memory, and Cognition, 38*(1), 92–101.
+- Cepeda, N. J., Pashler, H., Vul, E., Wixted, J. T., & Rohrer, D. (2006). Distributed practice in verbal recall tasks: A review and quantitative synthesis. *Psychological Bulletin, 132*(3), 354–380.
+- Cepeda, N. J., Vul, E., Rohrer, D., Wixted, J. T., & Pashler, H. (2008). Spacing effects in learning: A temporal ridgeline of optimal retention. *Psychological Science, 19*(11), 1095–1102.
+- Dunlosky, J., Rawson, K. A., Marsh, E. J., Nathan, M. J., & Willingham, D. T. (2013). Improving students' learning with effective learning techniques. *Psychological Science in the Public Interest, 14*(1), 4–58.
+- Finley, J. R., Benjamin, A. S., Hays, M. J., Bjork, R. A., & Kornell, N. (2011). Benefits of accumulating versus diminishing cues in recall. *Journal of Memory and Language, 64*(4), 289–298.
+- Karpicke, J. D., & Roediger, H. L. (2008). The critical importance of retrieval for learning. *Science, 319*(5865), 966–968.
+- Kornell, N. (2009). Optimising learning using flashcards: Spacing is more effective than cramming. *Applied Cognitive Psychology, 23*(9), 1297–1317.
+- Kornell, N., & Bjork, R. A. (2008). Optimising self-regulated study: The benefits—and costs—of dropping flashcards. *Memory, 16*(2), 125–136.
+- Laufer, B., & Hulstijn, J. (2001). Incidental vocabulary acquisition in a second language: The construct of task-induced involvement. *Applied Linguistics, 22*(1), 1–26.
+- Little, J. L., Bjork, E. L., Bjork, R. A., & Angello, G. (2012). Multiple-choice tests exonerated, at least of some charges: Fostering test-induced learning and avoiding test-induced forgetting. *Psychological Science, 23*(11), 1337–1344.
+- MacLeod, C. M., Gopie, N., Hourihan, K. L., Neary, K. R., & Ozubko, J. D. (2010). The production effect: Delineation of a phenomenon. *Journal of Experimental Psychology: Learning, Memory, and Cognition, 36*(3), 671–685.
+- Nakata, T. (2011). Computer-assisted second language vocabulary learning in a paired-associate paradigm: A critical investigation of flashcard software. *Computer Assisted Language Learning, 24*(1), 17–38.
+- Nation, I. S. P. (2000). Learning vocabulary in lexical sets: Dangers and guidelines. *TESOL Journal, 9*(2), 6–10.
+- Nation, I. S. P. (2013). *Learning vocabulary in another language* (2. Aufl.). Cambridge University Press.
+- Pashler, H., McDaniel, M., Rohrer, D., & Bjork, R. (2008). Learning styles: Concepts and evidence. *Psychological Science in the Public Interest, 9*(3), 105–119.
+- Pyc, M. A., & Rawson, K. A. (2009). Testing the retrieval effort hypothesis: Does greater difficulty correctly recalling information lead to higher levels of memory? *Journal of Memory and Language, 60*(4), 437–447.
+- Rawson, K. A., & Dunlosky, J. (2011). Optimizing schedules of retrieval practice for durable and efficient learning: How much is enough? *Journal of Experimental Psychology: General, 140*(3), 283–302.
+- Roediger, H. L., & Karpicke, J. D. (2006). Test-enhanced learning: Taking memory tests improves long-term retention. *Psychological Science, 17*(3), 249–255.
+- Tinkham, T. (1993). The effect of semantic clustering on the learning of second language vocabulary. *System, 21*(3), 371–380.
+- Wang, A. Y., Thomas, M. H., & Ouellette, J. A. (1992). Keyword mnemonic and retention of second-language vocabulary words. *Journal of Educational Psychology, 84*(4), 520–528.
+- Webb, S. (2008). The effects of context on incidental vocabulary learning. *Reading in a Foreign Language, 20*(2), 232–245.
+- Webb, S. (2009). The effects of receptive and productive learning of word pairs on vocabulary knowledge. *RELC Journal, 40*(3), 360–376.
+- Ye, J., Su, J., & Cao, Y. (2022). A stochastic shortest path algorithm for optimizing spaced repetition scheduling. In *Proceedings of the 28th ACM SIGKDD Conference on Knowledge Discovery and Data Mining* (S. 4381–4390). – Grundlage von FSRS.
 
 ## Installation (Docker)
 

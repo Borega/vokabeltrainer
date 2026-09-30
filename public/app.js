@@ -1,7 +1,8 @@
 import { almostReason, checkAnswer } from './check.js';
-import { csvToWords, rowsToCsv, wordsToCsv } from './csv.js';
+import { aiPrompt, rowsToCsv, textToWords, wordsToCsv } from './csv.js';
 import {
-  afterIntro, choiceOptions, clozeFor, gradeFor, hintPattern, hintTarget, langTag, maxHints, pickExercise, specialChars, speechLang, speechText,
+  afterIntro, choiceOptions, clozeFor, editorChars, gapProblem, gradeFor, hintPattern, hintTarget, langTag, markGap, maxHints, pickExercise,
+  specialChars, speechLang, speechText,
 } from './exercises.js';
 import { canSpeak, speak, stopSpeaking, voicesReady } from './speech.js';
 import { GRADES, SORTS, filterLists, gradeLabel, languagesOf, sortLists } from './listfilter.js';
@@ -201,6 +202,7 @@ function directionLabel(list, dir) {
 }
 
 function toast(message, kind = 'info') {
+  document.querySelectorAll(`.toast.${kind}`).forEach((old) => old.remove()); // nicht übereinander stapeln
   const el = h('div', { class: `toast ${kind}`, role: 'status' }, message);
   document.body.append(el);
   setTimeout(() => el.remove(), 3500);
@@ -617,7 +619,16 @@ async function renderEditor(id) {
     tbody.append(row);
     if (focus) row.querySelector('.a').focus();
     updateCount();
+    checkGap(row);
     return row;
+  }
+
+  // Beispielsatz, aus dem kein Lückentext wird (Wort nicht im Satz, nichts markiert): markieren
+  function checkGap(row) {
+    const input = row.querySelector('.example');
+    const problem = gapProblem({ a: row.querySelector('.a').value, b: row.querySelector('.b').value, example: input.value });
+    input.classList.toggle('gap-missing', problem);
+    input.title = problem ? 'Das Wort steht so nicht im Satz – mit „Lücke“ markieren, sonst gibt es keinen Lückentext.' : '';
   }
   for (const w of list.words) addRow(w);
   if (!list.words.length) for (let i = 0; i < 5; i++) addRow();
@@ -632,20 +643,8 @@ async function renderEditor(id) {
     }))
     .filter((w) => w.a.trim() || w.b.trim());
 
-  // CSV
-  const fileInput = h('input', { type: 'file', accept: '.csv,.tsv,.txt,text/csv,text/plain', hidden: true });
-  fileInput.onchange = async () => {
-    const file = fileInput.files[0];
-    fileInput.value = '';
-    if (!file) return;
-    const text = await file.text();
-    const { words, header } = csvToWords(text);
-    if (!words.length) return toast('In der Datei wurden keine Wörter gefunden.', 'error');
-    const existing = readWords();
-    let replace = !existing.length;
-    if (existing.length) {
-      replace = confirm(`${words.length} Wörter gefunden.\n\nOK = vorhandene ${existing.length} Wörter ersetzen\nAbbrechen = anhängen`);
-    }
+  // Wörter übernehmen – aus einer Datei oder aus eingefügtem Text (KI, Excel, Dokument)
+  function importWords({ words, header }, { replace, name } = {}) {
     if (replace) tbody.replaceChildren();
     else [...tbody.rows].forEach((r) => { if (!r.querySelector('.a').value.trim() && !r.querySelector('.b').value.trim()) r.remove(); });
     for (const w of words) addRow(w);
@@ -654,10 +653,155 @@ async function renderEditor(id) {
       if (!langB.value.trim() || isNew) langB.value = header[1];
       refreshDirectionLabels();
     }
-    if (!title.value.trim()) title.value = file.name.replace(/\.[^.]+$/, '');
+    if (!title.value.trim() && name) title.value = name;
     markDirty();
-    toast(`${words.length} Wörter importiert.`);
+    toast(`${words.length} ${words.length === 1 ? 'Wort' : 'Wörter'} übernommen.`);
+  }
+  const askReplace = (n) => !readWords().length
+    || confirm(`${n} Wörter gefunden.\n\nOK = vorhandene ${readWords().length} Wörter ersetzen\nAbbrechen = anhängen`);
+
+  const fileInput = h('input', { type: 'file', accept: '.csv,.tsv,.txt,.md,text/csv,text/plain,text/markdown', hidden: true });
+  fileInput.onchange = async () => {
+    const file = fileInput.files[0];
+    fileInput.value = '';
+    if (!file) return;
+    const parsed = textToWords(await file.text());
+    if (!parsed.words.length) return toast('In der Datei wurden keine Wörter gefunden.', 'error');
+    importWords(parsed, { replace: askReplace(parsed.words.length), name: file.name.replace(/\.[^.]+$/, '') });
   };
+
+  // Mit KI erstellen: Prompt kopieren, Antwort einfügen, Vorschau prüfen, übernehmen
+  const topic = h('input', { placeholder: 'z. B. Essen und Trinken, Unit 3', maxLength: 100 });
+  const amount = h('input', { type: 'number', min: 5, max: 100, value: 20 });
+  const promptBox = h('textarea', { class: 'prompt-text', readOnly: true, rows: 7, 'aria-label': 'Prompt für die KI' });
+  const syncPrompt = () => {
+    promptBox.value = aiPrompt({
+      langA: langA.value.trim() || 'Englisch', langB: langB.value.trim() || 'Deutsch',
+      grade: Number(grade.value) || null, topic: topic.value, count: Math.min(100, Math.max(5, Number(amount.value) || 20)),
+    });
+  };
+  const copyPrompt = async () => {
+    syncPrompt();
+    try {
+      await navigator.clipboard.writeText(promptBox.value);
+      toast('Prompt kopiert – jetzt in die KI einfügen.');
+    } catch {
+      promptBox.select();
+      toast('Bitte den markierten Text kopieren (Strg+C bzw. Teilen → Kopieren).', 'warn');
+    }
+  };
+  const pasteBox = h('textarea', { rows: 8, placeholder: 'Antwort der KI, eine aus Excel kopierte Tabelle oder Zeilen wie „dog – Hund“ hier einfügen …', 'aria-label': 'Text mit Wörtern' });
+  const preview = h('div', { class: 'import-preview', 'aria-live': 'polite' });
+  const takeReplace = h('button', { type: 'button', class: 'btn primary', disabled: true }, 'Übernehmen (ersetzen)');
+  const takeAppend = h('button', { type: 'button', class: 'btn', disabled: true }, 'Anhängen');
+  let pasted = { words: [] };
+  const syncPreview = () => {
+    pasted = textToWords(pasteBox.value);
+    const n = pasted.words.length;
+    takeReplace.disabled = takeAppend.disabled = !n;
+    if (!pasteBox.value.trim()) return fill(preview);
+    if (!n) return fill(preview, h('p', { class: 'warn small' }, 'Keine Wörter erkannt. Erwartet werden zwei Spalten, z. B. „dog;Hund“, „dog – Hund“ oder eine Tabelle.'));
+    fill(preview,
+      h('p', { class: 'small' }, h('strong', {}, `${n} ${n === 1 ? 'Wort' : 'Wörter'} erkannt`), pasted.format ? ` (${pasted.format}${pasted.header ? ', mit Kopfzeile' : ''})` : '', n > 5 ? ' – die ersten 5:' : ':'),
+      h('table', { class: 'stats' },
+        h('thead', {}, h('tr', {}, ['A', 'B', 'Notiz', 'Beispielsatz'].map((t, i) => h('th', {}, pasted.header?.[i] ?? t)))),
+        h('tbody', {}, pasted.words.slice(0, 5).map((w) => h('tr', {}, [w.a, w.b, w.note, w.example].map((t) => h('td', {}, t)))))));
+  };
+  pasteBox.oninput = syncPreview;
+  const take = (replace) => {
+    if (!pasted.words.length) return;
+    importWords(pasted, { replace: replace && (!readWords().length || confirm(`Die vorhandenen ${readWords().length} Wörter ersetzen?`)) });
+    pasteBox.value = '';
+    syncPreview();
+    importPanel.open = false;
+  };
+  takeReplace.onclick = () => take(true);
+  takeAppend.onclick = () => take(false);
+  const importPanel = h('details', { class: 'import-panel', ontoggle: () => syncPrompt() },
+    h('summary', {}, '✨ Mit KI erstellen oder Text einfügen'),
+    h('div', { class: 'import-steps' },
+      h('div', {},
+        h('h3', {}, '1. Prompt für die KI'),
+        h('div', { class: 'row2' }, field('Thema', topic), field('Anzahl Wörter', amount)),
+        promptBox,
+        h('div', { class: 'actions' }, h('button', { type: 'button', class: 'btn', onclick: copyPrompt }, '📋 Prompt kopieren')),
+        h('p', { class: 'small muted' }, 'Sprachen und Jahrgang kommen aus den Angaben oben. Den Prompt in die KI eurer Schule einfügen – er enthält keine personenbezogenen Daten.')),
+      h('div', {},
+        h('h3', {}, '2. Antwort einfügen'),
+        pasteBox,
+        preview,
+        h('div', { class: 'actions' }, takeReplace, takeAppend))));
+  for (const el of [topic, amount]) el.addEventListener('input', syncPrompt);
+
+  // Werkzeugleiste für die Wörtertabelle: wirkt auf das zuletzt benutzte Feld
+  let lastCell = null;
+  const cellLang = () => {
+    if (!lastCell) return null;
+    const german = (l) => /^(deutsch|german)/i.test(l);
+    const foreign = german(langA.value) && !german(langB.value) ? langB.value : langA.value;
+    return langTag(lastCell.classList.contains('b') ? langB.value : lastCell.classList.contains('a') ? langA.value : foreign);
+  };
+  const changed = (input) => input.dispatchEvent(new Event('input', { bubbles: true }));
+  const keepFocus = (e) => e.preventDefault();
+  function wrapSelection(before, after, emptyHint) {
+    const input = lastCell;
+    const start = input.selectionStart ?? 0;
+    const end = input.selectionEnd ?? 0;
+    if (start === end) return toast(emptyHint, 'warn');
+    input.setRangeText(`${before}${input.value.slice(start, end)}${after}`, start, end, 'end');
+    input.focus();
+    changed(input);
+  }
+  const gapBtn = h('button', { type: 'button', class: 'btn small', onpointerdown: keepFocus, onclick: () => {
+    const input = lastCell;
+    if ((input.selectionEnd ?? 0) > (input.selectionStart ?? 0)) return wrapSelection('*', '*');
+    const row = input.closest('tr');
+    const marked = markGap(input.value, row.querySelector('.a').value) ?? markGap(input.value, row.querySelector('.b').value);
+    if (!marked) return toast(/\*[^*]+\*/.test(input.value) ? 'Die Lücke ist schon markiert.' : 'Wort nicht gefunden – markiere es im Satz und tippe dann auf „Lücke“.', 'warn');
+    input.value = marked;
+    input.focus();
+    changed(input);
+  } }, '✱ Lücke');
+  const optionalBtn = h('button', { type: 'button', class: 'btn small', onpointerdown: keepFocus, onclick: () => wrapSelection('(', ')', 'Erst den Teil markieren, der wegfallen darf, z. B. „to“ in „to go“.') }, '( ) optional');
+  const altBtn = h('button', { type: 'button', class: 'btn small', onpointerdown: keepFocus, onclick: () => {
+    const input = lastCell;
+    const at = input.selectionEnd ?? input.value.length;
+    input.setRangeText('; ', at, at, 'end');
+    input.focus();
+    changed(input);
+  } }, '; Alternative');
+  const allGapsBtn = h('button', { type: 'button', class: 'btn small ghost', onclick: () => {
+    let done = 0;
+    let missing = 0;
+    for (const row of tbody.rows) {
+      const input = row.querySelector('.example');
+      if (!input.value.trim() || /\*[^*]+\*/.test(input.value)) continue;
+      const marked = markGap(input.value, row.querySelector('.a').value) ?? markGap(input.value, row.querySelector('.b').value);
+      if (marked) { input.value = marked; done++; checkGap(row); } else missing++;
+    }
+    if (done) markDirty();
+    toast(`${done} Lücken gesetzt.${missing ? ` Bei ${missing} Sätzen steht das Wort nicht so im Satz – dort von Hand markieren.` : ''}`, missing ? 'warn' : 'info');
+  } }, 'Alle Lücken setzen');
+  const charRow = h('span', { class: 'charbar' });
+  const toolbar = h('div', { class: 'word-toolbar', role: 'toolbar', 'aria-label': 'Bearbeiten' }, gapBtn, optionalBtn, altBtn, charRow, allGapsBtn);
+  function syncToolbar() {
+    const cls = lastCell?.classList;
+    gapBtn.disabled = !cls?.contains('example');
+    optionalBtn.disabled = altBtn.disabled = !(cls?.contains('a') || cls?.contains('b'));
+    fill(charRow, editorChars(cellLang()).map((ch) => h('button', {
+      type: 'button', class: 'char', onpointerdown: keepFocus, 'aria-label': `${ch} einfügen`,
+      onclick: () => {
+        const at = lastCell.selectionStart ?? lastCell.value.length;
+        lastCell.setRangeText(ch, at, lastCell.selectionEnd ?? at, 'end');
+        lastCell.focus();
+        changed(lastCell);
+      },
+    }, ch)));
+  }
+  tbody.addEventListener('focusin', (e) => { if (e.target.matches('input')) { lastCell = e.target; syncToolbar(); } });
+  tbody.addEventListener('input', (e) => { const row = e.target.closest('tr'); if (row) checkGap(row); });
+  syncToolbar();
+
   const exportCsv = () => {
     const csv = wordsToCsv(readWords(), [langA.value.trim() || 'A', langB.value.trim() || 'B', 'Notiz', 'Beispielsatz']);
     const a = h('a', { href: URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })), download: `${title.value.trim() || 'vokabeln'}.csv` });
@@ -747,13 +891,15 @@ async function renderEditor(id) {
       h('div', { class: 'section-head' },
         h('h2', {}, 'Wörter ', counter),
         h('div', { class: 'actions' },
-          h('button', { type: 'button', class: 'btn', onclick: () => fileInput.click() }, 'CSV importieren'),
+          h('button', { type: 'button', class: 'btn', onclick: () => fileInput.click() }, 'Datei importieren'),
           h('button', { type: 'button', class: 'btn', onclick: exportCsv }, 'CSV exportieren'),
           fileInput,
         ),
       ),
-      h('p', { class: 'small muted' }, 'CSV: erste Spalte Seite A, zweite Spalte Seite B, optional dritte Spalte Notiz und vierte Spalte Beispielsatz (Trennzeichen ; , oder Tab). Mit Enter springst du in die nächste Zeile.'),
-      h('p', { class: 'small muted' }, 'Beispielsatz: Kommt das Wort darin vor, wird daraus in der Lernleiter ein Lückentext. Gebeugte Formen mit Sternchen markieren: „Yesterday I *went* home.“'),
+      importPanel,
+      h('p', { class: 'small muted' }, 'Datei: CSV, Text oder Markdown – Spalten Seite A, Seite B, optional Notiz und Beispielsatz. Mit Enter springst du in die nächste Zeile.'),
+      h('p', { class: 'small muted' }, 'Beispielsatz: Kommt das Wort darin vor, wird daraus in der Lernleiter ein Lückentext. Gebeugte Formen markieren: Wort im Satz auswählen und „✱ Lücke“ tippen („Yesterday I *went* home.“). Rot umrandete Sätze ergeben noch keinen Lückentext.'),
+      toolbar,
       h('div', { class: 'table-wrap' },
         h('table', { class: 'words' },
           h('thead', {}, h('tr', {}, colA, colB, h('th', {}, 'Notiz'), h('th', {}, 'Beispielsatz'), h('th', {}))),

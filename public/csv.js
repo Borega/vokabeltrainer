@@ -82,3 +82,95 @@ export function wordsToCsv(words, header) {
   // BOM, damit Excel Umlaute richtig anzeigt
   return '﻿' + lines.join('\r\n') + '\r\n';
 }
+
+// ---------- Text aus KI, Excel oder Dokumenten ----------
+
+// Trennzeichen zwischen Wort und Übersetzung, in dieser Reihenfolge bevorzugt
+const SEPARATORS = ['\t', ';', ' – ', ' — ', ' = ', ' - ', ': ', ','];
+const count = (line, sep) => line.split(sep).length - 1;
+
+// Welches Trennzeichen passt? Es muss in den meisten Zeilen vorkommen; am besten jedes Mal gleich oft
+// (CSV mit vier Spalten: drei Semikolons pro Zeile). So gewinnt bei „dog – Hund; Tier“ der Gedankenstrich.
+function pickSeparator(lines) {
+  let best = null;
+  for (const sep of SEPARATORS) {
+    const counts = lines.map((l) => count(l, sep));
+    const withSep = counts.filter((n) => n > 0);
+    if (withSep.length < lines.length * 0.6) continue;
+    const modal = withSep.sort((x, y) => withSep.filter((n) => n === y).length - withSep.filter((n) => n === x).length)[0];
+    const steady = counts.filter((n) => n === modal).length / lines.length;
+    if (!best || steady > best.steady) best = { sep, steady };
+  }
+  return best?.sep ?? null;
+}
+
+function rowsToWords(rows) {
+  const clean = rows
+    .map((r) => r.map((f) => f.replace(/\*\*(.+?)\*\*/g, '$1').trim()))
+    .filter((r) => r.filter(Boolean).length >= 2);
+  let header = null;
+  if (clean.length && clean[0].slice(0, 2).every((f) => HEADER_WORDS.test(f))) header = clean.shift();
+  // Mit Kopfzeile Spalten 3+ nach Namen zuordnen („Beispielsatz“ kann auch an dritter Stelle stehen)
+  const find = (re) => (header ? header.findIndex((h, i) => i >= 2 && re.test(h)) : -1);
+  let noteCol = find(/notiz|note|hinweis|anmerkung|bemerkung/i);
+  let exampleCol = find(/beispiel|example|satz|sentence|kontext/i);
+  if (noteCol < 0 && exampleCol < 0) [noteCol, exampleCol] = [2, 3];
+  const words = clean.map((r) => ({
+    a: r[0] ?? '',
+    b: r[1] ?? '',
+    note: noteCol >= 0 ? r[noteCol] ?? '' : '',
+    example: exampleCol >= 0 ? (exampleCol === 3 && noteCol === 2 ? r.slice(3).filter(Boolean).join(' ') : r[exampleCol] ?? '') : '',
+  }));
+  return { words, header };
+}
+
+// Wörter aus beliebigem Text: CSV-Datei, aus Excel kopierte Tabelle oder die Antwort einer KI –
+// Markdown-Tabelle, CSV im Codeblock, Zeilen wie „dog – Hund“ oder „1. to go = gehen“.
+// Zeilen ohne erkennbare zwei Spalten (Einleitungssätze der KI) fallen weg.
+export function textToWords(text) {
+  let t = String(text ?? '').replace(/^﻿/, '').replace(/\r\n?/g, '\n');
+  const fence = t.match(/```[^\n]*\n([\s\S]*?)```/);
+  if (fence) t = fence[1];
+  const lines = t.split('\n').map((l) => l.trim()).filter(Boolean);
+  if (!lines.length) return { words: [], header: null, format: null };
+
+  // Markdown-Tabelle: | dog | Hund |
+  const tableLines = lines.filter((l) => l.startsWith('|'));
+  if (tableLines.length >= 2 && tableLines.length >= lines.length * 0.5) {
+    const rows = tableLines
+      .filter((l) => !/^\|[\s:|-]+\|?$/.test(l))
+      .map((l) => l.replace(/^\|/, '').replace(/\|$/, '').split('|'));
+    return { ...rowsToWords(rows), format: 'Tabelle' };
+  }
+
+  // Zeilen, ggf. mit Aufzählungszeichen: „1. dog – Hund“, „- dog – Hund“
+  const unlisted = lines.map((l) => l.replace(/^(\d{1,3}[.)]|[-*•])\s+/, ''));
+  const sep = pickSeparator(unlisted);
+  if (!sep) return { words: [], header: null, format: null };
+  if (['\t', ';', ','].includes(sep)) {
+    return { ...rowsToWords(parseCsv(unlisted.join('\n'), sep)), format: sep === '\t' ? 'Tabelle' : 'CSV' };
+  }
+  return { ...rowsToWords(unlisted.map((l) => l.split(sep))), format: 'Liste' };
+}
+
+// Prompt für eine KI, die eine Liste genau in dem Format liefert, das textToWords versteht.
+// Beispielsätze in der Fremdsprache mit markierter Lücke, damit Lückentexte entstehen.
+export function aiPrompt({ langA = 'Englisch', langB = 'Deutsch', grade = null, topic = '', count = 20 } = {}) {
+  const german = (l) => /^(deutsch|german)/i.test(l.trim());
+  const foreign = german(langA) && !german(langB) ? langB : langA;
+  const describe = (lang) => (lang === foreign
+    ? `das Wort auf ${lang} (Nomen mit bestimmtem Artikel, Verben im Infinitiv)`
+    : `die Bedeutung auf ${lang}; mehrere richtige Bedeutungen mit | trennen, z. B. „groß | hoch“`);
+  return [
+    `Erstelle eine Vokabelliste für den ${foreign}-Unterricht${grade ? ` in Jahrgang ${grade}` : ''}${topic.trim() ? ` zum Thema „${topic.trim()}“` : ''} mit ${count} Einträgen.`,
+    'Antworte nur mit einem Codeblock im CSV-Format mit Semikolon als Trennzeichen, ohne weitere Erklärungen.',
+    `Erste Zeile: ${langA};${langB};Notiz;Beispielsatz`,
+    'Regeln:',
+    `- Spalte 1: ${describe(langA)}.`,
+    `- Spalte 2: ${describe(langB)}.`,
+    '- Teile, die man weglassen darf, in Klammern, z. B. „(to) go“. Männliche und weibliche Form zusammen als „bueno/a“ oder „heureux, -euse“.',
+    '- Spalte 3 (Notiz): nur wenn nötig und sehr kurz (z. B. Genus, unregelmäßig), sonst leer lassen.',
+    `- Spalte 4 (Beispielsatz): ein kurzer, einfacher Satz auf ${foreign}${grade ? ` für Jahrgang ${grade}` : ''}. Das gesuchte Wort im Satz mit *Sternchen* markieren, auch in gebeugter Form, z. B. „Yesterday I *went* home.“`,
+    '- Keine Semikolons innerhalb der Felder.',
+  ].join('\n');
+}

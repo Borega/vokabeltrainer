@@ -183,6 +183,42 @@ export function clozeFor(word, side, langs) {
   return markedGap(example) ?? foundGap(example, word[side]);
 }
 
+// ---------- Editor: Lücken markieren ----------
+
+// Lücke für ein Wort der Liste im Beispielsatz markieren: „The dog barks.“ + „the dog“ → „The *dog* barks.“
+// null, wenn schon markiert oder das Wort (bzw. eine seiner Varianten) nicht im Satz vorkommt.
+export function markGap(example, word) {
+  if (!example?.trim() || /\*[^*]+\*/.test(example) || !word?.trim()) return null;
+  const variantsWithoutArticle = variants(word).flatMap((v) => [v, v.replace(/^(the|to|a|an|le|la|les|l'|un|une|el|los|las|il|lo|der|die|das)\s*/i, '')]);
+  for (const candidate of [...new Set(variantsWithoutArticle)].filter(Boolean).sort((x, y) => y.length - x.length)) {
+    const gap = foundGap(example, candidate);
+    if (gap) return `${gap.before}*${gap.gap}*${gap.after}`;
+  }
+  return null;
+}
+
+// Wird aus dem Beispielsatz ein Lückentext? false, wenn weder markiert noch ein Wort der Zeile darin zu finden ist.
+export function gapProblem(word) {
+  const example = word.example?.trim();
+  if (!example || /\*[^*]+\*/.test(example)) return false;
+  return !foundGap(example, word.a) && !foundGap(example, word.b);
+}
+
+// Sonderzeichen je Sprache für die Leiste im Editor (nach Sprachkennung, siehe langTag)
+const EDITOR_CHARS = {
+  fr: 'é è ê ë à â æ ç î ï ô œ ù û ü ÿ « »',
+  es: 'á é í ó ú ü ñ ¿ ¡',
+  it: 'à è é ì í ò ó ù',
+  pt: 'á â ã à ç é ê í ó ô õ ú',
+  la: 'ā ē ī ō ū ȳ',
+  pl: 'ą ć ę ł ń ó ś ź ż',
+  tr: 'ç ğ ı İ ö ş ü',
+  nl: 'é ë ï ó ö',
+};
+export function editorChars(tag) {
+  return EDITOR_CHARS[(tag ?? '').split('-')[0]]?.split(' ') ?? [];
+}
+
 // Beispielsatz ohne Markierungen
 export function plainExample(example) {
   return (example ?? '').replace(/\*/g, '');

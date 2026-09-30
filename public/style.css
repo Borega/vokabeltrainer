@@ -280,6 +280,22 @@ div.example, span.example { color: var(--muted); font-size: .95rem; font-style: 
 }
 .choice-btn.is-right { opacity: 1; border-color: var(--right); background: var(--right-bg); color: var(--right); font-weight: 600; }
 .choice-btn.is-wrong { opacity: 1; border-color: var(--wrong); background: var(--wrong-bg); color: var(--wrong); }
+/* Editor: Import und Werkzeugleiste */
+.import-panel { margin: .75rem 0; border: 1px solid var(--border); border-radius: 10px; padding: .6rem .9rem; background: var(--bg); }
+.import-panel summary { cursor: pointer; font-weight: 600; }
+.import-panel h3 { margin: .75rem 0 .4rem; font-size: 1rem; }
+.import-steps { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+.import-panel textarea { width: 100%; font: inherit; font-size: .9rem; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: .5rem .65rem; resize: vertical; }
+.import-panel .prompt-text { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .8rem; }
+.import-preview table { font-size: .85rem; }
+.word-toolbar {
+  position: sticky; top: 3.4rem; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: .4rem;
+  padding: .5rem 0; background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.word-toolbar .charbar { display: inline-flex; }
+.word-toolbar .char { min-width: 2rem; min-height: 2rem; font-size: 1rem; }
+.word-toolbar .btn.small:disabled { opacity: .45; cursor: default; }
+input.example.gap-missing { border-color: var(--wrong); }
 .charbar { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: .4rem; }
 .charbar .char {
   min-width: 2.5rem; min-height: 2.5rem; padding: .2rem .5rem; font: inherit; font-size: 1.15rem;
@@ -350,7 +366,7 @@ th[aria-sort="descending"] button.sort::after { content: " ▼"; font-size: .7em
 .toast.warn { background: var(--warn); color: #fff; bottom: 4.5rem; }
 
 @media (max-width: 640px) {
-  .row2, .choice { grid-template-columns: 1fr; }
+  .row2, .choice, .import-steps { grid-template-columns: 1fr; }
   .who .chip { display: none; }
   h1 { font-size: 1.35rem; }
   .flipcard { height: 230px; }
