@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  choiceOptions, clozeFor, exampleSide, gradeFor, hintPattern, hintTarget, langTag, maxHints, pickExercise, specialChars, speechLang, speechText,
+  choiceOptions, clozeFor, editorChars, exampleSide, gapProblem, gradeFor, hintPattern, hintTarget, langTag, markGap, maxHints, pickExercise, specialChars, speechLang, speechText,
 } from '../public/exercises.js';
 
 const fixed = (v) => () => v;
@@ -125,4 +125,31 @@ test('Sprachkennung für lang-Attribute, auch ohne Stimme', () => {
   assert.equal(langTag('Deutsch'), 'de-DE');
   assert.equal(langTag('Klingonisch'), null);
   assert.equal(speechLang('Latein'), null, 'Vorlesen bleibt für Latein aus');
+});
+
+test('Lücke automatisch setzen: Artikel und Klammern dürfen fehlen, bereits markiert bleibt', () => {
+  assert.equal(markGap('Le fromage est bon.', 'le fromage'), 'Le *fromage* est bon.');
+  assert.equal(markGap('The dog barks.', 'the dog'), 'The *dog* barks.');
+  assert.equal(markGap('I like my dog.', 'the dog'), 'I like my *dog*.');
+  assert.equal(markGap("J'aime l'eau.", "l'eau"), "J'aime l'*eau*.");
+  assert.equal(markGap('The day is nice.', 'today'), null, '„to“ nur als eigenes Wort');
+  assert.equal(markGap('I am here today.', 'today'), 'I am here *today*.');
+  assert.equal(markGap('We go home.', '(to) go'), 'We *go* home.');
+  assert.equal(markGap('We *go* home.', 'go'), null);
+  assert.equal(markGap('Nous buvons de l\'eau.', 'boire'), null);
+  assert.equal(markGap('', 'dog'), null);
+});
+
+test('Hinweis im Editor, wenn aus dem Beispielsatz kein Lückentext wird', () => {
+  assert.equal(gapProblem({ a: 'boire', b: 'trinken', example: 'Nous buvons de l\'eau.' }), true);
+  assert.equal(gapProblem({ a: 'boire', b: 'trinken', example: 'Nous *buvons* de l\'eau.' }), false);
+  assert.equal(gapProblem({ a: 'dog', b: 'Hund', example: 'The dog barks.' }), false);
+  assert.equal(gapProblem({ a: 'dog', b: 'Hund', example: '' }), false);
+});
+
+test('Sonderzeichen-Leiste im Editor je Sprache', () => {
+  assert.ok(editorChars('fr-FR').includes('ç'));
+  assert.ok(editorChars('es-ES').includes('ñ'));
+  assert.deepEqual(editorChars('en-GB'), []);
+  assert.deepEqual(editorChars(null), []);
 });
