@@ -11,7 +11,22 @@ const lists = [
 const titles = (ls) => ls.map((l) => l.title);
 
 test('Sprachen für die Auswahl: häufigste zuerst, ohne Deutsch, Schreibweise egal', () => {
-  assert.deepEqual(languagesOf(lists), ['Englisch', 'Französisch', 'Spanisch']);
+  assert.deepEqual(languagesOf(lists), [
+    { value: 'englisch', label: 'Englisch' },
+    { value: 'französisch', label: 'Französisch' },
+    { value: 'spanisch', label: 'Spanisch' },
+  ]);
+  // Gemerkter Wert passt, auch wenn sich die Schreibweise der ersten Liste ändert
+  assert.equal(filterLists(lists, { lang: 'englisch' }).length, 2);
+});
+
+test('Jede Liste zählt pro Sprache nur einmal', () => {
+  const ls = [
+    { lang_a: 'Englisch', lang_b: 'englisch' },
+    { lang_a: 'Latein', lang_b: 'Deutsch' },
+    { lang_a: 'Latein', lang_b: 'Deutsch' },
+  ];
+  assert.deepEqual(languagesOf(ls).map((l) => l.label), ['Latein', 'Englisch']);
 });
 
 test('Filtern nach Sprache, Jahrgang und Suchtext', () => {

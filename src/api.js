@@ -38,7 +38,11 @@ function parseListBody(body) {
   const title = text(body.title, 200, 'Titel');
   if (!title) throw new HttpError(400, 'Bitte einen Titel angeben.');
   const mode = MODES.includes(body.mode) ? body.mode : 'auto';
-  const grade = Number(body.grade);
+  // Nur eine Zahl oder eine schlichte Dezimalzahl als Text – kein true, [7] oder "0xA"
+  const rawGrade = body.grade;
+  const grade = typeof rawGrade === 'number' || (typeof rawGrade === 'string' && /^\d{1,2}$/.test(rawGrade.trim()))
+    ? Number(rawGrade)
+    : NaN;
   if (!Number.isInteger(grade) || grade < GRADES_MIN || grade > GRADES_MAX) {
     throw new HttpError(400, 'Bitte die Jahrgangsstufe angeben.');
   }

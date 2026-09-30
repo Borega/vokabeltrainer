@@ -418,11 +418,12 @@ test('Abfrageart wechseln: standardmäßig erlaubt, pro Liste abschaltbar, beim 
 test('Jahrgangsstufe: Pflicht beim Speichern, in geteilten Listen und Kopien', async () => {
   const teacher = await login('Frau Jahrgang', { teacher: true, groups: 'Klasse 5a' });
   const colleague = await login('Herr Jahrgang', { teacher: true, groups: 'Klasse 6a' });
-  for (const grade of [undefined, '', 0, 14, 6.5, 'sieben']) {
+  for (const grade of [undefined, null, '', 0, 14, 6.5, 'sieben', true, [7], '0xA', '7e0', {}]) {
     const res = await teacher('POST', '/lists', { ...listBody, grade });
     assert.equal(res.status, 400, `grade ${JSON.stringify(grade)}`);
     assert.match(res.body.error, /Jahrgangsstufe/);
   }
+  assert.equal((await teacher('POST', '/lists', { ...listBody, grade: '8' })).status, 201, 'Zahl als Text geht');
   const { body: { id } } = await teacher('POST', '/lists', { ...listBody, title: 'Jahrgang 5', grade: 5, shared: true });
   assert.equal((await teacher('GET', `/lists/${id}`)).body.grade, 5);
   const shared = (await colleague('GET', '/shared')).body.find((l) => l.id === id);

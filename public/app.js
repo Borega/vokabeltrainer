@@ -1670,7 +1670,8 @@ async function renderShared() {
     h('select', { 'aria-label': label, dataset: { name }, onchange: (e) => { pref(`shared.${name}`, e.target.value); render(); } },
       options.map(([value, text]) => h('option', { value, selected: value === current }, text))));
 
-  const langSelect = select('Sprache', 'lang', [['', 'Alle Sprachen'], ...languages.map((l) => [l, l])], saved('lang', languages));
+  const langSelect = select('Sprache', 'lang', [['', 'Alle Sprachen'], ...languages.map((l) => [l.value, l.label])],
+    saved('lang', languages.map((l) => l.value)));
   const gradeValues = GRADES.map(String);
   const gradeSelect = select('Jahrgang', 'grade', [['', 'Alle Jahrgänge'], ...GRADES.map((g) => [String(g), `Jahrgang ${g}`]), ['none', 'ohne Angabe']],
     saved('grade', [...gradeValues, 'none']));
