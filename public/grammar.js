@@ -618,11 +618,21 @@ export function validateRules(rules) {
 
 const wordSet = (s) => new Set(tokens(loose(String(s).split('\n')[0].replace(/[*{}|/()]/g, ' '))));
 
-// Die gesuchten Formen einer Aufgabe (*…*): Wechselt die Lösung, ist es eine andere Aufgabe
-const gapsOf = (s) => [...String(s).split('\n')[0].matchAll(/\*([^*]*)\*/g)].map((m) => loose(m[1])).join('|');
+// Die Hauptlösung einer Aufgabe, für jede Aufgabenart: Wechselt sie, ist es eine andere Aufgabe – auch wenn der
+// Satz fast gleich bleibt (bei einer Auswahl die richtige Form an erster Stelle). Zusätzliche Varianten zählen
+// nicht: Wer eine weitere gültige Lösung ergänzt, bearbeitet dieselbe Aufgabe.
+function solutionKey(source) {
+  const item = parseItem(source);
+  if (item.error) return '';
+  let key;
+  if (item.gaps) key = item.gaps.map((g) => expand(g.answers[0])[0]).join('|');
+  else if (item.orders) key = item.orders[0].join(' ');
+  else key = expand(item.solutions[0])[0];
+  return `${item.type === 'transform' ? 'translate' : item.type}:${loose(key)}`;
+}
 
 function similarity(a, b) {
-  if (gapsOf(a) !== gapsOf(b)) return 0;
+  if (solutionKey(a) !== solutionKey(b)) return 0;
   const x = wordSet(a);
   const y = wordSet(b);
   if (!x.size || !y.size) return 0;
@@ -633,7 +643,7 @@ function similarity(a, b) {
 
 // Beim Speichern: Welche Aufgabe im Textfeld ist welche gespeicherte? IDs bleiben erhalten, damit Lernstand
 // und Fehlerstatistik nicht verloren gehen. Erst gleicher Text, dann die ähnlichste übrige Aufgabe mit
-// derselben gesuchten Form und mindestens 60 % gleichen Wörtern (eine bearbeitete Zeile), sonst neu.
+// derselben Hauptlösung und mindestens 60 % gleichen Wörtern (eine bearbeitete Zeile), sonst neu.
 // old: [{ id, source }], sources: Texte der Aufgaben im Feld. Ergebnis: Liste gleicher Länge mit ID oder null.
 export function matchItems(old, sources) {
   const ids = sources.map(() => null);

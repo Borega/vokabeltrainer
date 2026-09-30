@@ -789,7 +789,7 @@ export function apiRouter(db, config) {
            FROM grammar_log g JOIN items i ON i.id = g.item_id JOIN rules r ON r.id = g.rule_id
            JOIN users u ON u.id = g.user_id AND u.is_teacher = 0
            WHERE r.list_id = ? AND g.answer IS NOT NULL
-           GROUP BY g.item_id, LOWER(g.answer) ORDER BY count DESC, g.item_id LIMIT ${MAX_ERRORS}`,
+           GROUP BY g.item_id, unicode_lower(g.answer) ORDER BY count DESC, g.item_id LIMIT ${MAX_ERRORS}`,
         )
         .all(list.id);
       return { list: listJson(list), rule_count: n, safe_box: SAFE_BOX, groups, hardest, errors };

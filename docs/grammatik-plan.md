@@ -389,9 +389,10 @@ folgende Festlegungen ergeben:
   `?` am Anfang (sonst ein Standardtext).
 - **Eine Bewertung pro Regel und Runde** wird gesendet, sobald alle Aufgaben der Regel in der Runde beantwortet
   sind; beim Beenden oder Verlassen der Runde und beim Wechsel der App in den Hintergrund gehen die schon beantworteten
-  Aufgaben ebenfalls raus (der Rest der Regel bekommt dann eine zweite Bewertung). Wiederholungen nach Fehlern zählen nicht.
+  Aufgaben ebenfalls raus, auch eine schon abgeschickte, aber noch nicht mit „Weiter“ bestätigte Antwort (dann ist „Ich hatte
+  recht“ nicht mehr möglich; der Rest der Regel bekommt eine zweite Bewertung). Wiederholungen nach Fehlern zählen nicht.
 - **Speichern im Editor:** Aufgaben werden beim Bearbeiten wiedererkannt (gleicher Text, sonst ähnlichste
-  Zeile mit derselben gesuchten Form und ≥ 60 % gleichen Wörtern), sodass Lernstand und Fehlerstatistik erhalten bleiben. Der Textdatei-Import hängt Regeln nur an und
+  Zeile mit derselben Hauptlösung und ≥ 60 % gleichen Wörtern; bei einer Auswahl zählt die richtige Form), sodass Lernstand und Fehlerstatistik erhalten bleiben. Der Textdatei-Import hängt Regeln nur an und
   ersetzt nichts. Jede Regel braucht einen Titel, einen Merksatz und mindestens eine Aufgabe.
 - **Hinweis per Klick:** `POST /api/lists/:id/feedback` legt `! Antwort = Hinweis` unter der Aufgabe an (oder ersetzt
   den Hinweis zur selben Antwort). Antworten mit `|` oder `=` lassen sich so nicht anlegen (im Editor eintragen).

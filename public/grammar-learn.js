@@ -284,7 +284,13 @@ export async function renderGrammarLearn(ctx, list) {
       st.sent = st.items.length;
       record(ruleId, roundGrade(fresh.map((i) => i.grade)), fresh);
     }
-    const flushAll = () => [...states.keys()].forEach(flush);
+    // Aufgabe, deren Antwort schon abgeschickt ist (Feedback steht), aber noch nicht mit „Weiter“ bestätigt wurde:
+    // settleCurrent() verbucht sie, damit sie beim Verlassen nicht verloren geht (siehe showTask)
+    let settleCurrent = null;
+    const flushAll = () => {
+      settleCurrent?.();
+      [...states.keys()].forEach(flush);
+    };
     // Wer die App wegwischt, das Gerät sperrt oder die Seite schließt, behält die schon beantworteten Aufgaben.
     // visibilitychange feuert dafür zuverlässiger als pagehide (iPad-App auf dem Home-Bildschirm).
     const onHide = () => { if (document.visibilityState === 'hidden') flushAll(); };
@@ -338,6 +344,7 @@ export async function renderGrammarLearn(ctx, list) {
     // ---------- eine Aufgabe ----------
 
     function showTask(task, rule) {
+      settleCurrent = null;
       const entry = rule.items.find((e) => e.id === task.itemId);
       const item = asKind(entry.item, task.kind) ?? entry.item;
       // Übungsart nach der Aufgabe selbst (Umformen und Übersetzen sind beide „translate“)
@@ -350,6 +357,7 @@ export async function renderGrammarLearn(ctx, list) {
       let helped = false;
       let firstWrong = null;
       let outcome = null;
+      let committed = false;
       const feedback = h('div', { class: 'feedback grammar-feedback', 'aria-live': 'polite' });
       const panel = h('div', { class: 'rule-panel', hidden: true });
       const submit = h('button', { class: 'btn primary', type: 'submit', hidden: !!ui.noSubmit }, 'Prüfen');
@@ -395,6 +403,13 @@ export async function renderGrammarLearn(ctx, list) {
         outcome = { result, correct, almost };
         ui.reveal(result, correct || almost ? 'shown' : 'wrong');
         form.classList.add(correct ? 'is-right' : almost ? 'is-almost' : 'is-wrong');
+        const overrideBtn = h('button', { type: 'button', class: 'btn ghost small', onclick: () => { outcome.override = true; proceed(); } }, 'Ich hatte recht');
+        // Verlässt jemand die Runde jetzt, zählt die Antwort so, wie sie dasteht – danach ist „Ich hatte recht“ nicht mehr möglich
+        settleCurrent = () => {
+          if (committed) return;
+          commit();
+          overrideBtn.remove();
+        };
         const why = { accents: 'Achte auf Akzente und Sonderzeichen.', case: 'Achte auf Groß- und Kleinschreibung.', typo: 'Kleiner Tippfehler.' };
         const reasons = [...new Set((result.gaps ?? [result]).map((g) => g.reason).filter(Boolean))];
         fill(feedback,
@@ -402,7 +417,7 @@ export async function renderGrammarLearn(ctx, list) {
           almost ? h('span', {}, ` ${reasons.map((r) => why[r]).join(' ') || why.typo}`) : null,
           h('div', { class: 'solution-line' }, ui.solution(correct ? result : null, !correct), speakBtn()),
           correct || almost ? null : hint(result.wrong),
-          !correct ? h('button', { type: 'button', class: 'btn ghost small', onclick: () => { outcome.override = true; proceed(); } }, 'Ich hatte recht') : null,
+          !correct ? overrideBtn : null,
           !correct && !almost ? h('button', { type: 'button', class: 'btn ghost small', onclick: togglePanel }, '📖 Regel ansehen') : null,
         );
         submit.textContent = 'Weiter';
@@ -412,8 +427,10 @@ export async function renderGrammarLearn(ctx, list) {
         if (sound) speak(solutionText(item), lang);
       }
 
-      function proceed() {
-        if (phase !== 'done') return;
+      // Antwort verbuchen (höchstens einmal je Aufgabe)
+      function commit() {
+        if (committed) return;
+        committed = true;
         const correct = outcome.correct || !!outcome.override;
         // „Fast!“ zählt als „hard“; „Ich hatte recht“ wie eine richtige Antwort
         const almost = outcome.almost && !outcome.override;
@@ -424,6 +441,12 @@ export async function renderGrammarLearn(ctx, list) {
           // „Ich hatte recht“: Die Antwort war dann kein Fehler und gehört nicht in die Fehlerstatistik
           answer: outcome.override ? null : firstWrong,
         });
+      }
+
+      function proceed() {
+        if (phase !== 'done') return;
+        commit();
+        settleCurrent = null;
         next();
       }
 

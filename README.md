@@ -222,7 +222,7 @@ Antwort als „mit Mühe“, „Ich hatte recht“ ist möglich.
 Geplant wird **pro Regel, nicht pro Satz** – sonst würde irgendwann der Satz auswendig gelernt statt der Regel.
 Pro Regel und Runde zählt **eine** Bewertung: die schlechteste der Runde. Mehrere Bewertungen am selben Tag
 erhöhen die Stabilität kaum, ein einzelnes *again* würde sie aber senken. Im Verlauf wird trotzdem jede Aufgabe
-einzeln gespeichert. Beim Beenden oder Verlassen einer Runde – und wenn die App in den Hintergrund geht – werden die schon beantworteten Aufgaben übernommen (für den Rest der Regel gibt es dann eine zweite Bewertung).
+einzeln gespeichert. Beim Beenden oder Verlassen einer Runde – und wenn die App in den Hintergrund geht – werden die schon beantworteten Aufgaben übernommen, auch eine abgeschickte, aber noch nicht mit „Weiter“ bestätigte (dann entfällt „Ich hatte recht“; für den Rest der Regel gibt es eine zweite Bewertung).
 
 ### Auswertung für Lehrkräfte
 

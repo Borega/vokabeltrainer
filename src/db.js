@@ -84,6 +84,8 @@ export function openDb(dataDir) {
   // Fremdschlüssel erst nach den Migrationen einschalten (node:sqlite schaltet sie standardmäßig ein):
   // Beim Neuaufbau einer Tabelle würde DROP TABLE sonst abhängige Zeilen (z. B. alle Wörter einer Liste) mitlöschen.
   db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = OFF; PRAGMA busy_timeout = 5000;');
+  // SQLites LOWER() kennt nur ASCII („Étais“ ≠ „étais“); die Auswertung fasst Antworten Unicode-fest zusammen
+  db.function('unicode_lower', { deterministic: true }, (value) => (value == null ? null : String(value).normalize('NFC').toLocaleLowerCase('de').replace(/\s+/g, ' ').trim()));
   db.exec(SCHEMA);
   migrate(db);
   db.exec('PRAGMA foreign_keys = ON;');

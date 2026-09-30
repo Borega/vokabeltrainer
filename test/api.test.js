@@ -863,6 +863,11 @@ test('Grammatik-Auswertung: Gruppen, schwierige Regeln, häufige Fehler ohne Nam
   assert.equal((await add({ item_id: 999999, answer: 'x', text: 'y' })).status, 404);
   assert.equal((await add({ item_id: a.id, answer: 'x', text: 'y' }, other)).status, 403);
   assert.equal((await add({ item_id: a.id, answer: 'x', text: 'y' }, s1)).status, 403);
+  // Groß-/Kleinschreibung auch bei Akzenten und Umlauten zusammenfassen (SQLites LOWER kennt nur ASCII)
+  await s1('POST', `/lists/${id}/results`, { results: [{ rule_id: r2.id, grade: 'again', items: [wrong(r2.items[0], 'Étais'), wrong(r2.items[0], 'étais'), wrong(r2.items[0], 'Ärger')] }] });
+  const accented = (await teacher('GET', `/lists/${id}/stats`)).body.errors.filter((e) => e.item_id === r2.items[0].id);
+  assert.deepEqual(accented.map((e) => [e.answer.toLowerCase(), e.count]).sort(), [['ärger', 1], ['étais', 2]]);
+
   const vocab = (await teacher('POST', '/lists', listBody)).body.id;
   assert.equal((await teacher('POST', `/lists/${vocab}/feedback`, { item_id: 1, answer: 'x', text: 'y' })).status, 400);
 });

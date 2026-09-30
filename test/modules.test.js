@@ -44,6 +44,18 @@ test('jeder importierte Name wird vom Modul auch exportiert', () => {
   assert.ok(imports > 50, `geprüfte Imports: ${imports}`);
 });
 
+// Wie oft kommt der Name als eigenes Wort vor (nicht als Teil von „foobar“ oder als Eigenschaft „x.foo“)?
+function countUses(text, name) {
+  const escaped = name.replace(/[$]/g, String.raw`\$`);
+  return (text.match(new RegExp(String.raw`(?<![\w$.])${escaped}(?![\w$])`, 'g')) ?? []).length;
+}
+
+test('Wortgrenzen beim Zählen der Verwendungen', () => {
+  assert.equal(countUses('import { foo } from "x"; foobar(); barfoo(); x.foo(); $foo;', 'foo'), 1, 'nur der Import');
+  assert.equal(countUses('import { foo } from "x"; foo(); foo.bar;', 'foo'), 3);
+  assert.equal(countUses('const a = 1;', 'foo'), 0);
+});
+
 test('importierte Namen werden im Modul auch benutzt (keine toten Imports)', () => {
   for (const file of modules) {
     const text = source(file);
@@ -51,8 +63,7 @@ test('importierte Namen werden im Modul auch benutzt (keine toten Imports)', () 
       for (const raw of m[1].split(',')) {
         const name = raw.trim().split(/\s+as\s+/).pop();
         if (!name) continue;
-        const uses = text.match(new RegExp(`(?<![\w$.])${name.replace(/\$/g, '\$')}(?![\w$])`, 'g')) ?? [];
-        assert.ok(uses.length > 1, `${file} importiert „${name}“, benutzt es aber nicht`);
+        assert.ok(countUses(text, name) > 1, `${file} importiert „${name}“, benutzt es aber nicht`);
       }
     }
   }

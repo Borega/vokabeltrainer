@@ -461,6 +461,16 @@ test('Aufgaben beim Bearbeiten wiedererkennen: gleich, bearbeitet, neu', () => {
   assert.deepEqual(matchItems([{ id: 6, source: 'She *has lived* here since 2010.' }], ['She *lives* here since 2010.']), [null]);
   // nur Jahreszahl oder Hinweis geändert: dieselbe Aufgabe
   assert.deepEqual(matchItems([{ id: 7, source: 'She *has lived* (live) here since 2010.' }], ['She *has lived* (live) here since 2012.']), [7]);
+  // Auswahl: Wechselt die richtige Form (die erste), ist es eine andere Aufgabe – auch bei gleichen Wörtern
+  assert.deepEqual(matchItems([{ id: 11, source: 'They {have known|knew} each other since school.' }], ['They {knew|have known} each other since school.']), [null]);
+  // Auswahl: nur ein Ablenker ergänzt oder umsortiert – dieselbe Aufgabe
+  assert.deepEqual(matchItems([{ id: 12, source: 'They {have known|knew} each other since school.' }], ['They {have known|knew|are knowing} each other since school.']), [12]);
+  // Fehler finden, Satzbau, Übersetzen: andere Hauptlösung = neue Aufgabe, zusätzliche Variante = gleiche
+  assert.deepEqual(matchItems([{ id: 13, source: 'Fehler: He have worked here for years. → He has worked here for years.' }], ['Fehler: He have worked here for years. → He worked here for years.']), [null]);
+  assert.deepEqual(matchItems([{ id: 14, source: 'Übersetzen: Ich kenne sie seit drei Jahren. → I have known her for three years.' }],
+    ['Übersetzen: Ich kenne sie seit drei Jahren. → I have known her for three years. | I’ve known her for three years.']), [14]);
+  assert.deepEqual(matchItems([{ id: 15, source: 'Ordnen: I / have never been / to Spain' }], ['Ordnen: have never been / I / to Spain']), [null]);
+  assert.deepEqual(matchItems([{ id: 16, source: 'Ordnen: I / have never been / to Spain' }], ['Ordnen: I / have never been / to Spain | have never been / I / to Spain']), [16]);
   // doppelte Sätze bekommen verschiedene IDs
   assert.deepEqual(matchItems([{ id: 7, source: 'x *y* z' }, { id: 8, source: 'x *y* z' }], ['x *y* z', 'x *y* z']), [7, 8]);
 });
