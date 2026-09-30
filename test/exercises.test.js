@@ -128,8 +128,12 @@ test('Sprachkennung für lang-Attribute, auch ohne Stimme', () => {
 });
 
 test('Lücke automatisch setzen: Artikel und Klammern dürfen fehlen, bereits markiert bleibt', () => {
-  assert.equal(markGap('Le fromage est bon.', 'le fromage'), '*Le fromage* est bon.');
+  assert.equal(markGap('Le fromage est bon.', 'le fromage'), 'Le *fromage* est bon.');
+  assert.equal(markGap('The dog barks.', 'the dog'), 'The *dog* barks.');
   assert.equal(markGap('I like my dog.', 'the dog'), 'I like my *dog*.');
+  assert.equal(markGap("J'aime l'eau.", "l'eau"), "J'aime l'*eau*.");
+  assert.equal(markGap('The day is nice.', 'today'), null, '„to“ nur als eigenes Wort');
+  assert.equal(markGap('I am here today.', 'today'), 'I am here *today*.');
   assert.equal(markGap('We go home.', '(to) go'), 'We *go* home.');
   assert.equal(markGap('We *go* home.', 'go'), null);
   assert.equal(markGap('Nous buvons de l\'eau.', 'boire'), null);

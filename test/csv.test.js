@@ -84,6 +84,7 @@ test('aus Excel kopiert (Tab) und reiner Fließtext', () => {
   assert.equal(tab.format, 'Tabelle');
   assert.equal(tab.words.length, 2);
   assert.deepEqual(textToWords('Das ist nur ein Satz ohne Vokabeln').words, []);
+  assert.deepEqual(textToWords('Hier:\ndog – Hund').words.map((w) => w.a), ['dog']);
   assert.deepEqual(textToWords('').words, []);
 });
 
@@ -95,4 +96,36 @@ test('KI-Prompt: Fremdsprache, Jahrgang, Thema, Format', () => {
   assert.match(p, /Satz auf Spanisch für Jahrgang 7/);
   const plain = aiPrompt({ langA: 'Französisch', langB: 'Deutsch' });
   assert.match(plain, /Französisch-Unterricht mit 20 Einträgen\./);
+});
+
+test('KI-Antwort ohne Codeblock: Einleitung und Schluss fallen weg', () => {
+  const dash = textToWords('Hier ist deine Liste:\ndog – Hund\ncat – Katze\nViel Erfolg beim Lernen!');
+  assert.deepEqual(dash.words.map((w) => [w.a, w.b]), [['dog', 'Hund'], ['cat', 'Katze']]);
+  const comma = textToWords('Klar, hier ist eine kurze Liste.\n\ndog,Hund\ncat,Katze\n\nViel Spaß, und frag gern nach!');
+  assert.deepEqual(comma.words.map((w) => [w.a, w.b]), [['dog', 'Hund'], ['cat', 'Katze']]);
+});
+
+test('Datei-Import verändert keine Daten: Anführungszeichen, Zeilenumbrüche, Trennzeichen im Feld', () => {
+  const words = [
+    { a: 'dog', b: 'Hund', note: 'a;b', example: 'First line.\n\nSecond line.' },
+    { a: 'say "hi"', b: 'hallo sagen', note: '', example: '' },
+  ];
+  assert.deepEqual(textToWords(wordsToCsv(words, ['Englisch', 'Deutsch', 'Notiz', 'Beispielsatz'])).words, words);
+  const comma = textToWords('dog,Hund,"a;b"\ncat,Katze,x');
+  assert.equal(comma.format, 'CSV');
+  assert.deepEqual(comma.words.map((w) => [w.a, w.b, w.note]), [['dog', 'Hund', 'a;b'], ['cat', 'Katze', 'x']]);
+  assert.deepEqual(textToWords('12" – 30 cm\ncat – Katze\ndog – Hund').words.length, 3, 'einzelnes Zollzeichen');
+});
+
+test('Kopfzeile mit allen Sprachen aus dem Editor', () => {
+  for (const lang of ['Niederländisch', 'Polnisch', 'Türkisch', 'Altgriechisch', 'Chinesisch']) {
+    const { words, header } = textToWords(`${lang};Deutsch\nx;y\nz;w`);
+    assert.deepEqual(header, [lang, 'Deutsch']);
+    assert.equal(words.length, 2);
+  }
+});
+
+test('Listen aus Sätzen bleiben vollständig', () => {
+  const text = 'How are you today.,Wie geht es dir heute.\nI like it a lot.,Es gefällt mir sehr.\nSee you soon then.,Bis bald dann.';
+  assert.equal(textToWords(text).words.length, 3);
 });

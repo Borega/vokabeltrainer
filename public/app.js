@@ -653,6 +653,8 @@ async function renderEditor(id) {
       if (!langB.value.trim() || isNew) langB.value = header[1];
       refreshDirectionLabels();
     }
+    if (lastCell && !lastCell.isConnected) lastCell = null;
+    syncToolbar();
     if (!title.value.trim() && name) title.value = name;
     markDirty();
     toast(`${words.length} ${words.length === 1 ? 'Wort' : 'Wörter'} übernommen.`);
@@ -710,7 +712,9 @@ async function renderEditor(id) {
   pasteBox.oninput = syncPreview;
   const take = (replace) => {
     if (!pasted.words.length) return;
-    importWords(pasted, { replace: replace && (!readWords().length || confirm(`Die vorhandenen ${readWords().length} Wörter ersetzen?`)) });
+    // Abbrechen lässt alles, wie es ist – zum Anhängen gibt es die eigene Schaltfläche
+    if (replace && readWords().length && !confirm(`Die vorhandenen ${readWords().length} Wörter ersetzen?`)) return;
+    importWords(pasted, { replace });
     pasteBox.value = '';
     syncPreview();
     importPanel.open = false;
@@ -853,7 +857,7 @@ async function renderEditor(id) {
     location.hash = '#/';
   }
 
-  const form = h('form', { class: 'editor', onsubmit: save, oninput: (e) => { markDirty(); if (e.target === langA || e.target === langB) refreshDirectionLabels(); if (e.target.closest('tbody')) updateCount(); } },
+  const form = h('form', { class: 'editor', onsubmit: save, oninput: (e) => { markDirty(); if (e.target === langA || e.target === langB) { refreshDirectionLabels(); syncToolbar(); } if (e.target.closest('tbody')) updateCount(); } },
     h('datalist', { id: 'langs' }, LANGUAGES.map((l) => h('option', { value: l }))),
     h('div', { class: 'section-head' }, h('h1', {}, isNew ? 'Neue Liste' : 'Liste bearbeiten'), h('a', { class: 'btn ghost', href: '#/' }, 'Zurück')),
     h('div', { class: 'panel' },

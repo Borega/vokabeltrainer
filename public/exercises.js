@@ -189,8 +189,12 @@ export function clozeFor(word, side, langs) {
 // null, wenn schon markiert oder das Wort (bzw. eine seiner Varianten) nicht im Satz vorkommt.
 export function markGap(example, word) {
   if (!example?.trim() || /\*[^*]+\*/.test(example) || !word?.trim()) return null;
-  const variantsWithoutArticle = variants(word).flatMap((v) => [v, v.replace(/^(the|to|a|an|le|la|les|l'|un|une|el|los|las|il|lo|der|die|das)\s*/i, '')]);
-  for (const candidate of [...new Set(variantsWithoutArticle)].filter(Boolean).sort((x, y) => y.length - x.length)) {
+  // Artikel nur als eigenes Wort („the dog“, nicht „today“) bzw. mit Apostroph („l'eau“)
+  const withoutArticle = (v) => v.replace(/^(?:(?:the|to|a|an|le|la|les|un|une|el|los|las|il|lo|der|die|das)\s+|l['’])/i, '');
+  const byLength = (list) => [...new Set(list)].filter(Boolean).sort((x, y) => y.length - x.length);
+  const all = variants(word);
+  // Erst ohne Artikel suchen – der Artikel bleibt im Satz als Hilfe stehen –, dann die vollständige Form
+  for (const candidate of [...byLength(all.map(withoutArticle)), ...byLength(all)]) {
     const gap = foundGap(example, candidate);
     if (gap) return `${gap.before}*${gap.gap}*${gap.after}`;
   }
