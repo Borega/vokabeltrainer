@@ -379,3 +379,87 @@ th[aria-sort="descending"] button.sort::after { content: " ▼"; font-size: .7em
 @media (prefers-reduced-motion: reduce) {
   .flip-inner, .bar span { transition: none; }
 }
+
+/* Grammatik */
+.chip.grammar { background: color-mix(in srgb, var(--primary) 16%, transparent); color: var(--primary); }
+.sentence-ex { overflow-wrap: anywhere; }
+.form { font-style: normal; font-weight: 700; color: var(--primary); }
+.rule-card h2 { margin: .25rem 0 .5rem; text-align: center; }
+.rule-summary { font-size: 1.15rem; font-weight: 600; padding: .6rem .9rem; background: var(--chip); border-radius: 10px; margin: .25rem 0 .75rem; }
+.rule-text p { margin: .5rem 0; }
+.rule-examples h3 { margin: 1rem 0 .3rem; font-size: .95rem; color: var(--muted); }
+.rule-examples ul, .examples-list { margin: 0; padding-left: 1.2rem; }
+.rule-examples li, .examples-list li { margin: .3rem 0; }
+.examples-list { font-size: 1.15rem; }
+.question { font-weight: 600; text-align: center; margin: 1rem 0 .5rem; }
+.rule-pick { display: flex; flex-direction: column; gap: .4rem; margin-top: .4rem; }
+.rule-option { flex-wrap: wrap; gap: .5rem .75rem; padding: .3rem 0; border-bottom: 1px solid var(--border); }
+.rule-option > span:first-of-type { flex: 1 1 12rem; }
+.rule-results { list-style: none; padding: 0; margin: 1rem auto; max-width: 420px; text-align: left; }
+.rule-results li { display: flex; justify-content: space-between; gap: 1rem; padding: .35rem 0; border-bottom: 1px solid var(--border); }
+.chip.grade-again { background: var(--wrong-bg); color: var(--wrong); }
+.chip.grade-hard { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
+.chip.grade-good, .chip.grade-easy { background: var(--right-bg); color: var(--right); }
+
+.grammar-exercise { display: flex; flex-direction: column; gap: .75rem; }
+.grammar-exercise.is-almost { border-color: var(--warn); }
+.grammar-exercise.is-almost .grammar-feedback strong { color: var(--warn); }
+.grammar-exercise.is-right .grammar-feedback strong { color: var(--right); }
+.grammar-exercise.is-wrong .grammar-feedback strong { color: var(--wrong); }
+.task-meta { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+.task-meta .btn { margin-left: auto; }
+.instruction { margin: 0; font-size: .95rem; }
+.gap-sentence { line-height: 2.6; text-align: left; }
+.gap-wrap { display: inline-flex; align-items: baseline; gap: .3rem; white-space: nowrap; }
+input.gap-input { width: auto; min-width: 4ch; padding: .2rem .4rem; font-size: inherit; text-align: center; border-width: 0 0 2px; border-radius: 4px 4px 0 0; border-color: var(--primary); background: var(--chip); }
+input.gap-input.is-right { border-color: var(--right); background: var(--right-bg); }
+input.gap-input.is-wrong { border-color: var(--wrong); background: var(--wrong-bg); }
+.grammar-exercise .answer { width: 100%; }
+.grammar-exercise .answer.is-wrong { background: var(--wrong-bg); }
+.prompt-text { font-size: 1.15rem; margin: 0 0 .5rem; }
+.text-exercise { display: flex; flex-direction: column; gap: .4rem; }
+.diff { min-height: 1.2rem; }
+.diff p { margin: .2rem 0; }
+.diff-line { font-size: 1.05rem; }
+.word-wrong { color: var(--wrong); text-decoration: underline wavy; text-underline-offset: 3px; }
+.word-fix { font-weight: 700; color: var(--right); }
+.solution-line { flex-basis: 100%; font-size: 1.1rem; }
+.hint { flex-basis: 100%; margin: 0; padding: .5rem .75rem; background: var(--chip); border-radius: 8px; }
+.grammar-feedback { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; min-height: 1.5em; }
+.rule-panel { padding: .75rem 1rem; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; }
+.rule-panel h3 { margin: 0 0 .3rem; }
+.order { display: flex; flex-direction: column; gap: .75rem; }
+.chunks { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.chunks.answer-line { min-height: 3.2rem; padding: .5rem; border: 2px dashed var(--border); border-radius: 10px; }
+.chunks.answer-line.is-right { border-color: var(--right); border-style: solid; background: var(--right-bg); }
+.chunks.answer-line.is-wrong { border-color: var(--wrong); border-style: solid; }
+.chunk { font: inherit; font-size: 1.05rem; padding: .45rem .8rem; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; }
+.chunk:hover:not(:disabled) { border-color: var(--primary); }
+.chunk:disabled { cursor: default; }
+.chunk.is-wrong { border-color: var(--wrong); background: var(--wrong-bg); color: var(--wrong); }
+.answer-line .chunk { background: var(--chip); }
+
+/* Grammatik-Editor */
+.rules { display: flex; flex-direction: column; gap: .75rem; margin: .75rem 0; }
+.rule.panel { margin-bottom: 0; padding: .75rem 1rem; }
+.rule > summary { cursor: pointer; font-weight: 600; padding: .25rem 0; }
+.rule[open] > summary { margin-bottom: .5rem; }
+.rule-tools { display: flex; gap: .4rem; margin-bottom: .75rem; }
+.rule-tools .danger { margin-left: auto; }
+textarea.tasks { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .9rem; line-height: 1.5; resize: vertical; }
+textarea.tasks.invalid { border-color: var(--wrong); }
+.task-preview { margin-top: .5rem; }
+.problems { margin: .4rem 0; padding-left: 1.2rem; color: var(--wrong); }
+.previews { margin: .4rem 0 0; padding-left: 1.6rem; font-size: .9rem; }
+.previews li { margin: .25rem 0; overflow-wrap: anywhere; }
+.previews .opts { color: var(--muted); }
+.error-inline { color: var(--wrong); }
+.toolbar-sep { color: var(--border); }
+.syntax-table td { vertical-align: top; }
+.syntax-table code { font-size: .85rem; overflow-wrap: anywhere; white-space: pre-wrap; }
+.syntax-table p { margin: .2rem 0 0; }
+
+@media (max-width: 640px) {
+  .gap-sentence { line-height: 2.8; }
+  .rule-tools { flex-wrap: wrap; }
+}

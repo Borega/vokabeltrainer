@@ -63,9 +63,21 @@ test('Service Worker hält alle Dateien vor, die die App zum Starten braucht', (
   for (const path of shell) {
     if (!routes.includes(path)) assert.ok(existsSync(new URL(`../public${path}`, import.meta.url)), `${path} fehlt`);
   }
-  // alle Module der App, die app.js lädt, sind dabei
-  const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
-  for (const [, file] of app.matchAll(/from '\.\/([\w/.-]+)'/g)) assert.ok(shell.includes(`/${file}`), `/${file} fehlt im Service Worker`);
+  // alle Module, die die App (auch über andere Module) lädt, sind dabei
+  const todo = ['app.js'];
+  const checked = new Set();
+  while (todo.length) {
+    const name = todo.pop();
+    if (checked.has(name)) continue;
+    checked.add(name);
+    const source = readFileSync(new URL(`../public/${name}`, import.meta.url), 'utf8');
+    for (const [, file] of source.matchAll(/from '\.\/([\w/.-]+)'/g)) {
+      if (file.startsWith('vendor/')) continue; // liefert der Server
+      assert.ok(shell.includes(`/${file}`), `/${file} (geladen von ${name}) fehlt im Service Worker`);
+      todo.push(file);
+    }
+  }
+  assert.ok(checked.has('grammar-learn.js') && checked.has('grammar.js'), 'Grammatik-Module werden gefunden');
 });
 
 test('Grammatik: Stand einer Regel auf dem Gerät wie auf dem Server', () => {
