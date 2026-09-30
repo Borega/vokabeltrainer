@@ -25,11 +25,15 @@ export function languagesOf(lists) {
     .map(({ value, label }) => ({ value, label }));
 }
 
-// lang: Sprache (auf einer der beiden Seiten), grade: Jahrgang als Zahl/Text, 'none' = ohne Angabe, '' = alle
-export function filterLists(lists, { q = '', lang = '', grade = '' } = {}) {
+export const KINDS = { vocab: 'Vokabeln', grammar: 'Grammatik' };
+
+// lang: Sprache (auf einer der beiden Seiten), grade: Jahrgang als Zahl/Text, 'none' = ohne Angabe, '' = alle,
+// kind: 'vocab' | 'grammar' | '' (alle)
+export function filterLists(lists, { q = '', lang = '', grade = '', kind = '' } = {}) {
   const query = key(q);
   return lists.filter((l) =>
-    (!lang || [l.lang_a, l.lang_b].some((x) => key(x) === key(lang)))
+    (!kind || (l.kind ?? 'vocab') === kind)
+    && (!lang || [l.lang_a, l.lang_b].some((x) => key(x) === key(lang)))
     && (grade === '' || (grade === 'none' ? !l.grade : l.grade === Number(grade)))
     && (!query || [l.title, l.lang_a, l.lang_b, l.owner_name].some((t) => key(t).includes(query))));
 }

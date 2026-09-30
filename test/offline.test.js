@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { answer, mergeProgress, newId, summarize } from '../public/offline.js';
+import { answer, answerRule, mergeProgress, mergeRuleProgress, newId, ruleKey, summarize } from '../public/offline.js';
 import { review } from '../src/scheduler.js';
 
 const t0 = '2026-09-28T10:00:00.000Z';
@@ -66,4 +66,46 @@ test('Service Worker hält alle Dateien vor, die die App zum Starten braucht', (
   // alle Module der App, die app.js lädt, sind dabei
   const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
   for (const [, file] of app.matchAll(/from '\.\/([\w/.-]+)'/g)) assert.ok(shell.includes(`/${file}`), `/${file} fehlt im Service Worker`);
+});
+
+test('Grammatik: Stand einer Regel auf dem Gerät wie auf dem Server', () => {
+  const items = [{ grade: 'good' }, { grade: 'hard' }, { grade: 'again' }];
+  const first = answerRule(undefined, { rule_id: 4, grade: 'again', items, at: t0 }, review);
+  const serverFirst = review(undefined, 'again', new Date(t0));
+  assert.equal(first.stability, serverFirst.stability);
+  assert.deepEqual({ rule_id: first.rule_id, right: first.right, wrong: first.wrong, last_seen: first.last_seen }, { rule_id: 4, right: 2, wrong: 1, last_seen: t0 });
+  assert.equal(first.due, day(1), 'nicht gewusst: morgen wieder');
+  const second = answerRule(first, { rule_id: 4, grade: 'good', items: [{ grade: 'good' }, { grade: 'good' }], at: day(2) }, review);
+  assert.deepEqual({ right: second.right, wrong: second.wrong, reps: second.reps, lapses: second.lapses }, { right: 4, wrong: 1, reps: 2, lapses: 0 });
+  assert.ok(second.stability > first.stability);
+  // ohne Aufgaben zählt die Bewertung der Runde
+  assert.equal(answerRule(undefined, { rule_id: 1, grade: 'good', at: t0 }, review).right, 1);
+  assert.equal(answerRule(undefined, { rule_id: 1, grade: 'again', at: t0 }, review).wrong, 1);
+});
+
+test('Grammatik: Abgleich je Regel – Server gewinnt, außer die Regel hat eine wartende Runde', () => {
+  const local = [
+    { rule_id: 1, last_review: day(2), box: 2 }, // Runde wartet noch
+    { rule_id: 2, last_review: day(3), box: 1 }, // schon übertragen
+    { rule_id: 5, last_review: day(1), box: 4 }, // auf anderem Gerät zurückgesetzt
+  ];
+  const server = [
+    { rule_id: 1, last_review: day(1), box: 1 },
+    { rule_id: 2, last_review: day(1), box: 3 },
+    { rule_id: 4, last_review: day(0), box: 1 }, // von einem anderen Gerät
+  ];
+  const boxes = (rows) => Object.fromEntries(rows.map((p) => [p.rule_id, p.box]));
+  assert.deepEqual(boxes(mergeRuleProgress(local, server, new Set([ruleKey(1)]))), { 1: 2, 2: 3, 4: 1 });
+  assert.deepEqual(boxes(mergeRuleProgress(local, server)), { 1: 1, 2: 3, 4: 1 });
+  assert.deepEqual(boxes(mergeRuleProgress(local, server, new Set([ruleKey(1)]), new Set([1, 2]))), { 1: 2, 2: 3 }, 'gelöschte Regel fällt weg');
+  assert.notEqual(ruleKey(1), ruleKey(11));
+});
+
+test('Kennzahlen für Grammatiklisten zählen Regeln', () => {
+  const progress = [
+    { rule_id: 1, box: 3, due: day(10), last_seen: day(0) },
+    { rule_id: 2, box: 1, due: day(1), last_seen: day(1) },
+    { rule_id: 3, box: 1, due: day(0), last_seen: day(0) },
+  ];
+  assert.deepEqual(summarize(progress, new Date(day(1))), { seen: 3, safe: 1, due: 2, last_seen: day(1) });
 });
