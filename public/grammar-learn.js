@@ -227,13 +227,7 @@ export async function renderGrammarLearn(ctx, list) {
     list.progress = [...progress.values()];
     for (const it of items) if (it.item_id != null) seen[it.item_id] = entry.at;
     for (const r of list.rules) for (const it of r.items) if (seen[it.id]) it.seen = seen[it.id];
-    ctx.unqueued.set(entry.id, entry);
-    writes = writes
-      .then(() => store.queue(entry))
-      .finally(() => ctx.unqueued.delete(entry.id))
-      .then(() => ctx.offlineData && store.save(`offline:${me.id}`, ctx.offlineData))
-      .catch(() => toast('Antwort konnte auf dem Gerät nicht gespeichert werden.', 'error'));
-    writes.then(() => ctx.syncNow()).catch(() => {});
+    writes = ctx.persistEntry(entry, writes);
   }
   // Stand vom Server übernehmen, sobald Antworten übertragen sind (wartende Runden auf dem Gerät bleiben)
   const onProgress = (byList, pendingFor) => {
@@ -275,22 +269,33 @@ export async function renderGrammarLearn(ctx, list) {
     // Pro Regel: Bewertungen und Aufgaben der Runde; eine Bewertung für die Regel, sobald alle Aufgaben dran waren
     const states = new Map();
     for (const t of tasks) {
-      if (!states.has(t.ruleId)) states.set(t.ruleId, { total: 0, grades: [], items: [], flushed: false });
+      if (!states.has(t.ruleId)) states.set(t.ruleId, { total: 0, grades: [], items: [], sent: 0 });
       states.get(t.ruleId).total++;
     }
     const usedItems = new Map([...states.keys()].map((id) => [id, new Set(tasks.filter((t) => t.ruleId === id).map((t) => t.itemId))]));
 
+    // Bewertung der Regel senden: die noch nicht gesendeten Aufgaben, mit der schlechtesten Bewertung davon.
+    // Normalerweise einmal, wenn alle Aufgaben der Regel dran waren; vorzeitig nur, wenn die Runde endet
+    // oder die App in den Hintergrund geht (dann gibt es für den Rest eine zweite Bewertung).
     function flush(ruleId) {
       const st = states.get(ruleId);
-      if (!st || st.flushed || !st.grades.length) return;
-      st.flushed = true;
-      record(ruleId, roundGrade(st.grades), st.items);
+      if (!st || st.sent >= st.items.length) return;
+      const fresh = st.items.slice(st.sent);
+      st.sent = st.items.length;
+      record(ruleId, roundGrade(fresh.map((i) => i.grade)), fresh);
     }
     const flushAll = () => [...states.keys()].forEach(flush);
-    // Wer die Seite mitten in der Runde verlässt oder schließt, behält die schon beantworteten Aufgaben
-    const onHide = () => flushAll();
-    window.addEventListener('pagehide', onHide);
-    leaveRound = () => { window.removeEventListener('pagehide', onHide); flushAll(); leaveRound = null; };
+    // Wer die App wegwischt, das Gerät sperrt oder die Seite schließt, behält die schon beantworteten Aufgaben.
+    // visibilitychange feuert dafür zuverlässiger als pagehide (iPad-App auf dem Home-Bildschirm).
+    const onHide = () => { if (document.visibilityState === 'hidden') flushAll(); };
+    window.addEventListener('pagehide', flushAll);
+    document.addEventListener('visibilitychange', onHide);
+    leaveRound = () => {
+      window.removeEventListener('pagehide', flushAll);
+      document.removeEventListener('visibilitychange', onHide);
+      flushAll();
+      leaveRound = null;
+    };
 
     function answered(task, res) {
       if (!task.retry) {
@@ -416,7 +421,8 @@ export async function renderGrammarLearn(ctx, list) {
           correct,
           attempts: outcome.override ? 1 : attempts,
           grade: gradeFor(kind, { correct, attempts: outcome.override ? 1 : attempts, helped, almost }),
-          answer: firstWrong,
+          // „Ich hatte recht“: Die Antwort war dann kein Fehler und gehört nicht in die Fehlerstatistik
+          answer: outcome.override ? null : firstWrong,
         });
         next();
       }

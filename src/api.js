@@ -216,6 +216,8 @@ export function apiRouter(db, config) {
        WHERE p.user_id = ? AND r.list_id = ?`,
     ),
     rules: db.prepare('SELECT id, pos, title, summary, explanation, discover FROM rules WHERE list_id = ? ORDER BY pos, id'),
+    ruleCount: db.prepare('SELECT COUNT(*) AS n FROM rules WHERE list_id = ?'),
+    wordCount: db.prepare('SELECT COUNT(*) AS n FROM words WHERE list_id = ?'),
     ruleItems: db.prepare(
       `SELECT i.id, i.rule_id, i.source FROM items i JOIN rules r ON r.id = i.rule_id
        WHERE r.list_id = ? ORDER BY r.pos, r.id, i.pos, i.id`,
@@ -728,7 +730,7 @@ export function apiRouter(db, config) {
     const list = loadList(req.params.id);
     assertOwner(list, req.user);
     const grammar = list.kind === 'grammar';
-    const n = grammar ? q.rules.all(list.id).length : q.words.all(list.id).length;
+    const n = (grammar ? q.ruleCount : q.wordCount).get(list.id).n;
     const nowIso = now();
     const weekAgo = new Date(Date.now() - 7 * DAY).toISOString();
     // Je Schüler:in: geübt, sicher, fällig, richtig/falsch – bei Grammatik je Regel, sonst je Wort

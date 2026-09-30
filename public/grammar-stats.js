@@ -6,9 +6,9 @@ import { normalize } from './check.js';
 import { langTag } from './exercises.js';
 import { parseItem, segments } from './grammar.js';
 import {
-  LEVEL_NAMES, downloadCsv, historyPanel, levelChip, pct, sortableTable, statTiles,
+  LEVEL_NAMES, exportGroupsCsv, groupPanels, historyPanel, levelChip, pct, sortableTable, statTiles,
 } from './stats-ui.js';
-import { fill, formatDate, h, progressBar, toast, view } from './ui.js';
+import { formatDate, h, toast, view } from './ui.js';
 
 const loose = (s) => normalize(String(s), { caseSensitive: false, accentSensitive: false });
 const KIND_LABELS = { gap: 'Lücke', choice: 'Auswählen', error: 'Fehler finden', order: 'Satzbau', translate: 'Übersetzen', transform: 'Umformen' };
@@ -33,41 +33,12 @@ export async function renderGrammarStats(ctx, stats, id) {
   const n = stats.rule_count;
   const lang = langTag(stats.list.lang_a);
 
-  const groups = stats.groups.map((g) => {
-    const s = g.summary;
-    const columns = [
-      { label: 'Name', value: (r) => r.name, render: (r) => h('a', { href: `#/stats/${id}/${r.id}` }, r.name) },
-      { label: 'Sicher', numeric: true, value: (r) => r.safe, render: (r) => h('div', { class: 'bar-cell' }, progressBar(r.safe, n, `Sicher: ${r.name}`), h('span', { class: 'small' }, `${r.safe}/${n}`)) },
-      { label: 'Geübt', numeric: true, value: (r) => r.seen, render: (r) => `${r.seen}/${n}` },
-      { label: 'Fällig', numeric: true, value: (r) => r.due, render: (r) => (r.due ? h('span', { class: 'chip due' }, `${r.due} fällig`) : '–') },
-      { label: 'Richtig / Falsch', numeric: true, value: (r) => r.right + r.wrong, render: (r) => `${r.right} / ${r.wrong}` },
-      { label: 'Zuletzt', numeric: true, value: (r) => (r.last_seen ? Date.parse(r.last_seen) : null), render: (r) => formatDate(r.last_seen) },
-    ];
-    return h('section', { class: 'panel' },
-      h('h2', {}, g.name),
-      g.students.length
-        ? [
-            statTiles([
-              ['Schüler:innen', s.students],
-              ['Aktiv (7 Tage)', `${s.active_7d}`, `von ${s.students}`],
-              ['Ø sicher', `${Math.round(s.safe_pct)} %`, `von ${n} Regeln`],
-              ['Ø geübt', `${Math.round(s.seen_pct)} %`],
-              ['Heute fällig', s.due, 'Regeln, alle zusammen'],
-            ]),
-            historyPanel(g.history, { safeLabel: 'Ø sichere Regeln (%)' }),
-            sortableTable(g.students, columns, { rowClass: (r) => (r.seen ? '' : 'inactive') }),
-            h('p', { class: 'small muted' }, 'Auf einen Namen klicken, um den Stand pro Regel und die Antworten der Person zu sehen.'),
-          ]
-        : h('p', { class: 'empty' }, 'Aus dieser Gruppe hat sich noch niemand angemeldet.'));
+  const groups = groupPanels(stats.groups, {
+    listId: id,
+    total: n,
+    unit: { of: 'Regeln', many: 'Regeln', safeLabel: 'Ø sichere Regeln (%)', hint: 'Auf einen Namen klicken, um den Stand pro Regel und die Antworten der Person zu sehen.' },
   });
-
-  const exportCsv = () => downloadCsv(`${stats.list.title} – Auswertung.csv`, [
-    ['Gruppe', 'Name', 'Sicher', 'Geübt', 'Regeln', 'Sicher %', 'Fällig', 'Richtig', 'Falsch', 'Zuletzt aktiv'],
-    ...stats.groups.flatMap((g) => g.students.map((r) => [
-      g.name, r.name, r.safe, r.seen, n, pct(r.safe, n), r.due, r.right, r.wrong,
-      r.last_seen ? new Date(r.last_seen).toLocaleString('de-DE') : '',
-    ])),
-  ]);
+  const exportCsv = () => exportGroupsCsv(stats.list.title, stats.groups, n, 'Regeln');
 
   // Aus einem häufigen Fehler einen Hinweis machen: „! Antwort = Hinweis“ unter der Aufgabe
   async function addHint(error) {

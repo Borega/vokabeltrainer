@@ -1,7 +1,7 @@
 // Bausteine der Auswertung für Lehrkräfte: Kennzahlen, Verlaufsdiagramme, sortierbare Tabellen.
 
 import { rowsToCsv } from './csv.js';
-import { fill, h } from './ui.js';
+import { fill, formatDate, h, progressBar } from './ui.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 function svg(tag, attrs = {}, ...children) {
@@ -163,4 +163,48 @@ export function levelChip(p) {
   return h('span', { class: 'level-cell' },
     h('span', { class: `level level-${p.box}` }, LEVEL_NAMES[p.box] ?? '–'),
     due ? h('span', { class: 'chip due' }, 'fällig') : null);
+}
+
+// Gruppenbereiche der Auswertung (Kennzahlen, Verlauf, Tabelle je Schüler:in) für Wörter und Regeln.
+//  total: Zahl der Wörter bzw. Regeln der Liste, listId: für die Links zur Einzelansicht
+//  unit: { of: 'Wörtern', many: 'Wörter', safeLabel: 'Ø sicher (%)', hint: 'Auf einen Namen klicken, …' }
+export function groupPanels(groups, { listId, total, unit }) {
+  return groups.map((g) => {
+    const s = g.summary;
+    const columns = [
+      { label: 'Name', value: (r) => r.name, render: (r) => h('a', { href: `#/stats/${listId}/${r.id}` }, r.name) },
+      { label: 'Sicher', numeric: true, value: (r) => r.safe, render: (r) => h('div', { class: 'bar-cell' }, progressBar(r.safe, total, `Sicher: ${r.name}`), h('span', { class: 'small' }, `${r.safe}/${total}`)) },
+      { label: 'Geübt', numeric: true, value: (r) => r.seen, render: (r) => `${r.seen}/${total}` },
+      { label: 'Fällig', numeric: true, value: (r) => r.due, render: (r) => (r.due ? h('span', { class: 'chip due' }, `${r.due} fällig`) : '–') },
+      { label: 'Richtig / Falsch', numeric: true, value: (r) => r.right + r.wrong, render: (r) => `${r.right} / ${r.wrong}` },
+      { label: 'Zuletzt', numeric: true, value: (r) => (r.last_seen ? Date.parse(r.last_seen) : null), render: (r) => formatDate(r.last_seen) },
+    ];
+    return h('section', { class: 'panel' },
+      h('h2', {}, g.name),
+      g.students.length
+        ? [
+            statTiles([
+              ['Schüler:innen', s.students],
+              ['Aktiv (7 Tage)', `${s.active_7d}`, `von ${s.students}`],
+              ['Ø sicher', `${Math.round(s.safe_pct)} %`, `von ${total} ${unit.of}`],
+              ['Ø geübt', `${Math.round(s.seen_pct)} %`],
+              ['Heute fällig', s.due, `${unit.many}, alle zusammen`],
+            ]),
+            historyPanel(g.history, { safeLabel: unit.safeLabel }),
+            sortableTable(g.students, columns, { rowClass: (r) => (r.seen ? '' : 'inactive') }),
+            h('p', { class: 'small muted' }, unit.hint),
+          ]
+        : h('p', { class: 'empty' }, 'Aus dieser Gruppe hat sich noch niemand angemeldet.'));
+  });
+}
+
+// CSV-Export der Gruppenübersicht; unitLabel: Spaltenüberschrift für die Zahl der Wörter bzw. Regeln
+export function exportGroupsCsv(title, groups, total, unitLabel) {
+  downloadCsv(`${title} – Auswertung.csv`, [
+    ['Gruppe', 'Name', 'Sicher', 'Geübt', unitLabel, 'Sicher %', 'Fällig', 'Richtig', 'Falsch', 'Zuletzt aktiv'],
+    ...groups.flatMap((g) => g.students.map((r) => [
+      g.name, r.name, r.safe, r.seen, total, pct(r.safe, total), r.due, r.right, r.wrong,
+      r.last_seen ? new Date(r.last_seen).toLocaleString('de-DE') : '',
+    ])),
+  ]);
 }

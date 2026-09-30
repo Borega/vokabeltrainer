@@ -29,15 +29,16 @@ export function mergeProgress(local = [], server = [], pendingKeys = new Set(), 
   return wordIds ? rows.filter((p) => wordIds.has(p.word_id)) : rows;
 }
 
-// Kennzahlen für die Startseite wie in GET /api/lists: geübt, sicher, fällig bis until, zuletzt (je Wort bzw. Regel)
-export function summarize(progress = [], until = new Date()) {
+// Kennzahlen für die Startseite wie in GET /api/lists: geübt, sicher, fällig bis until, zuletzt.
+// unit: Spalte, die das Wort bzw. die Regel bezeichnet ('word_id' oder 'rule_id')
+export function summarize(progress = [], until = new Date(), unit = 'word_id') {
   const seen = new Set();
   const safe = new Set();
   let due = 0;
   let last = null;
   for (const p of progress) {
-    seen.add(p.word_id ?? p.rule_id);
-    if (p.box >= SAFE_LEVEL) safe.add(p.word_id ?? p.rule_id);
+    seen.add(p[unit]);
+    if (p.box >= SAFE_LEVEL) safe.add(p[unit]);
     if (p.due && new Date(p.due) <= until) due++;
     if (p.last_seen && (!last || p.last_seen > last)) last = p.last_seen;
   }

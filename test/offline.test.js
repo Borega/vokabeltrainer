@@ -119,5 +119,6 @@ test('Kennzahlen für Grammatiklisten zählen Regeln', () => {
     { rule_id: 2, box: 1, due: day(1), last_seen: day(1) },
     { rule_id: 3, box: 1, due: day(0), last_seen: day(0) },
   ];
-  assert.deepEqual(summarize(progress, new Date(day(1))), { seen: 3, safe: 1, due: 2, last_seen: day(1) });
+  assert.deepEqual(summarize(progress, new Date(day(1)), 'rule_id'), { seen: 3, safe: 1, due: 2, last_seen: day(1) });
+  assert.equal(summarize(progress, new Date(day(1))).seen, 1, 'ohne Angabe zählt word_id: Regelzeilen haben keine');
 });

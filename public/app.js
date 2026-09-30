@@ -13,7 +13,7 @@ import { answer, mergeProgress, mergeRuleProgress, newId, ruleKey, summarize } f
 import { createScheduler } from './schedule.js';
 import * as store from './store.js';
 import * as FSRS from './vendor/ts-fsrs.js';
-import { downloadCsv, historyPanel, levelChip, pct, sortableTable, statTiles } from './stats-ui.js';
+import { exportGroupsCsv, groupPanels, historyPanel, levelChip, pct, sortableTable, statTiles } from './stats-ui.js';
 import {
   LANGUAGES, endOfToday, field, fill, formatDate, formatDue, groupPicker, h, pref, progressBar, segmented, shuffle, toast, view,
 } from './ui.js';
@@ -218,8 +218,22 @@ function setOnline(value) {
 
 // ---------- Lernen ohne Internet: Abgleich ----------
 
-// Antworten, die gerade erst in den Gerätespeicher geschrieben werden (record → store.queue)
+// Antworten, die gerade erst in den Gerätespeicher geschrieben werden (persistEntry → store.queue)
 const unqueued = new Map();
+
+// Antwort für die Übertragung merken: in die Warteschlange des Geräts, Listen auf dem Gerät auffrischen, im
+// Hintergrund übertragen (auch ohne Internet kein Fehler). writes: die vorherigen Schreibvorgänge der Lernansicht –
+// sie laufen nacheinander. Ergebnis: die neue Kette, auf die etwa das Zurücksetzen wartet.
+function persistEntry(entry, writes = Promise.resolve()) {
+  unqueued.set(entry.id, entry);
+  const next = writes
+    .then(() => store.queue(entry))
+    .finally(() => unqueued.delete(entry.id))
+    .then(() => offlineData && store.save(`offline:${me.id}`, offlineData))
+    .catch(() => toast('Antwort konnte auf dem Gerät nicht gespeichert werden.', 'error'));
+  next.then(() => syncNow()).catch(() => {});
+  return next;
+}
 
 // Welche Wörter (Grammatik: Regeln) haben noch Antworten, die nicht beim Server sind?
 // → pendingFor(listId) = Set "<word_id>:<direction>" bzw. ruleKey(rule_id)
@@ -424,7 +438,7 @@ function renderHomeOffline() {
     word_count: l.words?.length ?? 0,
     rule_count: l.rules?.length ?? 0,
     item_count: (l.rules ?? []).reduce((sum, r) => sum + r.items.length, 0),
-    progress: summarize(l.progress, endOfToday()),
+    progress: summarize(l.progress, endOfToday(), isGrammar(l) ? 'rule_id' : 'word_id'),
   }));
   const note = h('section', { class: 'panel offline-note' },
     h('h2', {}, 'Du bist offline'),
@@ -1065,13 +1079,7 @@ async function renderLearn(id) {
     const k = key(card.word.id, card.dir);
     progress.set(k, answer(progress.get(k), entry, review));
     list.progress = [...progress.values()];
-    unqueued.set(entry.id, entry);
-    writes = writes
-      .then(() => store.queue(entry))
-      .finally(() => unqueued.delete(entry.id))
-      .then(() => offlineData && store.save(`offline:${me.id}`, offlineData))
-      .catch(() => toast('Antwort konnte auf dem Gerät nicht gespeichert werden.', 'error'));
-    writes.then(() => syncNow()).catch(() => {});
+    writes = persistEntry(entry, writes);
   }
   // Stand vom Server übernehmen, sobald Antworten übertragen sind (wartende Antworten auf dem Gerät bleiben)
   const onProgress = (byList, pendingFor) => {
@@ -1464,42 +1472,12 @@ async function renderStats(id) {
   if (isGrammar(stats.list)) return renderGrammarStats(ctx, stats, id);
   const n = stats.word_count;
 
-  const groups = stats.groups.map((g) => {
-    const s = g.summary;
-    const columns = [
-      { label: 'Name', value: (r) => r.name, render: (r) => h('a', { href: `#/stats/${id}/${r.id}` }, r.name) },
-      { label: 'Sicher', numeric: true, value: (r) => r.safe, render: (r) => h('div', { class: 'bar-cell' }, progressBar(r.safe, n, `Sicher: ${r.name}`), h('span', { class: 'small' }, `${r.safe}/${n}`)) },
-      { label: 'Geübt', numeric: true, value: (r) => r.seen, render: (r) => `${r.seen}/${n}` },
-      { label: 'Fällig', numeric: true, value: (r) => r.due, render: (r) => (r.due ? h('span', { class: 'chip due' }, `${r.due} fällig`) : '–') },
-      { label: 'Richtig / Falsch', numeric: true, value: (r) => r.right + r.wrong, render: (r) => `${r.right} / ${r.wrong}` },
-      { label: 'Zuletzt', numeric: true, value: (r) => (r.last_seen ? Date.parse(r.last_seen) : null), render: (r) => formatDate(r.last_seen) },
-    ];
-    return h('section', { class: 'panel' },
-      h('h2', {}, g.name),
-      g.students.length
-        ? [
-            statTiles([
-              ['Schüler:innen', s.students],
-              ['Aktiv (7 Tage)', `${s.active_7d}`, `von ${s.students}`],
-              ['Ø sicher', `${Math.round(s.safe_pct)} %`, `von ${n} Wörtern`],
-              ['Ø geübt', `${Math.round(s.seen_pct)} %`],
-              ['Heute fällig', s.due, 'Wörter, alle zusammen'],
-            ]),
-            historyPanel(g.history, { safeLabel: 'Ø sicher (%)' }),
-            sortableTable(g.students, columns, { rowClass: (r) => (r.seen ? '' : 'inactive') }),
-            h('p', { class: 'small muted' }, 'Auf einen Namen klicken, um den Lernstand pro Wort zu sehen.'),
-          ]
-        : h('p', { class: 'empty' }, 'Aus dieser Gruppe hat sich noch niemand angemeldet.'),
-    );
+  const groups = groupPanels(stats.groups, {
+    listId: id,
+    total: n,
+    unit: { of: 'Wörtern', many: 'Wörter', safeLabel: 'Ø sicher (%)', hint: 'Auf einen Namen klicken, um den Lernstand pro Wort zu sehen.' },
   });
-
-  const exportCsv = () => downloadCsv(`${stats.list.title} – Auswertung.csv`, [
-    ['Gruppe', 'Name', 'Sicher', 'Geübt', 'Wörter', 'Sicher %', 'Fällig', 'Richtig', 'Falsch', 'Zuletzt aktiv'],
-    ...stats.groups.flatMap((g) => g.students.map((r) => [
-      g.name, r.name, r.safe, r.seen, n, pct(r.safe, n), r.due, r.right, r.wrong,
-      r.last_seen ? new Date(r.last_seen).toLocaleString('de-DE') : '',
-    ])),
-  ]);
+  const exportCsv = () => exportGroupsCsv(stats.list.title, stats.groups, n, 'Wörter');
 
   view(
     h('div', { class: 'section-head' },
@@ -1636,7 +1614,7 @@ const ctx = {
   api,
   store,
   review,
-  unqueued,
+  persistEntry,
   progressListeners,
   syncNow,
   renderNet,

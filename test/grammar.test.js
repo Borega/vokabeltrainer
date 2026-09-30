@@ -455,6 +455,12 @@ test('Aufgaben beim Bearbeiten wiedererkennen: gleich, bearbeitet, neu', () => {
   assert.deepEqual(ids, [null, 1, 3, 2]);
   assert.deepEqual(matchItems(old, []), []);
   assert.deepEqual(matchItems([], ['a *b* c.']), [null]);
+  // ein anderer Satz mit derselben Lösung und ähnlichem Wortlaut erbt die ID nicht (Statistik gehört zum alten Satz)
+  assert.deepEqual(matchItems([{ id: 5, source: 'I *went* to school yesterday.' }], ['I *went* to the park yesterday.']), [null]);
+  // wechselt die gesuchte Form, ist es eine neue Aufgabe – auch bei sonst gleichem Satz
+  assert.deepEqual(matchItems([{ id: 6, source: 'She *has lived* here since 2010.' }], ['She *lives* here since 2010.']), [null]);
+  // nur Jahreszahl oder Hinweis geändert: dieselbe Aufgabe
+  assert.deepEqual(matchItems([{ id: 7, source: 'She *has lived* (live) here since 2010.' }], ['She *has lived* (live) here since 2012.']), [7]);
   // doppelte Sätze bekommen verschiedene IDs
   assert.deepEqual(matchItems([{ id: 7, source: 'x *y* z' }, { id: 8, source: 'x *y* z' }], ['x *y* z', 'x *y* z']), [7, 8]);
 });
