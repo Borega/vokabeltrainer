@@ -235,6 +235,13 @@ export const MIGRATIONS = [
    CREATE INDEX grammar_log_user ON grammar_log(user_id, at);
    CREATE INDEX grammar_log_item ON grammar_log(item_id);
    CREATE UNIQUE INDEX grammar_log_client ON grammar_log(user_id, client_id) WHERE client_id IS NOT NULL;`,
+  // 10: Welche Seite einer Vokabelliste gelernt wird ('a' | 'b'), z. B. Deutsch bei DaZ (Deutsch ↔ Türkisch).
+  //     Leer bei älteren Listen: Dann gilt wie bisher die nicht deutsche Seite (siehe learnSide in exercises.js).
+  `ALTER TABLE lists ADD COLUMN learn_side TEXT NOT NULL DEFAULT '' CHECK (learn_side IN ('', 'a', 'b'));`,
+  // 11: Mitgelieferte Grammatik-Vorlagen (siehe templates.js): Listen ohne Besitzer:in, erkennbar an ihrem Schlüssel
+  //     (Dateipfad in vorlagen/grammatik). Andere Listen ohne Besitzer:in (Konto gelöscht) haben keinen.
+  `ALTER TABLE lists ADD COLUMN template TEXT;
+   CREATE UNIQUE INDEX lists_template ON lists(template) WHERE template IS NOT NULL;`,
 ];
 
 function migrate(db) {

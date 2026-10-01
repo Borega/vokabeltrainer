@@ -2,12 +2,12 @@
 // Live-Vorschau mit zeilengenauen Fehlermeldungen, Reihenfolge per ↑/↓, Import und Export als Textdatei.
 // Die Syntax und ihre Prüfung stehen in grammar.js (dieselbe Prüfung läuft beim Speichern auf dem Server).
 
-import { editorChars, langTag } from './exercises.js';
+import { editorChars, isGermanLabel, langTag } from './exercises.js';
 import {
   LIMITS, TYPE_LABELS, matchItems, parseItem, parseRulesText, rulesToText, splitItems, validateRules,
 } from './grammar.js';
 import { GRADES } from './listfilter.js';
-import { LANGUAGES, field, fill, groupPicker, h, toast, view } from './ui.js';
+import { field, fill, groupPicker, h, languageSelect, toast, view } from './ui.js';
 
 // Wie viele Aufgaben die Vorschau je Regel ausführlich zeigt
 const PREVIEW_MAX = 200;
@@ -55,11 +55,15 @@ export async function renderGrammarEditor(ctx, list) {
   window.onbeforeunload = (e) => { if (dirty) e.preventDefault(); };
 
   const title = h('input', { value: data.title, required: true, maxLength: 200, placeholder: 'z. B. Present perfect – Unit 4' });
-  const lang = h('input', { value: data.lang_a, list: 'langs', maxLength: 50 });
+  const lang = languageSelect(data.lang_a, langTag);
   const grade = h('select', { required: true },
     h('option', { value: '', selected: !data.grade }, 'Bitte wählen …'),
     GRADES.map((g) => h('option', { value: String(g), selected: data.grade === g }, `Jahrgang ${g}`)));
   const caseSens = h('input', { type: 'checkbox', checked: data.case_sensitive });
+  // Deutsch: Großschreibung gehört zur Grammatik (das Laufen, beim Lesen) – bei einer neuen Liste voreinstellen,
+  // solange die Lehrkraft das Häkchen nicht selbst gesetzt hat
+  let caseTouched = !isNew;
+  caseSens.addEventListener('change', () => { caseTouched = true; });
   const accentSens = h('input', { type: 'checkbox', checked: data.accent_sensitive });
   const shared = h('input', { type: 'checkbox', checked: data.shared });
   const groups = groupPicker(data, me.groups, markDirty);
@@ -357,9 +361,11 @@ export async function renderGrammarEditor(ctx, list) {
 
   const form = h('form', { class: 'editor grammar-editor', onsubmit: save, oninput: (e) => {
     markDirty();
-    if (e.target === lang) syncToolbar();
+    if (e.target === lang) {
+      syncToolbar();
+      if (!caseTouched) caseSens.checked = isGermanLabel(lang.value);
+    }
   } },
-    h('datalist', { id: 'langs' }, LANGUAGES.map((l) => h('option', { value: l }))),
     h('div', { class: 'section-head' }, h('h1', {}, isNew ? 'Neue Grammatikliste' : 'Grammatikliste bearbeiten'), h('a', { class: 'btn ghost', href: '#/' }, 'Zurück')),
     h('div', { class: 'panel' },
       field('Titel', title),

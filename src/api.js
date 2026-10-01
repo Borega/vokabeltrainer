@@ -99,7 +99,7 @@ function parseListBody(body) {
   };
   if (kind === 'grammar') {
     // Eine Sprache; Richtung und Abfrageart gibt es bei Grammatik nicht
-    return { ...common, lang_b: '', mode: 'auto', direction: 'ab', allow_switch: 1, allow_mode_switch: 1, rules: parseRules(body.rules) };
+    return { ...common, lang_b: '', learn_side: 'a', mode: 'auto', direction: 'ab', allow_switch: 1, allow_mode_switch: 1, rules: parseRules(body.rules) };
   }
   const mode = MODES.includes(body.mode) ? body.mode : 'auto';
   const direction = ['ab', 'ba', 'mixed'].includes(body.direction) ? body.direction : 'ab';
@@ -126,6 +126,8 @@ function parseListBody(body) {
     direction,
     allow_switch: body.allow_switch === false ? 0 : 1,
     allow_mode_switch: body.allow_mode_switch === false ? 0 : 1,
+    // Ohne Angabe (ältere Clients) bleibt es bei der Schätzung im Browser
+    learn_side: ['a', 'b'].includes(body.learn_side) ? body.learn_side : '',
     words,
   };
 }
@@ -137,6 +139,7 @@ function listJson(row) {
     title: row.title,
     lang_a: row.lang_a,
     lang_b: row.lang_b,
+    learn_side: row.learn_side ?? '',
     mode: row.mode,
     case_sensitive: !!row.case_sensitive,
     accent_sensitive: !!row.accent_sensitive,
@@ -146,6 +149,7 @@ function listJson(row) {
     grade: row.grade ?? null,
     shared: !!row.shared,
     copied_from: row.copied_from || '',
+    template: !!row.template,
     updated_at: row.updated_at,
   };
 }
@@ -154,6 +158,43 @@ function listJson(row) {
 const COUNTS = `(SELECT COUNT(*) FROM words w WHERE w.list_id = l.id) AS word_count,
   (SELECT COUNT(*) FROM rules r WHERE r.list_id = l.id) AS rule_count,
   (SELECT COUNT(*) FROM items i JOIN rules r ON r.id = i.rule_id WHERE r.list_id = l.id) AS item_count`;
+
+// Regeln und Aufgaben mit ihren IDs: Lernstand und Fehlerstatistik bleiben erhalten, wo die ID bleibt.
+// Auch für die mitgelieferten Vorlagen (siehe templates.js).
+export function writeRules(db, listId, rules) {
+  const existingRules = new Set(db.prepare('SELECT id FROM rules WHERE list_id = ?').all(listId).map((r) => r.id));
+  const existingItems = new Set(
+    db.prepare('SELECT i.id FROM items i JOIN rules r ON r.id = i.rule_id WHERE r.list_id = ?').all(listId).map((r) => r.id),
+  );
+  const keepRules = new Set();
+  const keepItems = new Set();
+  const updateRule = db.prepare('UPDATE rules SET pos = ?, title = ?, summary = ?, explanation = ?, discover = ? WHERE id = ?');
+  const insertRule = db.prepare(
+    'INSERT INTO rules (list_id, pos, title, summary, explanation, discover) VALUES (?, ?, ?, ?, ?, ?) RETURNING id',
+  );
+  const updateItem = db.prepare('UPDATE items SET rule_id = ?, pos = ?, source = ? WHERE id = ?');
+  const insertItem = db.prepare('INSERT INTO items (rule_id, pos, source) VALUES (?, ?, ?)');
+  rules.forEach((rule, pos) => {
+    let ruleId = rule.id;
+    if (ruleId && existingRules.has(ruleId) && !keepRules.has(ruleId)) {
+      updateRule.run(pos, rule.title, rule.summary, rule.explanation, rule.discover, ruleId);
+    } else {
+      ruleId = insertRule.get(listId, pos, rule.title, rule.summary, rule.explanation, rule.discover).id;
+    }
+    keepRules.add(ruleId);
+    rule.items.forEach((it, itemPos) => {
+      if (it.id && existingItems.has(it.id) && !keepItems.has(it.id)) {
+        updateItem.run(ruleId, itemPos, it.source, it.id);
+        keepItems.add(it.id);
+      } else {
+        insertItem.run(ruleId, itemPos, it.source);
+      }
+    });
+  });
+  // Aufgaben zuerst: Eine in eine andere Regel verschobene Aufgabe hängt schon dort und bleibt erhalten.
+  for (const id of existingItems) if (!keepItems.has(id)) db.prepare('DELETE FROM items WHERE id = ?').run(id);
+  for (const id of existingRules) if (!keepRules.has(id)) db.prepare('DELETE FROM rules WHERE id = ?').run(id);
+}
 
 export function apiRouter(db, config) {
   const router = express.Router();
@@ -415,51 +456,15 @@ export function apiRouter(db, config) {
     for (const id of existing) if (!keep.has(id)) remove.run(id);
   }
 
-  // Regeln und Aufgaben mit ihren IDs: Lernstand und Fehlerstatistik bleiben erhalten, wo die ID bleibt.
-  function writeRules(listId, rules) {
-    const existingRules = new Set(db.prepare('SELECT id FROM rules WHERE list_id = ?').all(listId).map((r) => r.id));
-    const existingItems = new Set(
-      db.prepare('SELECT i.id FROM items i JOIN rules r ON r.id = i.rule_id WHERE r.list_id = ?').all(listId).map((r) => r.id),
-    );
-    const keepRules = new Set();
-    const keepItems = new Set();
-    const updateRule = db.prepare('UPDATE rules SET pos = ?, title = ?, summary = ?, explanation = ?, discover = ? WHERE id = ?');
-    const insertRule = db.prepare(
-      'INSERT INTO rules (list_id, pos, title, summary, explanation, discover) VALUES (?, ?, ?, ?, ?, ?) RETURNING id',
-    );
-    const updateItem = db.prepare('UPDATE items SET rule_id = ?, pos = ?, source = ? WHERE id = ?');
-    const insertItem = db.prepare('INSERT INTO items (rule_id, pos, source) VALUES (?, ?, ?)');
-    rules.forEach((rule, pos) => {
-      let ruleId = rule.id;
-      if (ruleId && existingRules.has(ruleId) && !keepRules.has(ruleId)) {
-        updateRule.run(pos, rule.title, rule.summary, rule.explanation, rule.discover, ruleId);
-      } else {
-        ruleId = insertRule.get(listId, pos, rule.title, rule.summary, rule.explanation, rule.discover).id;
-      }
-      keepRules.add(ruleId);
-      rule.items.forEach((it, itemPos) => {
-        if (it.id && existingItems.has(it.id) && !keepItems.has(it.id)) {
-          updateItem.run(ruleId, itemPos, it.source, it.id);
-          keepItems.add(it.id);
-        } else {
-          insertItem.run(ruleId, itemPos, it.source);
-        }
-      });
-    });
-    // Aufgaben zuerst: Eine in eine andere Regel verschobene Aufgabe hängt schon dort und bleibt erhalten.
-    for (const id of existingItems) if (!keepItems.has(id)) db.prepare('DELETE FROM items WHERE id = ?').run(id);
-    for (const id of existingRules) if (!keepRules.has(id)) db.prepare('DELETE FROM rules WHERE id = ?').run(id);
-  }
-
   function writeList(listId, data) {
     const ts = now();
     db.prepare(
-      `UPDATE lists SET title = ?, lang_a = ?, lang_b = ?, mode = ?, case_sensitive = ?, accent_sensitive = ?,
+      `UPDATE lists SET title = ?, lang_a = ?, lang_b = ?, learn_side = ?, mode = ?, case_sensitive = ?, accent_sensitive = ?,
          direction = ?, allow_switch = ?, allow_mode_switch = ?, grade = ?, shared = ?, updated_at = ? WHERE id = ?`,
-    ).run(data.title, data.lang_a, data.lang_b, data.mode, data.case_sensitive, data.accent_sensitive,
+    ).run(data.title, data.lang_a, data.lang_b, data.learn_side, data.mode, data.case_sensitive, data.accent_sensitive,
       data.direction, data.allow_switch, data.allow_mode_switch, data.grade, data.shared, ts, listId);
 
-    if (data.kind === 'grammar') writeRules(listId, data.rules);
+    if (data.kind === 'grammar') writeRules(db, listId, data.rules);
     else writeWords(listId, data.words);
 
     db.prepare('DELETE FROM list_groups WHERE list_id = ?').run(listId);
@@ -522,13 +527,13 @@ export function apiRouter(db, config) {
       const ts = now();
       const { id } = db
         .prepare(
-          `INSERT INTO lists (owner_id, kind, title, lang_a, lang_b, mode, case_sensitive, accent_sensitive,
+          `INSERT INTO lists (owner_id, kind, title, lang_a, lang_b, learn_side, mode, case_sensitive, accent_sensitive,
              direction, allow_switch, allow_mode_switch, grade, shared, copied_from, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?) RETURNING id`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?) RETURNING id`,
         )
-        .get(req.user.id, list.kind, isOwner ? `${list.title} (Kopie)` : list.title, list.lang_a, list.lang_b, list.mode,
+        .get(req.user.id, list.kind, isOwner ? `${list.title} (Kopie)` : list.title, list.lang_a, list.lang_b, list.learn_side, list.mode,
           list.case_sensitive, list.accent_sensitive, list.direction, list.allow_switch, list.allow_mode_switch, list.grade,
-          ownerName ? `${list.title} – ${ownerName}` : list.copied_from, ts, ts);
+          list.template ? `Vorlage: ${list.title}` : ownerName ? `${list.title} – ${ownerName}` : list.copied_from, ts, ts);
       if (list.kind === 'grammar') {
         for (const rule of q.rules.all(list.id)) {
           const copied = db

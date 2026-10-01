@@ -1,0 +1,43 @@
+## Mengenwörter
+Merksatz: many + zählbar, much + unzählbar, some/any, a few/a little.
+Erklärung:
+many und few stehen bei zählbaren Nomen, much und little bei unzählbaren (water, time, money, advice, information).
+some in Aussagen und Angeboten, any in Verneinungen und Fragen.
+a few/a little = ein paar/ein wenig, few/little = kaum.
+Aufgaben:
+How {many|much} apples do you want?
+! many bei zählbaren Nomen (Mehrzahl).
+How {much|many} water do you drink?
+! much bei unzählbaren Nomen.
+There aren't {many|much} chairs in the room.
+! many bei zählbaren Nomen in Verneinung/Fragen.
+I don't have {much|many} time.
+! much bei unzählbaren Nomen in Verneinung/Fragen.
+She has {a lot of|much} friends.
+! a lot of passt bei zählbaren und unzählbaren Nomen in Aussagen.
+Would you like {some|any} tea?
+! some in Angeboten und Bitten und in bejahten Sätzen.
+I don't have {any|some} money.
+! any in Verneinungen.
+Is there {any|some} milk in the fridge?
+! any in Fragen.
+There are {a few|a little} people in the street.
+! a few bei zählbaren Nomen (ein paar).
+I need {a little|a few} sugar.
+! a little bei unzählbaren Nomen (ein wenig).
+He has {few|little} friends, so he feels lonely.
+! few: kaum, wenige (zählbar, eher negativ).
+We have {little|few} time left. Hurry up!
+! little: kaum, wenig (unzählbar, eher negativ).
+There is {some|a} bread on the table.
+! bread ist unzählbar: some bread, a piece of bread.
+I have {some|an} information about it.
+! information ist unzählbar, hat keine Mehrzahl.
+Can I have {some|an} advice?
+! advice ist unzählbar: some advice.
+There is {nothing|anything} in the box. It's empty.
+! nothing: nichts (ohne weitere Verneinung).
+I can't see {anything|nothing}.
+! Nach einer Verneinung steht anything, nicht nothing.
+{All|Every} of the students passed the test.
+! all + Mehrzahl (all students), every + Einzahl (every student).

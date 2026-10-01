@@ -1,0 +1,40 @@
+## Präsens: regelmäßige Verben auf -ar, -er, -ir
+Merksatz: Stamm + Endung. -ar: o, as, a, amos, áis, an. -er: o, es, e, emos, éis, en. -ir: o, es, e, imos, ís, en.
+Erklärung:
+Die Endung zeigt die Person, deshalb fällt das Subjektpronomen meist weg: *Hablo* español. (Ich spreche Spanisch.)
+hablar: habl*o*, habl*as*, habl*a*, habl*amos*, habl*áis*, habl*an*
+comer: com*o*, com*es*, com*e*, com*emos*, com*éis*, com*en*
+vivir: viv*o*, viv*es*, viv*e*, viv*imos*, viv*ís*, viv*en*
+Aufgaben:
+Yo *hablo* (hablar) español y alemán.
+! yo: -o.
+Tú *estudias* (estudiar) mucho.
+! tú: -as bei Verben auf -ar.
+Mi hermano *come* (comer) una manzana.
+! él/ella: -e bei Verben auf -er.
+Nosotros *vivimos* (vivir) en Berlín.
+! nosotros: -imos bei Verben auf -ir.
+Vosotros *bebéis* (beber) agua.
+! vosotros: -éis bei Verben auf -er.
+Mis padres *trabajan* (trabajar) en una oficina.
+! ellos: -an bei Verben auf -ar.
+¿*Escribes* (escribir) una carta?
+! tú: -es bei Verben auf -ir.
+Ella *lee* (leer) un libro.
+! él/ella: -e.
+Nosotros *escuchamos* (escuchar) música.
+! nosotros: -amos.
+Los niños *abren* (abrir) la puerta.
+! ellos: -en bei Verben auf -ir.
+¿Dónde *vives* (vivir) tú?
+! tú: -es.
+Usted *habla* (hablar) muy bien.
+! usted wie él/ella: -a.
+Yo {bailo|baila|bailas} muy mal.
+! yo: -o.
+Vosotros {vivís|vivéis|viven} cerca.
+! vosotros bei -ir: -ís.
+Fehler: Yo comes pan. → Yo como pan.
+! yo: -o.
+Fehler: Ellos vive en Madrid. → Ellos viven en Madrid.
+! ellos: -en.

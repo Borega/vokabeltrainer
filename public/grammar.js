@@ -122,7 +122,8 @@ function parseGapLine(text) {
       if (raw.some((o) => !o)) return fail('Eine Antwortmöglichkeit in { … } ist leer.');
       if (!raw.every(hasWord)) return fail('Eine Antwortmöglichkeit in { … } enthält kein Wort.');
       if (raw.length < 2 || raw.length > 4) return fail('Eine Auswahl braucht 2 bis 4 Antworten: {richtig|falsch|falsch}.');
-      if (new Set(raw.map(loose)).size !== raw.length) return fail('Eine Antwort steht zweimal in { … }.');
+      // Exakt vergleichen: Eine Auswahl wird angeklickt, nicht eingetippt – könnte|konnte und Essen|essen sind verschieden
+      if (new Set(raw.map(exact)).size !== raw.length) return fail('Eine Antwort steht zweimal in { … }.');
       options = raw;
       gaps.push({ answers: [raw[0]], hint: '' });
     } else {
@@ -173,6 +174,7 @@ function parseSpecial(type, body) {
 // ---------- Prüfen ----------
 
 const loose = (s) => normalize(String(s), { caseSensitive: false, accentSensitive: false });
+const exact = (s) => normalize(String(s), { caseSensitive: true, accentSensitive: true });
 const LOOSE = { caseSensitive: false, accentSensitive: false };
 // Kommas und Anführungszeichen zählen nicht – es geht um die Form, nicht um die Zeichensetzung
 const clean = (s, options = LOOSE) => normalize(String(s).replace(/[,;:"„“”«»]/g, ' '), options);
@@ -209,8 +211,18 @@ function isTypo(given, expected) {
   return differing.length === 1 && tokenTypo(...differing[0]);
 }
 
+// Umlaute und ß bleiben, andere Akzente und Groß-/Kleinschreibung fallen weg. Im Deutschen ist ein fehlender
+// Umlaut kein Akzentfehler, sondern eine andere Form (konnte ↔ könnte, Apfel ↔ Äpfel, muss ↔ Muße).
+const UMLAUTS = { ä: '\u{E000}', ö: '\u{E001}', ü: '\u{E002}', ß: '\u{E003}' };
+const umlautKey = (s) => {
+  let t = clean(s, { caseSensitive: false, accentSensitive: true }).replace(/ẞ/g, 'ß');
+  for (const [ch, mark] of Object.entries(UMLAUTS)) t = t.replaceAll(ch, mark);
+  return t.normalize('NFD').replace(/\p{M}/gu, '').normalize('NFC');
+};
+
 // Eingabe gegen mögliche Lösungen. Ergebnis: { state: 'correct' | 'almost' | 'wrong', reason?, match? }
 // 'almost' = nur Akzent, Groß-/Kleinschreibung oder ein Tippfehler; zählt für die Planung als „hard“.
+// Ein falscher Umlaut oder ß ist kein „fast“, wenn Akzente zählen (siehe umlautKey).
 export function checkText(input, answers, options = {}) {
   return checkVariants(input, answers.flatMap(expand), options);
 }
@@ -224,11 +236,14 @@ function checkVariants(input, variants, options) {
   const givenLoose = clean(input);
   for (const v of variants) {
     if (clean(v) !== givenLoose) continue;
+    if (options.accentSensitive !== false && umlautKey(v) !== umlautKey(input)) continue;
     const noAccents = { ...options, accentSensitive: false };
     const reason = options.accentSensitive !== false && clean(v, noAccents) === clean(input, noAccents) ? 'accents' : 'case';
     return { state: 'almost', reason, match: v };
   }
-  const typo = variants.find((v) => isTypo(givenLoose, clean(v)));
+  // Tippfehler: Wenn Akzente zählen, muss der Umlaut trotzdem stimmen (konte ist kein Tippfehler für könnte)
+  const typoKey = options.accentSensitive !== false ? umlautKey : clean;
+  const typo = variants.find((v) => isTypo(typoKey(input), typoKey(v)));
   return typo !== undefined ? { state: 'almost', reason: 'typo', match: typo } : { state: 'wrong' };
 }
 
@@ -372,11 +387,12 @@ function shuffle(arr, random) {
 
 // Ablenker für eine Auswahl, die aus einer Lückenaufgabe wird: die falschen Antworten aus den Hinweisen
 function distractors(item) {
-  const seen = new Set(item.gaps[0].answers.flatMap(expand).map(loose));
+  // Groß-/Kleinschreibung egal, Umlaute nicht: hatte ist ein Ablenker für hätte
+  const seen = new Set(item.gaps[0].answers.flatMap(expand).map(umlautKey));
   const out = [];
   for (const fb of item.feedback ?? []) {
     for (const key of fb.keys ?? []) {
-      const k = loose(key);
+      const k = umlautKey(key);
       if (k && !seen.has(k)) {
         seen.add(k);
         out.push(key);

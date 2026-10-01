@@ -1,0 +1,38 @@
+## Artikel und Genus
+Merksatz: el/un (männlich), la/una (weiblich), los/las und unos/unas im Plural.
+Erklärung:
+Im Spanischen gibt es zwei Geschlechter. Nomen auf *-o* sind meist männlich (el libro), auf *-a* meist weiblich (la casa).
+Ausnahmen merken: *el* día, *el* mapa, *el* problema, *la* mano, *la* foto.
+Nomen auf -ción und -dad sind weiblich: la canción, la ciudad.
+Plural: *los* libros, *las* casas, *unos* amigos, *unas* amigas.
+Aufgaben:
+*El* (el/la) libro está en la mesa.
+! libro endet auf -o: männlich.
+Es *una* (un/una) casa muy bonita.
+! casa endet auf -a: weiblich.
+*Los* (los/las) chicos juegan al fútbol.
+! Plural männlich: los.
+*Las* (los/las) ventanas están abiertas.
+! Plural weiblich: las.
+*El* (el/la) día es muy largo.
+! Ausnahme: el día.
+Tengo *un* (un/una) problema.
+! Ausnahme: el problema – männlich.
+*La* (el/la) mano derecha me duele.
+! Ausnahme: la mano – weiblich.
+Madrid es *una* (un/una) ciudad grande.
+! Nomen auf -dad sind weiblich.
+Me gusta *la* (el/la) canción.
+! Nomen auf -ción sind weiblich.
+Tengo *unos* (unos/unas) amigos en México.
+! Plural männlich unbestimmt: unos.
+¿Dónde está {el|la} mapa?
+! Ausnahme: el mapa.
+Mira {la|el} foto.
+! Ausnahme: la foto (kurz für la fotografía).
+Necesito {un|una} lápiz.
+! el lápiz – männlich.
+Fehler: La libro es interesante. → El libro es interesante.
+! libro ist männlich: el.
+Fehler: Los casas son blancas. → Las casas son blancas.
+! casa ist weiblich: las.

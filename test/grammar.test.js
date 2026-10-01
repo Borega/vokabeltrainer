@@ -154,6 +154,26 @@ test('Akzente: fast, außer die Liste ignoriert Akzente', () => {
   assert.equal(checkGaps(fr, ['est allee'], { accentSensitive: false }).state, 'correct');
 });
 
+test('Deutsch: Umlaut und ß sind eine andere Form, kein Akzentfehler', () => {
+  const de = item('Wenn ich fliegen *könnte* (können), wäre ich ein Vogel.');
+  assert.equal(checkGaps(de, ['konnte'], opts).state, 'wrong');
+  assert.equal(checkGaps(de, ['Könnte'], { ...opts, caseSensitive: true }).gaps[0].reason, 'case');
+  assert.equal(checkGaps(de, ['konnte'], { accentSensitive: false }).state, 'correct', 'Liste ignoriert Akzente und Umlaute');
+  assert.equal(checkText('Strasse', ['Straße'], opts).state, 'wrong');
+  assert.equal(checkText('Äpfel', ['Äpfel'], opts).state, 'correct');
+  assert.equal(checkText('konte', ['könnte'], opts).state, 'wrong', 'Umlaut fehlt und Tippfehler: kein „fast“');
+  assert.equal(checkText('kontne', ['könnte'], opts).state, 'wrong');
+  assert.equal(checkText('könte', ['könnte'], opts).reason, 'typo', 'Umlaut richtig, ein Buchstabe fehlt: Tippfehler');
+  assert.equal(checkText('konte', ['könnte'], { accentSensitive: false }).reason, 'typo', 'Liste ignoriert Umlaute');
+  // Auswahl: nur exakt gleiche Antworten sind doppelt
+  assert.equal(parseItem('Wenn ich fliegen {könnte|konnte|kann}, …').type, 'choice');
+  assert.equal(parseItem('Beim {Essen|essen} redet man nicht.').type, 'choice');
+  assert.match(parseItem('Beim {Essen|Essen} redet man nicht.').error, /zweimal/);
+  // Ablenker aus Hinweisen: konnte ist ein anderer Fehler als könnte
+  const hinted = item('Ich *hätte* (haben) gern ein Eis.\n! hatte = Das ist Präteritum. Höflich: hätte.');
+  assert.deepEqual(asKind(hinted, 'choice').options, ['hätte', 'hatte']);
+});
+
 test('Tippfehler: vertauschte oder ausgelassene Buchstaben ja – andere Formen nie', () => {
   const almost = (answer, input) => checkText(input, [answer], opts);
   assert.equal(almost('received', 'recieved').state, 'almost', 'vertauscht');

@@ -7,6 +7,7 @@ import { assertConfig, config } from './config.js';
 import { openDb } from './db.js';
 import { purgeDevices } from './devices.js';
 import { purgeSessions, sessionMiddleware } from './session.js';
+import { syncTemplates } from './templates.js';
 
 export function createApp(db, cfg = config) {
   const app = express();
@@ -88,6 +89,12 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   assertConfig();
   const db = openDb(config.dataDir);
   cleanup(db);
+  const templates = syncTemplates(db, { enabled: config.templates });
+  if (templates) {
+    const { added, updated, removed, errors } = templates;
+    if (added || updated || removed) console.log(`Grammatik-Vorlagen: ${added} neu, ${updated} aktualisiert, ${removed} entfernt.`);
+    for (const e of errors) console.warn(`Grammatik-Vorlage ${e.key} übersprungen: ${e.error}`);
+  }
   setInterval(() => cleanup(db), 6 * 60 * 60 * 1000).unref();
   createApp(db).listen(config.port, () => {
     console.log(`Vokabeltrainer läuft auf Port ${config.port} (${config.baseUrl})`);

@@ -1,0 +1,74 @@
+## Adjektive nach der, die, das
+Merksatz: Nach der/die/das: -e im Nominativ Singular und im Akkusativ weiblich und sächlich, sonst -en.
+Erklärung:
+Nach dem bestimmten Artikel hat das Adjektiv nur zwei Endungen: *-e* oder *-en*.
+*-e*: Nominativ Singular (der klein*e* Hund, die klein*e* Katze, das klein*e* Kind) und Akkusativ weiblich und sächlich (die klein*e* Katze, das klein*e* Kind).
+*-en*: überall sonst – Akkusativ männlich (den klein*en* Hund), Dativ und Plural (die klein*en* Kinder).
+Aufgaben:
+Der *kleine* (klein) Hund bellt laut.
+! Nominativ Singular: -e.
+Ich sehe den *kleinen* (klein) Hund.
+! Akkusativ männlich: -en.
+Die *neue* (neu) Lehrerin ist nett.
+! Nominativ Singular: -e.
+Das *rote* (rot) Auto gehört meinem Vater.
+! Nominativ Singular: -e.
+Wir helfen dem *alten* (alt) Mann.
+! Dativ: -en.
+Die *großen* (groß) Kinder spielen Fußball.
+! Plural: -en.
+Ich kaufe die *blaue* (blau) Jacke.
+! Akkusativ weiblich: -e.
+Er liest das *spannende* (spannend) Buch.
+! Akkusativ sächlich: -e.
+Mit dem *neuen* (neu) Fahrrad fahre ich zur Schule.
+! Dativ: -en.
+Die *alten* (alt) Häuser werden renoviert.
+! Plural: -en.
+Kennst du den *netten* (nett) Jungen?
+! Akkusativ männlich: -en.
+Sie spielt mit der *kleinen* (klein) Katze.
+! Dativ weiblich: -en.
+Der {schnelle|schnellen|schneller} Zug kommt pünktlich.
+! Nominativ Singular: -e.
+Wir suchen den {richtigen|richtige|richtiger} Weg.
+! Akkusativ männlich: -en.
+Fehler: Ich sehe den große Baum. → Ich sehe den großen Baum.
+! Akkusativ männlich: -en.
+Fehler: Die kleinen Katze schläft. → Die kleine Katze schläft.
+! Nominativ Singular: -e.
+
+## Adjektive nach ein, kein, mein
+Merksatz: Nach ein/kein/mein zeigt das Adjektiv das Geschlecht: ein kleiner Hund, ein kleines Kind.
+Erklärung:
+Wo der Artikel keine Endung hat, übernimmt das Adjektiv die Endung von der oder das:
+Nominativ männlich: ein klein*er* Hund (der). Nominativ und Akkusativ sächlich: ein klein*es* Kind (das).
+Weiblich (Nominativ und Akkusativ): eine klein*e* Katze.
+Akkusativ männlich, Dativ und Plural: *-en* (einen klein*en* Hund, mit einem klein*en* Kind, keine klein*en* Kinder).
+Aufgaben:
+Das ist ein *kleiner* (klein) Hund.
+! ein hat keine Endung – das Adjektiv zeigt „der“: -er.
+Das ist ein *kleines* (klein) Kind.
+! ein hat keine Endung – das Adjektiv zeigt „das“: -es.
+Das ist eine *kleine* (klein) Katze.
+! Weiblich: -e.
+Ich habe einen *neuen* (neu) Rucksack.
+! Akkusativ männlich: -en.
+Sie hat ein *neues* (neu) Handy.
+! Akkusativ sächlich: -es.
+Er wohnt in einem *großen* (groß) Haus.
+! Dativ: -en.
+Dort steht ein *alter* (alt) Baum.
+! Nominativ männlich: -er.
+Ich esse ein *leckeres* (lecker) Eis.
+! Akkusativ sächlich: -es.
+Wir haben keine *frischen* (frisch) Brötchen mehr.
+! Plural nach kein: -en.
+Das war ein {langer|lange|langen} Tag.
+! der Tag – nach ein: -er.
+Ich wünsche dir ein {schönes|schöne|schöner} Wochenende.
+! das Wochenende – nach ein: -es.
+Fehler: Er hat einen große Bruder. → Er hat einen großen Bruder.
+! Akkusativ männlich: -en.
+Fehler: Das ist ein schöne Bild. → Das ist ein schönes Bild.
+! das Bild – nach ein: -es.

@@ -1,0 +1,39 @@
+## If-Sätze (Conditional)
+Merksatz: Typ 1: if + Present, will. Typ 2: if + Past, would. Typ 3: if + Past Perfect, would have.
+Erklärung:
+Typ 0 (immer wahr): if + Simple Present, Simple Present.
+Typ 1 (möglich): if + Simple Present, will + Grundform.
+Typ 2 (unwahrscheinlich): if + Simple Past, would + Grundform.
+Typ 3 (vorbei): if + Past Perfect, would have + Past Participle.
+Nach if steht nie will/would.
+Aufgaben:
+If it rains, we *will stay* (stay) at home.
+! Typ 1 (real möglich): if + Simple Present, will + Grundform.
+If you study, you *will pass* (pass) the test.
+! Typ 1: if + Simple Present, will + Grundform.
+If I *see* (see) him, I will tell him.
+! Typ 1: Im if-Satz steht Simple Present, nie will.
+She will be happy if you *call* (call) her.
+! Typ 1: Nach if kein will, sondern Simple Present.
+If he *is* (be) late, we will start without him.
+! Typ 1: if + Simple Present (he is).
+If I had a lot of money, I *would buy* (buy) a big house.
+! Typ 2 (unwahrscheinlich): if + Simple Past, would + Grundform.
+If she *knew* (know) the answer, she would tell us.
+! Typ 2: if + Simple Past.
+If I *were* (be) you, I would learn more.
+! Typ 2: Bei I/he/she/it oft were statt was.
+We would travel the world if we *won* (win) the lottery.
+! Typ 2: if + Simple Past.
+If it *had rained* (rain) yesterday, we would have stayed at home.
+! Typ 3 (nicht mehr möglich): if + Past Perfect, would have + Past Participle.
+If I had known, I *would have helped* (help) you.
+! Typ 3: would have + Past Participle.
+Water *boils* (boil) if you heat it to 100 degrees.
+! Typ 0 (immer wahr): if + Simple Present, Simple Present.
+If you mix red and blue, you *get* (get) purple.
+! Typ 0: Allgemeingültige Tatsachen mit Simple Present.
+What would you do if you *found* (find) a wallet?
+! Typ 2: if + Simple Past.
+*Would* you help me if I asked you?
+! Typ 2 in Fragen: Would + Subjekt + Grundform.

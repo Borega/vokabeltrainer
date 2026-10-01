@@ -1,0 +1,29 @@
+## Artikel: a, an, the
+Merksatz: a/an: etwas Unbestimmtes. the: etwas Bestimmtes.
+Erklärung:
+a steht vor Konsonantlauten, an vor Vokallauten (an hour, a university).
+the benutzt man, wenn klar ist, was gemeint ist, und bei einmaligen Dingen (the sun).
+In Auswahlaufgaben ist der Artikel gesucht, der in den Satz passt.
+Aufgaben:
+I have {an|a} apple.
+! an steht vor Vokallauten (a, e, i, o, u).
+She is {a|an} teacher.
+! a steht vor Konsonantlauten.
+He wants to be {an|a} engineer.
+! an vor Vokallaut: an engineer.
+It takes {an|a} hour to get there.
+! hour beginnt mit stummem h, also Vokallaut: an hour.
+She goes to {a|an} university.
+! university beginnt mit Konsonantlaut /j/, also a university.
+{The|A|An} sun rises in the east.
+! the bei einmaligen Dingen (the sun, the moon, the world).
+He is {an|a} honest man.
+! honest beginnt mit stummem h, also Vokallaut: an honest man.
+We saw {an|a} elephant at the zoo.
+! an vor Vokallaut: an elephant.
+My sister has {an|a} umbrella with flowers on it.
+! umbrella beginnt mit Vokallaut: an umbrella.
+Paris is {a|an} big city.
+! big beginnt mit Konsonantlaut: a big city.
+It is {a|an} European country.
+! European beginnt mit Konsonantlaut /j/: a European country.

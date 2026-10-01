@@ -1,8 +1,8 @@
 import { almostReason, checkAnswer } from './check.js';
 import { aiPrompt, textToWords, wordsToCsv } from './csv.js';
 import {
-  afterIntro, choiceOptions, clozeFor, editorChars, gapProblem, gradeFor, hintPattern, hintTarget, langTag, markGap, maxHints, pickExercise,
-  specialChars, speechLang, speechText,
+  afterIntro, choiceOptions, clozeFor, editorChars, gapProblem, gradeFor, hintPattern, hintTarget, isGermanLabel, langTag, learnSide, markGap,
+  maxHints, pickExercise, sameLanguage, specialChars, speechLang, speechText,
 } from './exercises.js';
 import { canSpeak, speak, stopSpeaking, voicesReady } from './speech.js';
 import { renderGrammarEditor } from './grammar-editor.js';
@@ -15,7 +15,7 @@ import * as store from './store.js';
 import * as FSRS from './vendor/ts-fsrs.js';
 import { exportGroupsCsv, groupPanels, historyPanel, levelChip, pct, sortableTable, statTiles } from './stats-ui.js';
 import {
-  LANGUAGES, endOfToday, field, fill, formatDate, formatDue, groupPicker, h, pref, progressBar, segmented, shuffle, toast, view,
+  endOfToday, field, fill, formatDate, formatDue, groupPicker, h, languageSelect, pref, progressBar, segmented, shuffle, toast, view,
 } from './ui.js';
 
 // Dieselbe Planung wie auf dem Server – so geht Lernen auch ohne Internet weiter
@@ -114,7 +114,9 @@ async function api(method, path, body) {
   }
 }
 
+// Bezeichnung einer Seite: die Sprache – bei gleicher Sprache auf beiden Seiten (Deutsch ↔ Deutsch) Begriff und Bedeutung
 function langLabel(list, side) {
+  if (sameLanguage(list)) return side === 'a' ? 'Begriff' : 'Bedeutung';
   return (side === 'a' ? list.lang_a : list.lang_b) || (side === 'a' ? 'Seite A' : 'Seite B');
 }
 
@@ -375,8 +377,9 @@ function renderLogin() {
 
 // ---------- Startseite ----------
 
-// Sprachzeile einer Karte: Vokabeln „Englisch ↔ Deutsch“, Grammatik nur die Sprache
-const langsLine = (list) => (isGrammar(list) ? list.lang_a || 'Grammatik' : `${langLabel(list, 'a')} ↔ ${langLabel(list, 'b')}`);
+// Sprachzeile einer Karte: Vokabeln „Englisch ↔ Deutsch“ bzw. „Deutsch: Begriff ↔ Bedeutung“, Grammatik nur die Sprache
+const langsLine = (list) => (isGrammar(list) ? list.lang_a || 'Grammatik'
+  : sameLanguage(list) ? `${list.lang_a}: Begriff ↔ Bedeutung` : `${langLabel(list, 'a')} ↔ ${langLabel(list, 'b')}`);
 // Größe einer Liste: Wörter bzw. Regeln und Aufgaben
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 const sizeParts = (list) => (isGrammar(list)
@@ -516,12 +519,19 @@ async function renderEditor(id, loaded = null) {
   window.onbeforeunload = (e) => { if (dirty) e.preventDefault(); };
 
   const title = h('input', { value: list.title, required: true, maxLength: 200, placeholder: 'z. B. Unit 3 – At the zoo' });
-  const langA = h('input', { value: list.lang_a, list: 'langs', maxLength: 50 });
+  const langA = languageSelect(list.lang_a, langTag);
   // Pflichtangabe; ältere Listen haben noch keine und müssen beim nächsten Speichern eine bekommen
   const grade = h('select', { required: true },
     h('option', { value: '', selected: !list.grade }, 'Bitte wählen …'),
     GRADES.map((g) => h('option', { value: String(g), selected: list.grade === g }, `Jahrgang ${g}`)));
-  const langB = h('input', { value: list.lang_b, list: 'langs', maxLength: 50 });
+  const langB = languageSelect(list.lang_b, langTag);
+  // Welche Seite gelernt wird (die Fremdsprache, bei DaZ Deutsch). Ohne eigene Wahl folgt sie den Sprachen.
+  const learnSel = h('select', {}, h('option', { value: 'a' }), h('option', { value: 'b' }));
+  learnSel.value = learnSide(list);
+  let learnChosen = !!list.learn_side;
+  // „input“ kommt vor „change“ und erreicht das Formular (refreshDirectionLabels) erst danach
+  learnSel.addEventListener('input', () => { learnChosen = true; });
+  const learnField = field('Gelernt wird', learnSel, 'Die Sprache, die die Schüler:innen lernen – bei DaZ: Deutsch. Danach richten sich Lückentexte, Hören und der KI-Prompt.');
 
   const modeInputs = Object.fromEntries(['auto', 'flip', 'type', 'choice'].map((m) =>
     [m, h('input', { type: 'radio', name: 'mode', value: m, checked: list.mode === m })]));
@@ -541,11 +551,17 @@ async function renderEditor(id, loaded = null) {
 
   const direction = h('select', {},
     ['ab', 'ba', 'mixed'].map((d) => h('option', { value: d, selected: list.direction === d }, '')));
+  const currentLangs = () => ({ lang_a: langA.value, lang_b: langB.value, learn_side: learnSel.value });
   const refreshDirectionLabels = () => {
-    const tmp = { lang_a: langA.value.trim(), lang_b: langB.value.trim() };
+    if (!learnChosen) learnSel.value = learnSide({ lang_a: langA.value, lang_b: langB.value });
+    const tmp = currentLangs();
     [...direction.options].forEach((o) => { o.textContent = directionLabel(tmp, o.value); });
-    colA.textContent = langA.value.trim() || 'Seite A';
-    colB.textContent = langB.value.trim() || 'Seite B';
+    colA.textContent = langLabel(tmp, 'a');
+    colB.textContent = langLabel(tmp, 'b');
+    // Welche Seite gelernt wird, ist nur bei zwei verschiedenen Sprachen eine Frage
+    learnField.hidden = sameLanguage(tmp) || !tmp.lang_a || !tmp.lang_b;
+    learnSel.options[0].textContent = tmp.lang_a || 'Seite A';
+    learnSel.options[1].textContent = tmp.lang_b || 'Seite B';
   };
   const allowSwitch = h('input', { type: 'checkbox', checked: list.allow_switch });
   const shared = h('input', { type: 'checkbox', checked: list.shared });
@@ -611,8 +627,8 @@ async function renderEditor(id, loaded = null) {
     else [...tbody.rows].forEach((r) => { if (!r.querySelector('.a').value.trim() && !r.querySelector('.b').value.trim()) r.remove(); });
     for (const w of words) addRow(w);
     if (header) {
-      if (!langA.value.trim() || isNew) langA.value = header[0];
-      if (!langB.value.trim() || isNew) langB.value = header[1];
+      if (!langA.value || isNew) langA.setLanguage(header[0]);
+      if (!langB.value || isNew) langB.setLanguage(header[1]);
       refreshDirectionLabels();
     }
     if (lastCell && !lastCell.isConnected) lastCell = null;
@@ -640,7 +656,7 @@ async function renderEditor(id, loaded = null) {
   const promptBox = h('textarea', { class: 'prompt-text', readOnly: true, rows: 7, 'aria-label': 'Prompt für die KI' });
   const syncPrompt = () => {
     promptBox.value = aiPrompt({
-      langA: langA.value.trim() || 'Englisch', langB: langB.value.trim() || 'Deutsch',
+      langA: langA.value || 'Englisch', langB: langB.value || 'Deutsch', learn: learnSel.value,
       grade: Number(grade.value) || null, topic: topic.value, count: Math.min(100, Math.max(5, Number(amount.value) || 20)),
     });
   };
@@ -703,8 +719,7 @@ async function renderEditor(id, loaded = null) {
   let lastCell = null;
   const cellLang = () => {
     if (!lastCell) return null;
-    const german = (l) => /^(deutsch|german)/i.test(l);
-    const foreign = german(langA.value) && !german(langB.value) ? langB.value : langA.value;
+    const foreign = learnSide(currentLangs()) === 'b' ? langB.value : langA.value;
     return langTag(lastCell.classList.contains('b') ? langB.value : lastCell.classList.contains('a') ? langA.value : foreign);
   };
   const changed = (input) => input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -785,6 +800,7 @@ async function renderEditor(id, loaded = null) {
       title: title.value,
       lang_a: langA.value,
       lang_b: langB.value,
+      learn_side: sameLanguage(currentLangs()) ? 'a' : learnSel.value,
       grade: Number(grade.value) || null,
       mode: selectedMode(),
       case_sensitive: caseSens.checked,
@@ -819,13 +835,13 @@ async function renderEditor(id, loaded = null) {
     location.hash = '#/';
   }
 
-  const form = h('form', { class: 'editor', onsubmit: save, oninput: (e) => { markDirty(); if (e.target === langA || e.target === langB) { refreshDirectionLabels(); syncToolbar(); } if (e.target.closest('tbody')) updateCount(); } },
-    h('datalist', { id: 'langs' }, LANGUAGES.map((l) => h('option', { value: l }))),
+  const form = h('form', { class: 'editor', onsubmit: save, oninput: (e) => { markDirty(); if ([langA, langB, learnSel].includes(e.target)) { refreshDirectionLabels(); syncToolbar(); } if (e.target.closest('tbody')) updateCount(); } },
     h('div', { class: 'section-head' }, h('h1', {}, isNew ? 'Neue Liste' : 'Liste bearbeiten'), h('a', { class: 'btn ghost', href: '#/' }, 'Zurück')),
     h('div', { class: 'panel' },
       field('Titel', title),
       h('div', { class: 'row2' }, field('Sprache / Seite A', langA), field('Sprache / Seite B', langB)),
-      h('div', { class: 'row2' }, field('Jahrgangsstufe', grade, 'Für welchen Jahrgang ist die Liste? Hilft Kolleg:innen beim Finden geteilter Listen.')),
+      h('p', { class: 'small muted' }, 'Deutschunterricht: auf beiden Seiten Deutsch – Seite A ist dann der Begriff, Seite B die Bedeutung.'),
+      h('div', { class: 'row2' }, learnField, field('Jahrgangsstufe', grade, 'Für welchen Jahrgang ist die Liste? Hilft Kolleg:innen beim Finden geteilter Listen.')),
     ),
     h('div', { class: 'panel' },
       h('h2', {}, 'Abfrage'),
@@ -925,16 +941,22 @@ async function renderLearn(id) {
 
   // Aussprache: nur, wenn das Gerät eine Stimme für die Sprache hat
   await voicesReady();
-  const langs = { langA: list.lang_a, langB: list.lang_b };
+  const learned = learnSide(list);
+  const langs = { langA: list.lang_a, langB: list.lang_b, learn: learned };
   const speech = { a: speechLang(list.lang_a), b: speechLang(list.lang_b) };
   // lang-Attribute: eigene Kennung, auch für Sprachen ohne Stimme (Latein → la)
   const tags = { a: langTag(list.lang_a), b: langTag(list.lang_b) };
   // Sonderzeichen je Antwortseite (é, ñ, ¿ …), einmal pro Liste berechnet
   const charsFor = { a: specialChars(list.words, 'a'), b: specialChars(list.words, 'b') };
   const speakable = (side) => canSpeak(speech[side]);
-  const isGerman = (side) => speech[side]?.startsWith('de') ?? false;
-  // Seite, deren Aussprache geübt wird: die Fremdsprache, im Zweifel Seite A
-  const foreign = ['a', 'b'].find((side) => speakable(side) && !isGerman(side)) ?? null;
+  // Seite, deren Aussprache geübt wird: die gelernte Sprache (bei DaZ also Deutsch)
+  const foreign = speakable(learned) ? learned : null;
+  const label = (side) => (side === 'a' ? list.lang_a : list.lang_b);
+  // Die deutsche Seite, wenn Deutsch nicht gelernt wird (Englisch ↔ Deutsch): Sie wird nicht vorgelesen
+  const nativeGerman = (side) => side !== learned && isGermanLabel(label(side));
+  // Hören: nur Wörter der gelernten Seite. Ältere Listen ohne Einstellung mit zwei Fremdsprachen
+  // (Französisch ↔ Englisch) wie bisher auf beiden Seiten.
+  const listenSide = (side) => side === learned || (!list.learn_side && !isGermanLabel(list.lang_a) && !isGermanLabel(list.lang_b));
   let sound = !!foreign && pref('sound') === 'on';
 
   // Fällige Einträge (Wort + Richtung), die ältesten zuerst – pro Wort höchstens einer.
@@ -1094,9 +1116,9 @@ async function renderLearn(id) {
 
   const sides = (dir) => (dir === 'ab' ? ['a', 'b'] : ['b', 'a']);
 
-  // Ansagen nur in der Fremdsprache (nicht Deutsch) und nur mit einer Stimme auf dem Gerät
+  // Ansagen nicht für die deutsche Seite, wenn Deutsch nicht gelernt wird, und nur mit einer Stimme auf dem Gerät
   function speakBtn(side, text) {
-    if (!speakable(side) || isGerman(side)) return null;
+    if (!speakable(side) || nativeGerman(side)) return null;
     return h('button', {
       type: 'button', class: 'icon speak', title: 'Anhören', 'aria-label': `Anhören: ${text}`,
       onclick: (e) => { e.stopPropagation(); speak(speechText(text), speech[side]); },
@@ -1125,7 +1147,7 @@ async function renderLearn(id) {
       knownOther: (progress.get(key(card.word.id, other))?.box ?? 0) > 0,
       choiceOk: !!choiceOptions(list.words, card.word, to),
       clozeOk: !!clozeFor(card.word, to, langs),
-      listenOk: sound && speakable(from) && !isGerman(from),
+      listenOk: sound && speakable(from) && listenSide(from),
     });
   }
 
@@ -1581,8 +1603,10 @@ async function renderShared() {
       h('h3', {}, list.title),
       h('span', { class: 'langs' }, langsLine(list))),
     h('div', { class: 'chips' }, isGrammar(list) ? h('span', { class: 'chip grammar' }, 'Grammatik') : null,
+      list.template ? h('span', { class: 'chip' }, 'Vorlage') : null,
       h('span', { class: `chip${list.grade ? '' : ' muted'}` }, gradeLabel(list.grade))),
-    h('p', { class: 'muted small' }, [...sizeParts(list), isGrammar(list) ? null : modeLabel(list.mode), list.owner_name && `von ${list.owner_name}`, `geändert ${formatDate(list.updated_at)}`].filter(Boolean).join(' · ')),
+    h('p', { class: 'muted small' }, [...sizeParts(list), isGrammar(list) ? null : modeLabel(list.mode),
+      list.template ? 'mitgeliefert' : list.owner_name && `von ${list.owner_name}`, `geändert ${formatDate(list.updated_at)}`].filter(Boolean).join(' · ')),
     h('div', { class: 'actions' },
       h('button', { class: 'btn primary', onclick: () => copyList(list) }, 'Kopieren'),
       h('a', { class: 'btn', href: `#/learn/${list.id}` }, 'Ansehen & ausprobieren')));
