@@ -1,6 +1,6 @@
 # Plan: Lernserie und Abzeichen
 
-Stand: 01.10.2026 · Status: **Schritt 1 umgesetzt** (Lerntage, Tagesziel, Serie, Schalter pro Gruppe und Schule), Schritt 2 und 3 offen
+Stand: 01.10.2026 · Status: **Schritt 1 und 2 umgesetzt** (Lerntage, Tagesziel, Serie, Schalter pro Gruppe und Schule; Abzeichen), Schritt 3 (Klassenziel) offen
 
 Der Vokabeltrainer soll um spielerische Elemente ergänzt werden: eine Lernserie (Streak), Abzeichen und
 eine Tagesanzeige. Dieses Dokument fasst zusammen, was die Forschung zu Gamification im Unterricht sagt,
@@ -66,17 +66,21 @@ ein unerreichbares Ziel würde genau die bestrafen, die zurückkommen.
 
 ### 3.2 Abzeichen
 
-Etwa 12–15 Abzeichen, alle an Können gebunden. Beispiele:
+Zwölf Abzeichen, alle an Können gebunden (Katalog in `src/badges.js`):
 
 - „10 Wörter sicher“, „Liste gemeistert“ (alle Wörter sicher)
 - „Nach 4 Wochen noch gewusst“ (genau das, was die Planung erreichen soll)
 - „Fehler besiegt“ (falsch, am nächsten Tag richtig)
-- „Regel sicher“ (Grammatik)
+- „Erste Regel sicher“, „5 Regeln sicher“ (Grammatik)
 - „7, 30, 100 Lerntage“
+- „10, 50, 150 Wörter sicher“, „Beide Richtungen“ (10 Wörter in beiden Richtungen sicher)
 
 Einige sind erst sichtbar, wenn man sie hat (nicht angekündigte Belohnungen untergraben die Motivation weniger).
-Rückmeldung ruhig: ein kurzer Hinweis und eine Sammlungsseite, kein Dialog, kein Konfetti. Schüler:innen
-können ihre Abzeichen zurücksetzen (neben „Stand zurücksetzen“).
+Rückmeldung ruhig: ein kurzer Hinweis und eine Sammlungsseite, kein Dialog, kein Konfetti.
+
+Abweichung vom Entwurf: Ein Knopf „Abzeichen zurücksetzen“ ist nicht umgesetzt. Die Schwellen („10 Wörter sicher“)
+hängen am Lernstand und wären bei der nächsten Antwort sofort wieder erreicht; er würde nichts löschen, was Schüler:innen
+löschen wollen. Wer seinen Lernstand zurücksetzt, behält erreichte Abzeichen; mit dem Konto werden sie gelöscht.
 
 ### 3.3 Tagesanzeige statt Anmeldebelohnung
 
@@ -123,6 +127,18 @@ Tag ein Punkt in einer Wochenzeile (Anknüpfung an den Terrakotta-Punkt im App-S
 - Oberfläche: `public/streak-ui.js` (Wochenpunkte auf der Startseite, Schalter für Lehrkräfte, Hinweis beim Erreichen).
 - Entscheidung gegenüber dem Entwurf: Auch Üben ohne Fälliges zählt nicht, damit eine einzelne Antwort pro Tag keine
   Serie erzeugt. Eine Person mit mehreren Gruppen zählt nur Listen aus Gruppen, in denen die Lernserie an ist.
+
+### Umsetzung Schritt 2
+
+- `src/badges.js`: Katalog, Schwellen und Sammlung als reine Funktionen (`test/badges.test.js`).
+- Migration 13: `badges_earned(user_id, badge, earned_at)`. Der Fortschritt wird bei Bedarf aus dem Lernstand gerechnet
+  (`badgeStats` in `src/api.js`, nur aus Listen mit Lernserie).
+- Vergeben wird nach den Antworten in derselben Transaktion (`awardBadges`). Ereignisse einer Übertragung: ein Wort nach
+  ≥ 28 Tagen gewusst, ein am Vortag oder früher falsches Wort richtig. Nachträglich übertragene Antworten zählen mit ihrem Zeitpunkt.
+- `POST /results` liefert zusätzlich `badges` (neu erreicht); `GET /api/badges` die Sammlung; `GET /api/streak` die Zahlen.
+- Oberfläche: `public/badges-ui.js`, Seite `#/badges`; ein Schalter pro Gruppe für Lernserie **und** Abzeichen.
+- Sicher wird ein Wort erst nach mehreren Antworten an verschiedenen Tagen (Stabilität ≥ 14 Tage): ein einzelnes „leicht“
+  genügt nicht. Rückdatierte Antworten reichen dafür auch nicht, denn eine Antwort zählt nie vor der letzten bekannten.
 
 ### Reihenfolge
 

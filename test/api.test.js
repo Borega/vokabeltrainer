@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
 import { openDb } from '../src/db.js';
 import { createApp } from '../src/server.js';
+import { addDays, localDay, startOfDay } from '../src/streak.js';
 
 let server;
 let base;
@@ -930,8 +931,7 @@ test('Deutsch: gelernte Seite (DaZ) speichern, lesen und kopieren; Grammatik imm
 // ---------- Lernserie ----------
 
 // Mittag des Tages vor n Tagen (Ortszeit der Schule): fällt auch bei Zeitumstellung sicher auf diesen Tag
-async function noon(daysAgo) {
-  const { addDays, localDay, startOfDay } = await import('../src/streak.js');
+function noon(daysAgo) {
   return new Date(startOfDay(addDays(localDay(Date.now(), 'Europe/Berlin'), -daysAgo), 'Europe/Berlin') + 12 * 3600000).toISOString();
 }
 
@@ -1128,4 +1128,96 @@ test('Lernserie: in einer Übertragung zählt ein Wort, das erst durch frühere 
   const res = await send([answer(words[0], await noon(2)), answer(words[0], await noon(1), 'good')]);
   assert.deepEqual([res.body.streak.current, res.body.streak.total], [1, 1], 'der zweite Tag war fällig und ist erledigt');
   assert.equal((await student('GET', '/streak')).body.today.remaining, 0);
+});
+
+// ---------- Abzeichen ----------
+
+// Dreimal richtig, vor 30, 27 und 15 Tagen, macht ein Wort sicher (Stabilität über 14 Tage). Ergebnis: die letzte Antwort.
+async function makeSafe(send, answer, words) {
+  let res;
+  for (const daysAgo of [30, 27, 15]) res = await send(words.map((w) => answer(w, noon(daysAgo), 'good')));
+  return res;
+}
+
+test('Abzeichen: 10 sichere Wörter, einmal vergeben, in der Sammlung mit Fortschritt zu den übrigen', async () => {
+  const { student, words, answer, send } = await streakSetup('Abz1', 'Klasse A1', 12);
+  let res = await makeSafe(send, answer, words.slice(0, 9));
+  assert.deepEqual(res.body.badges, [], '9 sichere Wörter reichen nicht');
+  res = await makeSafe(send, answer, [words[9]]);
+  assert.deepEqual(res.body.badges, [{ id: 'woerter-10', title: '10 Wörter sicher' }]);
+  res = await makeSafe(send, answer, [words[10]]);
+  assert.deepEqual(res.body.badges, [], 'nicht noch einmal');
+
+  const collection = (await student('GET', '/badges')).body;
+  assert.equal(collection.enabled, true);
+  const byId = Object.fromEntries(collection.badges.map((b) => [b.id, b]));
+  assert.ok(byId['woerter-10'].earned_at);
+  assert.equal(byId['woerter-10'].progress, null);
+  assert.deepEqual(byId['woerter-50'].progress, { value: 11, max: 50 });
+  assert.equal(byId.langzeit.title, 'Verstecktes Abzeichen', 'versteckt und nicht erreicht');
+  assert.equal(byId.langzeit.progress, null);
+
+  const streak = (await student('GET', '/streak')).body;
+  assert.deepEqual(streak.badges, { earned: 1, total: collection.badges.length });
+});
+
+test('Abzeichen: Liste gemeistert, wenn alles sicher ist (mindestens 5 Wörter)', async () => {
+  const { student, words, answer, send } = await streakSetup('Abz2', 'Klasse A2', 5);
+  let res = await makeSafe(send, answer, words.slice(0, 4));
+  assert.equal(res.body.badges.some((b) => b.id === 'liste'), false);
+  res = await makeSafe(send, answer, [words[4]]);
+  assert.ok(res.body.badges.some((b) => b.id === 'liste'));
+  assert.ok((await student('GET', '/badges')).body.badges.find((b) => b.id === 'liste').earned_at);
+});
+
+test('Abzeichen: nach 4 Wochen noch gewusst und Fehler besiegt (verborgen, bis sie erreicht sind)', async () => {
+  const { student, words, answer, send } = await streakSetup('Abz3', 'Klasse A3', 3);
+  const now = () => new Date().toISOString();
+  // Wort 0: vor 40 Tagen gelernt, jetzt gewusst. Wort 1: vor 2 Tagen falsch, jetzt richtig.
+  await send([answer(words[0], await noon(40), 'good'), answer(words[1], await noon(2))]);
+  const res = await send([answer(words[0], now(), 'good'), answer(words[1], now(), 'good')]);
+  assert.deepEqual(res.body.badges.map((b) => b.id).sort(), ['fehler', 'langzeit']);
+  const byId = Object.fromEntries((await student('GET', '/badges')).body.badges.map((b) => [b.id, b]));
+  assert.equal(byId.langzeit.title, 'Nach 4 Wochen noch gewusst');
+  assert.equal(byId.fehler.title, 'Fehler besiegt');
+  assert.equal(byId.beide.title, 'Verstecktes Abzeichen', 'die dritte verborgene fehlt noch');
+});
+
+test('Abzeichen: falsch und am selben Tag richtig ist kein besiegter Fehler; ohne Lernserie gibt es keine', async () => {
+  const { teacher, student, words, answer, send, groupId } = await streakSetup('Abz4', 'Klasse A4', 3);
+  const now = () => new Date().toISOString();
+  let res = await send([answer(words[0], now()), answer(words[0], now(), 'good')]);
+  assert.equal(res.body.badges.some((b) => b.id === 'fehler'), false);
+
+  await teacher('PUT', '/group-settings', { group_id: groupId, gamification: false });
+  assert.deepEqual((await student('GET', '/badges')).body, { enabled: false });
+  res = await send(words.map((w) => answer(w, now(), 'easy')));
+  assert.deepEqual(res.body.badges, []);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM badges_earned WHERE user_id = (SELECT id FROM users WHERE name = ?)').get('Schüler Abz4').n, 0);
+});
+
+test('Abzeichen: 7 Lerntage', async () => {
+  const { student, words, answer, send } = await streakSetup('Abz5', 'Klasse A5', 2);
+  // 7 Lerntage: an jedem Tag war das Wort fällig und wurde beantwortet
+  for (let d = 8; d >= 2; d--) await send([answer(words[0], await noon(d))]);
+  const res = await send([answer(words[0], await noon(1))]);
+  assert.ok(res.body.badges.some((b) => b.id === 'lerntage-7'), JSON.stringify(res.body.streak));
+  assert.equal(res.body.streak.total, 7);
+  assert.ok((await student('GET', '/badges')).body.badges.find((b) => b.id === 'lerntage-7').earned_at);
+});
+
+test('Abzeichen: erste Regel sicher (Grammatik)', async () => {
+  const teacher = await login('Lehrkraft Abz6', { teacher: true, groups: 'Klasse A6' });
+  const student = await login('Schüler Abz6', { groups: 'Klasse A6' });
+  const id = await grammarList(teacher, { ...grammarBody, groups: [{ id: 'klasse.a6', name: 'Klasse A6' }] });
+  const [rule] = (await student('GET', `/lists/${id}`)).body.rules;
+  const round = (daysAgo) => ({ id: `abz6-${daysAgo}`, rule_id: rule.id, grade: 'good', at: noon(daysAgo), items: [{ item_id: rule.items[0].id, exercise: 'gap', grade: 'good' }] });
+  let res;
+  for (const daysAgo of [30, 27, 15]) res = await student('POST', `/lists/${id}/results`, { results: [round(daysAgo)] });
+  assert.deepEqual(res.body.badges.map((b) => b.id), ['regel-1']);
+});
+
+test('Migration 13: Abzeichen-Tabelle, wird mit dem Konto gelöscht', async () => {
+  const cols = db.prepare('PRAGMA table_info(badges_earned)').all().map((c) => c.name);
+  assert.deepEqual(cols, ['user_id', 'badge', 'earned_at']);
 });
