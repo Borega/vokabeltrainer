@@ -1,7 +1,7 @@
 // Lernserie auf der Startseite: Wochenpunkte, Tagesziel, Serie. Und der Schalter pro Gruppe für Lehrkräfte.
 // Ein Punkt pro erledigtem Tag (wie der Punkt im App-Symbol); keine Bestenliste, nichts, was andere sehen.
 
-import { h } from './ui.js';
+import { h, icon } from './ui.js';
 
 const DAYS = [['Mo', 'Montag'], ['Di', 'Dienstag'], ['Mi', 'Mittwoch'], ['Do', 'Donnerstag'], ['Fr', 'Freitag'], ['Sa', 'Samstag'], ['So', 'Sonntag']];
 const tage = (n) => `${n} ${n === 1 ? 'Tag' : 'Tage'}`;
@@ -31,17 +31,21 @@ export function streakPanel(streak) {
       h('h2', {}, streak.current > 1 ? `${tage(streak.current)} in Folge` : 'Lernserie'),
       h('p', { class: 'small muted' }, todayLine(streak))),
     h('ol', { class: 'week', 'aria-label': 'Diese Woche' }, dots),
-    h('p', { class: 'small muted' },
-      `Lerntage insgesamt: ${streak.total}`,
-      streak.best > 1 ? ` · Beste Serie: ${tage(streak.best)}` : null),
+    h('div', { class: 'streak-foot' },
+      h('p', { class: 'small muted' },
+        `Lerntage insgesamt: ${streak.total}`,
+        streak.best > 1 ? ` · Beste Serie: ${tage(streak.best)}` : null),
+      streak.badges
+        ? h('a', { class: 'btn badges-link', href: '#/badges' }, icon('star'), `Abzeichen: ${streak.badges.earned} von ${streak.badges.total}`)
+        : null),
   );
 }
 
 // Lehrkräfte: Lernserie pro Gruppe ein- oder ausschalten. save(group, enabled) speichert (wirft bei Fehlern).
 export function groupSwitches(groups, save) {
   return h('section', { class: 'panel' },
-    h('h2', {}, 'Lernserie'),
-    h('p', { class: 'small muted' }, 'Schüler:innen sehen ihre Wochenpunkte und ihre Serie. Tagesziel: alles erledigen, was fällig ist. Die Lernserie gibt es für die angehakten Gruppen.'),
+    h('h2', {}, 'Lernserie und Abzeichen'),
+    h('p', { class: 'small muted' }, 'Schüler:innen sehen ihre Wochenpunkte, ihre Serie und ihre Abzeichen. Tagesziel: alles erledigen, was fällig ist. Abzeichen gibt es fürs Können, etwa für Wörter, die auch nach Wochen sitzen. Beides gibt es für die angehakten Gruppen.'),
     h('div', { class: 'group-list' }, groups.map((g) => h('label', { class: 'check' },
       h('input', {
         type: 'checkbox',

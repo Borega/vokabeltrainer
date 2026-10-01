@@ -259,6 +259,14 @@ export const MIGRATIONS = [
      group_id      TEXT PRIMARY KEY,
      gamification  INTEGER NOT NULL DEFAULT 1
    );`,
+  // 13: Abzeichen (siehe badges.js): erreicht wird jedes einmal pro Person; der Fortschritt dahin wird bei Bedarf
+  //     aus dem Lernstand gerechnet und nicht gespeichert.
+  `CREATE TABLE IF NOT EXISTS badges_earned (
+     user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     badge      TEXT NOT NULL,
+     earned_at  TEXT NOT NULL,
+     PRIMARY KEY (user_id, badge)
+   );`,
 ];
 
 function migrate(db) {

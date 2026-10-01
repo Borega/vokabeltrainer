@@ -1,6 +1,6 @@
 # Plan: Lernserie und Abzeichen
 
-Stand: 01.10.2026 · Status: **Schritt 1 umgesetzt** (Lerntage, Tagesziel, Serie, Schalter pro Gruppe und Schule), Schritt 2 und 3 offen
+Stand: 01.10.2026 · Status: **Schritt 1 und 2 umgesetzt** (Lerntage, Tagesziel, Serie, Schalter pro Gruppe und Schule; Abzeichen), Schritt 3 (Klassenziel) offen
 
 Der Vokabeltrainer soll um spielerische Elemente ergänzt werden: eine Lernserie (Streak), Abzeichen und
 eine Tagesanzeige. Dieses Dokument fasst zusammen, was die Forschung zu Gamification im Unterricht sagt,
@@ -19,16 +19,19 @@ Internet, Datensparsamkeit).
 
 | Befund | Quelle | Folgerung |
 |---|---|---|
-| Kleine, aber echte Effekte: kognitiv g ≈ 0,49, motivational g ≈ 0,36, Verhalten g ≈ 0,25. In den methodisch strengsten Studien blieb nur der kognitive Effekt stabil. | Sailer & Homner (2020) | Keine Wunder erwarten; Wirkung hängt von der Gestaltung ab. |
-| Motivationseffekt in K-12 g ≈ 0,65; Grundschule schwächer (≈ 0,31) als Sekundarstufe (≈ 1,0). | Metaanalyse zu K-12 (*Psychology in the Schools*) | Für Jahrgang 5–13 ist der Ansatz sinnvoll. |
-| Erwartete, greifbare Belohnungen senken die intrinsische Motivation (d ≈ −0,3 bis −0,4); verbale, informierende Rückmeldung nicht. | Deci, Koestner & Ryan (1999) | Abzeichen als Rückmeldung zur Kompetenz, nicht als Bezahlung fürs Erscheinen. |
-| Ein Kurs mit Abzeichen und Bestenliste hatte geringere intrinsische Motivation und schlechtere Prüfungsergebnisse; vermutet wird sozialer Vergleich. | Hanus & Fox (2015) | **Keine Bestenlisten.** |
-| Gamification kann die Nutzung des Systems steigern und die Beschäftigung mit dem Stoff senken. | Übersicht zu negativen Effekten (arXiv 2305.08346) | Belohnt wird sinnvolles Lernen, nicht Anmelden oder Menge. |
-| Nutzer:innen tricksen für Belohnungen (Duolingo); Jugendliche teilen Passwörter, um Streaks zu halten; lange Streaks kippen in Verlustangst. | Fallstudie zu Duolingo (arXiv 2203.16175); Studie zu Snapchat-Streaks (*Computers in Human Behavior Reports*) | Streak muss nachsichtig sein und darf nicht zum Selbstzweck werden. |
+| Kleine, aber echte Effekte: kognitiv g = 0,49, motivational g = 0,36, Verhalten g = 0,25. In den methodisch strengsten Studien blieb nur der kognitive Effekt stabil. Wettbewerb zusammen mit Zusammenarbeit wirkte besonders auf das Verhalten. | Sailer & Homner (2020) | Keine Wunder erwarten; Wirkung hängt von der Gestaltung ab. Für Schritt 3 spricht ein gemeinsames Ziel statt Rangliste. |
+| Motivationseffekt in K-12 g = 0,65 (41 Effekte, sehr uneinheitlich); je Schulstufe verschieden (Sekundarstufe g ≈ 1,0, High School ≈ 0,8, Grundschule geringer); bei extrinsischer Motivation (0,71) etwas größer als bei intrinsischer (0,64). | Kurnaz & Koçtürk (2025) | Für Jahrgang 5–13 ist der Ansatz sinnvoll; weil vor allem die extrinsische Motivation steigt, braucht es die Schutzmaßnahmen. |
+| Erwartete, greifbare Belohnungen senken die intrinsische Motivation (Wahlverhalten: d = −0,40 / −0,36 / −0,28 für Belohnungen fürs Mitmachen / Fertigwerden / Leistung), bei Kindern stärker als bei Studierenden. Unerwartete Belohnungen wirkten nicht (d = 0,01). Positive Rückmeldung wirkte (d = 0,33 im Wahlverhalten, 0,31 im Interesse), bei Kindern aber nicht im Wahlverhalten. | Deci, Koestner & Ryan (1999) | Nichts Greifbares; Abzeichen als Rückmeldung zum Können; einige unangekündigt. Auch leistungsabhängige Belohnungen untergruben das Wahlverhalten: ein Restrisiko, das wir mit Abschaltbarkeit und ohne Vergleich begrenzen. |
+| Gegenposition: Negative Effekte vor allem bei interessanten Aufgaben, wenn die Belohnung greifbar, angekündigt und nur lose an die Leistung gebunden ist. | Cameron, Banko & Pierce (2001) | Symbolische, an sicheres Können gebundene Abzeichen liegen eher außerhalb. Für digitale Abzeichen nicht belegt. |
+| Ein Kurs mit Abzeichen (Pflicht) und Bestenliste hatte nach 16 Wochen weniger intrinsische Motivation, Zufriedenheit und Empowerment, dazu schlechtere Ergebnisse in der Abschlussprüfung. Zwei Kurse, nicht zufällig zugeteilt; vermutet werden sozialer Vergleich, fehlende Wahl, nachlassende Neuheit. | Hanus & Fox (2015) | **Keine Bestenlisten**, keine Pflicht, abschaltbar. |
+| Verlieren im Wettbewerb, im reinen Spielen und im Herdenverhalten (Duolingo, Foren und 15 Interviews). | Hadi Mogavi et al. (2022) | Kein Wettbewerb, kein Vergleich; Ziele hängen am Lernen. |
+| Übersicht über 87 Arbeiten: Am häufigsten sind Abzeichen, Bestenlisten, Wettbewerbe und Punkte mit unerwünschten Wirkungen verbunden (fehlende Wirkung, schlechtere Leistung, Motivationsprobleme, Schummeln). | Almeida et al. (2023) | Abzeichen sind keine harmlose Zugabe: nur fürs Können, nicht für Menge oder Anmelden. |
 
-Hinweis: Die Zahlen stammen aus Zusammenfassungen und Kurzfassungen, nicht aus den Volltexten. Vor der
-Übernahme in die README an den Originalen prüfen. Zu Streaks gibt es fast nur Herstellerangaben und
-Korrelationen (z. B. von Duolingo); sie sind hier bewusst **nicht** als Beleg verwendet.
+Hinweis: Die Zahlen stammen aus den Kurzfassungen der Arbeiten, bei Deci et al. aus dem Volltext; Hanus & Fox und die
+K-12-Metaanalyse sind aus Zusammenfassungen zu den Kurzfassungen übernommen. Zu Streaks gibt es kaum unabhängige Studien:
+Dass die Serie nachsichtig ist, ist eine Gestaltungsentscheidung und keine Folgerung aus einer Studie. Herstellerangaben und
+Korrelationen (etwa von Duolingo) sind bewusst **nicht** als Beleg verwendet. Eine zuvor erwogene Quelle zu Snapchat-Streaks
+wurde entfernt, weil ihre Befunde nicht geprüft werden konnten.
 
 ---
 
@@ -66,17 +69,21 @@ ein unerreichbares Ziel würde genau die bestrafen, die zurückkommen.
 
 ### 3.2 Abzeichen
 
-Etwa 12–15 Abzeichen, alle an Können gebunden. Beispiele:
+Zwölf Abzeichen, alle an Können gebunden (Katalog in `src/badges.js`):
 
 - „10 Wörter sicher“, „Liste gemeistert“ (alle Wörter sicher)
 - „Nach 4 Wochen noch gewusst“ (genau das, was die Planung erreichen soll)
 - „Fehler besiegt“ (falsch, am nächsten Tag richtig)
-- „Regel sicher“ (Grammatik)
+- „Erste Regel sicher“, „5 Regeln sicher“ (Grammatik)
 - „7, 30, 100 Lerntage“
+- „10, 50, 150 Wörter sicher“, „Beide Richtungen“ (10 Wörter in beiden Richtungen sicher)
 
 Einige sind erst sichtbar, wenn man sie hat (nicht angekündigte Belohnungen untergraben die Motivation weniger).
-Rückmeldung ruhig: ein kurzer Hinweis und eine Sammlungsseite, kein Dialog, kein Konfetti. Schüler:innen
-können ihre Abzeichen zurücksetzen (neben „Stand zurücksetzen“).
+Rückmeldung ruhig: ein kurzer Hinweis und eine Sammlungsseite, kein Dialog, kein Konfetti.
+
+Abweichung vom Entwurf: Ein Knopf „Abzeichen zurücksetzen“ ist nicht umgesetzt. Die Schwellen („10 Wörter sicher“)
+hängen am Lernstand und wären bei der nächsten Antwort sofort wieder erreicht; er würde nichts löschen, was Schüler:innen
+löschen wollen. Wer seinen Lernstand zurücksetzt, behält erreichte Abzeichen; mit dem Konto werden sie gelöscht.
 
 ### 3.3 Tagesanzeige statt Anmeldebelohnung
 
@@ -124,6 +131,18 @@ Tag ein Punkt in einer Wochenzeile (Anknüpfung an den Terrakotta-Punkt im App-S
 - Entscheidung gegenüber dem Entwurf: Auch Üben ohne Fälliges zählt nicht, damit eine einzelne Antwort pro Tag keine
   Serie erzeugt. Eine Person mit mehreren Gruppen zählt nur Listen aus Gruppen, in denen die Lernserie an ist.
 
+### Umsetzung Schritt 2
+
+- `src/badges.js`: Katalog, Schwellen und Sammlung als reine Funktionen (`test/badges.test.js`).
+- Migration 13: `badges_earned(user_id, badge, earned_at)`. Der Fortschritt wird bei Bedarf aus dem Lernstand gerechnet
+  (`badgeStats` in `src/api.js`, nur aus Listen mit Lernserie).
+- Vergeben wird nach den Antworten in derselben Transaktion (`awardBadges`). Ereignisse einer Übertragung: ein Wort nach
+  ≥ 28 Tagen gewusst, ein am Vortag oder früher falsches Wort richtig. Nachträglich übertragene Antworten zählen mit ihrem Zeitpunkt.
+- `POST /results` liefert zusätzlich `badges` (neu erreicht); `GET /api/badges` die Sammlung; `GET /api/streak` die Zahlen.
+- Oberfläche: `public/badges-ui.js`, Seite `#/badges`; ein Schalter pro Gruppe für Lernserie **und** Abzeichen.
+- Sicher wird ein Wort erst nach mehreren Antworten an verschiedenen Tagen (Stabilität ≥ 14 Tage): ein einzelnes „leicht“
+  genügt nicht. Rückdatierte Antworten reichen dafür auch nicht, denn eine Antwort zählt nie vor der letzten bekannten.
+
 ### Reihenfolge
 
 1. Lerntage, Tagesziel und Serie (klein; zeigt früh, ob es trägt)
@@ -136,10 +155,10 @@ Tag ein Punkt in einer Wochenzeile (Anknüpfung an den Terrakotta-Punkt im App-S
 
 ## 5. Literatur
 
+- Almeida, C., Kalinowski, M., Uchoa, A., & Feijó, B. (2023). Negative effects of gamification in education software: Systematic mapping and practitioner perceptions. arXiv:2305.08346.
+- Cameron, J., Banko, K. M., & Pierce, W. D. (2001). Pervasive negative effects of rewards on intrinsic motivation: The myth continues. *The Behavior Analyst, 24*(1), 1–44.
 - Deci, E. L., Koestner, R., & Ryan, R. M. (1999). A meta-analytic review of experiments examining the effects of extrinsic rewards on intrinsic motivation. *Psychological Bulletin, 125*(6), 627–668.
+- Hadi Mogavi, R., Guo, B., Zhang, Y., Haq, E.-U., Hui, P., & Ma, X. (2022). When gamification spoils your learning: A qualitative case study of gamification misuse in a language-learning app. arXiv:2203.16175.
 - Hanus, M. D., & Fox, J. (2015). Assessing the effects of gamification in the classroom: A longitudinal study on intrinsic motivation, social comparison, satisfaction, effort, and academic performance. *Computers & Education, 80*, 152–161.
-- Sailer, M., & Homner, L. (2020). The gamification of learning: a meta-analysis. *Educational Psychology Review, 32*(1), 77–112.
-- A meta-analysis of gamification's impact on student motivation in K-12 education. *Psychology in the Schools*. https://onlinelibrary.wiley.com/doi/10.1002/pits.70056
-- Negative effects of gamification in education software: systematic mapping and practitioner perceptions. arXiv:2305.08346.
-- When gamification spoils your learning: a qualitative case study of gamification misuse in a language-learning app. arXiv:2203.16175.
-- Snapchat streaks: how are these forms of gamified interactions associated with problematic smartphone use and fear of missing out among early adolescents? https://www.sciencedirect.com/science/article/pii/S2772503023000476
+- Kurnaz, F., & Koçtürk, M. (2025). A meta-analysis of gamification's impact on student motivation in K-12 education. *Psychology in the Schools*. https://onlinelibrary.wiley.com/doi/10.1002/pits.70056
+- Sailer, M., & Homner, L. (2020). The gamification of learning: A meta-analysis. *Educational Psychology Review, 32*(1), 77–112.

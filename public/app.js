@@ -14,6 +14,7 @@ import { createScheduler } from './schedule.js';
 import * as store from './store.js';
 import * as FSRS from './vendor/ts-fsrs.js';
 import { exportGroupsCsv, groupPanels, historyPanel, levelChip, pct, sortableTable, statTiles } from './stats-ui.js';
+import { badgePage, badgeText } from './badges-ui.js';
 import { groupSwitches, reachedText, streakPanel } from './streak-ui.js';
 import {
   endOfToday, field, fill, formatDate, formatDue, groupPicker, h, icon, languageSelect, pref, progressBar, segmented, shuffle, toast, view,
@@ -312,7 +313,8 @@ async function pushAnswers() {
     renderNet();
     const res = await request('POST', '/results', { results: batch });
     await store.done(batch.map((e) => e.id));
-    if (res.streak?.reached) toast(reachedText(res.streak));
+    const reward = [res.streak?.reached && reachedText(res.streak), badgeText(res.badges)].filter(Boolean).join(' ');
+    if (reward) toast(reward);
     const pendingFor = await pendingKeys(); // was inzwischen neu beantwortet wurde
     if (offlineData) {
       for (const list of offlineData.lists) {
@@ -506,7 +508,7 @@ function renderHomeLists({ own, assigned }, { offline = false, note = null, stre
       try {
         await api('PUT', '/group-settings', { group_id: group.id, gamification: enabled });
         group.gamification = enabled;
-        toast(enabled ? 'Lernserie für diese Gruppe eingeschaltet.' : 'Lernserie für diese Gruppe ausgeschaltet.');
+        toast(enabled ? 'Lernserie und Abzeichen für diese Gruppe eingeschaltet.' : 'Lernserie und Abzeichen für diese Gruppe ausgeschaltet.');
       } catch (err) {
         toast(err.message, 'error');
         throw err;
@@ -514,6 +516,19 @@ function renderHomeLists({ own, assigned }, { offline = false, note = null, stre
     }));
   }
   view(...sections);
+}
+
+// ---------- Abzeichen ----------
+
+async function renderBadges() {
+  if (!online) {
+    return view(h('section', { class: 'panel' }, h('h1', {}, 'Abzeichen'),
+      h('p', {}, 'Die Sammlung gibt es nur mit Internet. Lernen geht auch offline.'),
+      h('a', { class: 'btn', href: '#/' }, 'Zur Startseite')));
+  }
+  const data = await api('GET', '/badges');
+  if (!data.enabled) return renderHome();
+  view(badgePage(data));
 }
 
 // ---------- Editor (Lehrkräfte) ----------
@@ -1690,6 +1705,7 @@ async function route() {
       else await renderStats(listId);
     }
     else if (page === 'shared' && me.isTeacher) await renderShared();
+    else if (page === 'badges') await renderBadges();
     else await renderHome();
   } catch (err) {
     if (me) showError(err);

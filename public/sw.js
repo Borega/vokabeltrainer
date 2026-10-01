@@ -9,6 +9,7 @@ const CACHE = 'vokabeltrainer-v1';
 const SHELL = [
   '/',
   '/app.js',
+  '/badges-ui.js',
   '/check.js',
   '/csv.js',
   '/exercises.js',

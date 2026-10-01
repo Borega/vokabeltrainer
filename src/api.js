@@ -3,6 +3,7 @@ import { now, transaction } from './db.js';
 import { forgetDevice, forgetDeviceToken, issueDeviceToken } from './devices.js';
 import { GRADES, SAFE_LEVEL, levelFor, review } from './scheduler.js';
 import { LIMITS, parseItem, roundGrade, validateRules } from '../public/grammar.js';
+import { BADGES, LONG_RECALL_DAYS, collection, newlyEarned, titleOf } from './badges.js';
 import { DAILY_GOAL, computeStreak, endOfDay, localDay, weekOf } from './streak.js';
 
 // Ab dieser Stufe gilt ein Wort als „sicher“ (0 = neu … 5, siehe scheduler.js).
@@ -319,6 +320,30 @@ export function apiRouter(db, config) {
            WHERE p.user_id = :u AND p.due IS NOT NULL AND r.list_id IN (${STREAK_LISTS}))`,
     ),
     streakListIds: db.prepare(`SELECT id FROM (${STREAK_LISTS})`),
+    // Abzeichen: Kennzahlen aus dem Lernstand, nur aus Listen mit Lernserie (siehe badges.js)
+    badgeStats: db.prepare(
+      `SELECT
+         (SELECT COUNT(DISTINCT p.word_id) FROM progress p JOIN words w ON w.id = p.word_id
+           WHERE p.user_id = :u AND p.box >= ${SAFE_BOX} AND w.list_id IN (${STREAK_LISTS})) AS safeWords,
+         (SELECT COUNT(*) FROM (SELECT p.word_id FROM progress p JOIN words w ON w.id = p.word_id
+           WHERE p.user_id = :u AND p.box >= ${SAFE_BOX} AND w.list_id IN (${STREAK_LISTS})
+           GROUP BY p.word_id HAVING COUNT(DISTINCT p.direction) = 2)) AS bothWays,
+         (SELECT COUNT(*) FROM rule_progress p JOIN rules r ON r.id = p.rule_id
+           WHERE p.user_id = :u AND p.box >= ${SAFE_BOX} AND r.list_id IN (${STREAK_LISTS})) AS safeRules,
+         (SELECT COUNT(*) FROM lists l WHERE l.id IN (${STREAK_LISTS}) AND (
+           (l.kind = 'vocab' AND (SELECT COUNT(*) FROM words w WHERE w.list_id = l.id) >= 5
+             AND NOT EXISTS (SELECT 1 FROM words w WHERE w.list_id = l.id AND NOT EXISTS
+               (SELECT 1 FROM progress p WHERE p.word_id = w.id AND p.user_id = :u AND p.box >= ${SAFE_BOX})))
+           OR (l.kind = 'grammar' AND (SELECT COUNT(*) FROM rules r WHERE r.list_id = l.id) >= 3
+             AND NOT EXISTS (SELECT 1 FROM rules r WHERE r.list_id = l.id AND NOT EXISTS
+               (SELECT 1 FROM rule_progress p WHERE p.rule_id = r.id AND p.user_id = :u AND p.box >= ${SAFE_BOX}))))) AS listsMastered`,
+    ),
+    earnedBadges: db.prepare('SELECT badge, earned_at FROM badges_earned WHERE user_id = ?'),
+    addBadge: db.prepare('INSERT OR IGNORE INTO badges_earned (user_id, badge, earned_at) VALUES (?, ?, ?)'),
+    doneDays: db.prepare('SELECT COUNT(*) AS n FROM learning_days WHERE user_id = ? AND done = 1'),
+    // Wann wurde das Wort zuletzt in irgendeiner Richtung abgefragt?
+    lastWordReview: db.prepare('SELECT MAX(last_review) AS at FROM progress WHERE user_id = ? AND word_id = ?'),
+    lastReview: db.prepare('SELECT grade, at FROM review_log WHERE user_id = ? AND word_id = ? AND direction = ? ORDER BY at DESC, id DESC LIMIT 1'),
     learningDays: db.prepare('SELECT day, answers, had_due, done, next_due FROM learning_days WHERE user_id = ? ORDER BY day'),
     learningDay: db.prepare('SELECT answers, had_due, done FROM learning_days WHERE user_id = ? AND day = ?'),
     putLearningDay: db.prepare(
@@ -428,7 +453,28 @@ export function apiRouter(db, config) {
       goal: DAILY_GOAL,
       today: { done: !!row?.done, answers: row?.answers ?? 0, remaining: dueUntilEndOf(userId, today) },
       week: weekOf(rows, today),
+      badges: { earned: q.earnedBadges.all(userId).length, total: BADGES.length },
     };
+  }
+
+  // ---------- Abzeichen ----------
+
+  const badgeStats = (userId, events = {}) => ({
+    ...q.badgeStats.get({ u: userId }),
+    days: q.doneDays.get(userId).n,
+    longRecall: !!events.longRecall,
+    errorFixed: !!events.errorFixed,
+  });
+
+  // Neu erreichte Abzeichen vergeben. events: was in dieser Übertragung geschah (longRecall, errorFixed).
+  // Ergebnis: [{ id, title }]
+  function awardBadges(userId, events) {
+    const have = new Set(q.earnedBadges.all(userId).map((b) => b.badge));
+    if (have.size >= BADGES.length) return [];
+    const ids = newlyEarned(badgeStats(userId, events), have);
+    const ts = now();
+    for (const id of ids) q.addBadge.run(userId, id, ts);
+    return ids.map((id) => ({ id, title: titleOf(id) }));
   }
 
   const wrap = (fn) => (req, res, next) => {
@@ -461,6 +507,13 @@ export function apiRouter(db, config) {
   })));
 
   router.get('/streak', wrap((req) => streakSummary(req.user.id)));
+
+  // Sammlung: erreichte Abzeichen und der Fortschritt zu den übrigen
+  router.get('/badges', wrap((req) => {
+    if (!streakEnabled(req.user.id)) return { enabled: false };
+    const earned = new Map(q.earnedBadges.all(req.user.id).map((b) => [b.badge, b.earned_at]));
+    return { enabled: true, badges: collection(badgeStats(req.user.id), earned) };
+  }));
 
   // Lernserie für eine Gruppe ein- oder ausschalten (nur Lehrkräfte, die der Gruppe angehören)
   router.put('/group-settings', wrap((req) => {
@@ -699,7 +752,8 @@ export function apiRouter(db, config) {
   // Ohne Internet gegebene Antworten kommen später: at ist der Zeitpunkt der Antwort (nie in der Zukunft
   // und nie vor der letzten bekannten Antwort), id macht doppeltes Senden unschädlich.
   // listFor(result) liefert die Liste des Worts oder null (dann wird die Antwort übergangen).
-  // Ergebnis: { touched: betroffene Listen, goalReached: das Tagesziel wurde heute damit erreicht }
+  // Ergebnis: { touched: betroffene Listen, goalReached: das Tagesziel wurde heute damit erreicht,
+  // badges: neu erreichte Abzeichen }
   function applyResults(user, results, listFor) {
     const nowMs = Date.now();
     const timeOf = (r) => {
@@ -716,7 +770,9 @@ export function apiRouter(db, config) {
       byDay.get(day).push(entry);
     }
     const touched = new Set();
+    const events = { longRecall: false, errorFixed: false }; // für Abzeichen
     let goalReached = false;
+    let badges = [];
     transaction(db, () => {
       const trackStreak = sorted.length > 0 && streakEnabled(user.id);
       const streakLists = trackStreak ? new Set(q.streakListIds.all({ u: user.id }).map((l) => l.id)) : null;
@@ -751,6 +807,14 @@ export function apiRouter(db, config) {
           const last = previous?.last_review ? Date.parse(previous.last_review) : 0;
           const ts = new Date(Math.max(t, last)).toISOString();
           const next = review(previous, grade, new Date(ts));
+          // Nur richtige Antworten zählen: „fast“ (hard, aber nicht richtig) ist für die App falsch
+          if (streakLists?.has(list.id) && correct && grade !== 'again') {
+            // „Vier Wochen nicht gesehen“ gilt für das Wort in beiden Richtungen; ein Fehler dagegen für die Richtung, in der er passierte
+            const lastSeen = q.lastWordReview.get(user.id, wordId)?.at;
+            if (lastSeen && Date.parse(ts) - Date.parse(lastSeen) >= LONG_RECALL_DAYS * DAY) events.longRecall = true;
+            const lastLog = q.lastReview.get(user.id, wordId, direction);
+            if (lastLog?.grade === 'again' && localDay(Date.parse(lastLog.at), timezone) < day) events.errorFixed = true;
+          }
           q.putProgress.run({
             user_id: user.id,
             word_id: wordId,
@@ -767,8 +831,9 @@ export function apiRouter(db, config) {
         }
         if (trackStreak && answered && recordLearningDay(user.id, day, dueAnswered, dueBefore)) goalReached = true;
       }
+      if (trackStreak && touched.size) badges = awardBadges(user.id, events);
     });
-    return { touched, goalReached };
+    return { touched, goalReached, badges };
   }
 
   // Ergebnisse einer Lernrunde für eine Liste
@@ -776,8 +841,8 @@ export function apiRouter(db, config) {
     const list = loadList(req.params.id);
     assertCanSee(list, req.user);
     const results = Array.isArray(req.body?.results) ? req.body.results.slice(0, MAX_RESULTS) : [];
-    const { goalReached } = applyResults(req.user, results, () => list);
-    return { progress: progressOf(list, req.user.id), streak: { ...streakSummary(req.user.id), reached: goalReached } };
+    const { goalReached, badges } = applyResults(req.user, results, () => list);
+    return { progress: progressOf(list, req.user.id), streak: { ...streakSummary(req.user.id), reached: goalReached }, badges };
   }));
 
   // Antworten aus mehreren Listen auf einmal – so überträgt der Browser, was ohne Internet gelernt wurde.
@@ -799,10 +864,10 @@ export function apiRouter(db, config) {
       }
       return visible.get(id);
     };
-    const { touched, goalReached } = applyResults(req.user, results, listFor);
+    const { touched, goalReached, badges } = applyResults(req.user, results, listFor);
     const progress = {};
     for (const id of touched) progress[id] = progressOf(visible.get(id), req.user.id);
-    return { progress, streak: { ...streakSummary(req.user.id), reached: goalReached } };
+    return { progress, streak: { ...streakSummary(req.user.id), reached: goalReached }, badges };
   }));
 
   router.delete('/lists/:id/progress', wrap((req) => {
