@@ -30,6 +30,10 @@ export const config = {
   retentionDays: Number(env.RETENTION_DAYS ?? 400),
   // Mitgelieferte Grammatik-Vorlagen unter „Geteilte Listen“ anbieten (false: entfernen)
   templates: bool(env.TEMPLATES, true),
+  // Lernserie (Tagesziel, Wochenpunkte) für die ganze Schule; Lehrkräfte können sie pro Gruppe abschalten
+  gamification: bool(env.GAMIFICATION, true),
+  // Zeitzone der Schule: bestimmt, wann ein Lerntag beginnt und endet
+  timezone: env.TIMEZONE ?? 'Europe/Berlin',
   frameAncestors: env.FRAME_ANCESTORS ?? "'self'",
   appName: env.APP_NAME ?? 'Vokabeltrainer',
   loginLabel: env.LOGIN_LABEL ?? 'Mit IServ anmelden',

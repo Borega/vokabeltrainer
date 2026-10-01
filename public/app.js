@@ -14,6 +14,7 @@ import { createScheduler } from './schedule.js';
 import * as store from './store.js';
 import * as FSRS from './vendor/ts-fsrs.js';
 import { exportGroupsCsv, groupPanels, historyPanel, levelChip, pct, sortableTable, statTiles } from './stats-ui.js';
+import { groupSwitches, reachedText, streakPanel } from './streak-ui.js';
 import {
   endOfToday, field, fill, formatDate, formatDue, groupPicker, h, icon, languageSelect, pref, progressBar, segmented, shuffle, toast, view,
 } from './ui.js';
@@ -311,6 +312,7 @@ async function pushAnswers() {
     renderNet();
     const res = await request('POST', '/results', { results: batch });
     await store.done(batch.map((e) => e.id));
+    if (res.streak?.reached) toast(reachedText(res.streak));
     const pendingFor = await pendingKeys(); // was inzwischen neu beantwortet wurde
     if (offlineData) {
       for (const list of offlineData.lists) {
@@ -422,15 +424,20 @@ function listCard(list, { own }) {
 
 async function renderHome() {
   let data = null;
+  let streak = null;
   if (online) {
     try {
-      data = await api('GET', `/lists?due_until=${encodeURIComponent(endOfToday().toISOString())}`);
+      // Die Lernserie ist eine Zugabe: Fehlt sie, bleibt die Startseite wie sie ist
+      [data, streak] = await Promise.all([
+        api('GET', `/lists?due_until=${encodeURIComponent(endOfToday().toISOString())}`),
+        request('GET', '/streak').catch(() => null),
+      ]);
     } catch (err) {
       if (!(err instanceof OfflineError)) throw err;
     }
   }
   if (!data) return renderHomeOffline();
-  renderHomeLists(data);
+  renderHomeLists(data, { streak });
 }
 
 // Ohne Internet: die auf dem Gerät gespeicherten Listen mit dem Lernstand auf dem Gerät
@@ -453,7 +460,7 @@ function renderHomeOffline() {
   renderHomeLists({ own: [], assigned }, { offline: true, note });
 }
 
-function renderHomeLists({ own, assigned }, { offline = false, note = null } = {}) {
+function renderHomeLists({ own, assigned }, { offline = false, note = null, streak = null } = {}) {
   const sections = [note];
   const dueLists = [...own, ...assigned].filter((l) => l.progress.due);
   const dueOf = (grammar) => dueLists.filter((l) => isGrammar(l) === grammar).reduce((sum, l) => sum + l.progress.due, 0);
@@ -467,6 +474,8 @@ function renderHomeLists({ own, assigned }, { offline = false, note = null } = {
       h('div', { class: 'actions' }, dueLists.map((l) => h('a', { class: 'btn', href: `#/learn/${l.id}` }, `${l.title} (${l.progress.due})`))),
     ));
   }
+  // Lehrkräfte, die nur Listen anlegen, sehen die Serie nicht, solange sie selbst nichts üben
+  if (streak?.enabled && (!me.isTeacher || streak.total || streak.today.remaining)) sections.push(streakPanel(streak));
   if (me.isTeacher && !offline) {
     sections.push(
       h('section', {},
@@ -491,6 +500,18 @@ function renderHomeLists({ own, assigned }, { offline = false, note = null } = {
           : offline ? null : h('p', { class: 'empty' }, 'Für deine Klassen und Kurse gibt es noch keine Listen.'),
       ),
     );
+  }
+  if (me.isTeacher && !offline && me.gamification && me.groups?.length) {
+    sections.push(groupSwitches(me.groups, async (group, enabled) => {
+      try {
+        await api('PUT', '/group-settings', { group_id: group.id, gamification: enabled });
+        group.gamification = enabled;
+        toast(enabled ? 'Lernserie für diese Gruppe eingeschaltet.' : 'Lernserie für diese Gruppe ausgeschaltet.');
+      } catch (err) {
+        toast(err.message, 'error');
+        throw err;
+      }
+    }));
   }
   view(...sections);
 }

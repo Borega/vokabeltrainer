@@ -3,6 +3,7 @@ import { now, transaction } from './db.js';
 import { forgetDevice, forgetDeviceToken, issueDeviceToken } from './devices.js';
 import { GRADES, SAFE_LEVEL, levelFor, review } from './scheduler.js';
 import { LIMITS, parseItem, roundGrade, validateRules } from '../public/grammar.js';
+import { DAILY_GOAL, computeStreak, endOfDay, localDay, weekOf } from './streak.js';
 
 // Ab dieser Stufe gilt ein Wort als „sicher“ (0 = neu … 5, siehe scheduler.js).
 export const SAFE_BOX = SAFE_LEVEL;
@@ -196,6 +197,14 @@ export function writeRules(db, listId, rules) {
   for (const id of existingRules) if (!keepRules.has(id)) db.prepare('DELETE FROM rules WHERE id = ?').run(id);
 }
 
+// Listen, die für die Lernserie einer Person (:u) zählen (siehe dueCount)
+const STREAK_LISTS = `SELECT id FROM lists WHERE owner_id = :u
+  UNION
+  SELECT lg.list_id FROM list_groups lg
+    JOIN user_groups ug ON ug.group_id = lg.group_id AND ug.user_id = :u
+    LEFT JOIN group_settings gs ON gs.group_id = lg.group_id
+    WHERE COALESCE(gs.gamification, 1) = 1`;
+
 export function apiRouter(db, config) {
   const router = express.Router();
   router.use(express.json({ limit: '2mb' }));
@@ -294,6 +303,36 @@ export function apiRouter(db, config) {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     ),
     seenClientId: db.prepare('SELECT 1 FROM review_log WHERE user_id = ? AND client_id = ?'),
+    // Lernserie: nur Listen, die die Person selbst besitzt oder über eine Gruppe bekommt, in der sie nicht abgeschaltet ist
+    dueCount: db.prepare(
+      `SELECT (SELECT COUNT(*) FROM progress p JOIN words w ON w.id = p.word_id
+                WHERE p.user_id = :u AND p.due <= :until AND w.list_id IN (${STREAK_LISTS}))
+            + (SELECT COUNT(*) FROM rule_progress p JOIN rules r ON r.id = p.rule_id
+                WHERE p.user_id = :u AND p.due <= :until AND r.list_id IN (${STREAK_LISTS})) AS n`,
+    ),
+    firstDue: db.prepare(
+      `SELECT MIN(due) AS due FROM (
+         SELECT p.due FROM progress p JOIN words w ON w.id = p.word_id
+           WHERE p.user_id = :u AND p.due IS NOT NULL AND w.list_id IN (${STREAK_LISTS})
+         UNION ALL
+         SELECT p.due FROM rule_progress p JOIN rules r ON r.id = p.rule_id
+           WHERE p.user_id = :u AND p.due IS NOT NULL AND r.list_id IN (${STREAK_LISTS}))`,
+    ),
+    learningDays: db.prepare('SELECT day, answers, had_due, done, next_due FROM learning_days WHERE user_id = ? ORDER BY day'),
+    learningDay: db.prepare('SELECT answers, had_due, done FROM learning_days WHERE user_id = ? AND day = ?'),
+    putLearningDay: db.prepare(
+      `INSERT INTO learning_days (user_id, day, answers, had_due, done, next_due) VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(user_id, day) DO UPDATE SET answers = excluded.answers, had_due = excluded.had_due,
+         done = excluded.done, next_due = excluded.next_due`,
+    ),
+    groupFlags: db.prepare(
+      `SELECT ug.group_id AS id, ug.group_name AS name, COALESCE(gs.gamification, 1) AS enabled
+       FROM user_groups ug LEFT JOIN group_settings gs ON gs.group_id = ug.group_id WHERE ug.user_id = ?`,
+    ),
+    setGroupSetting: db.prepare(
+      `INSERT INTO group_settings (group_id, gamification) VALUES (?, ?)
+       ON CONFLICT(group_id) DO UPDATE SET gamification = excluded.gamification`,
+    ),
     getProgress: db.prepare('SELECT * FROM progress WHERE user_id = ? AND word_id = ? AND direction = ?'),
     putProgress: db.prepare(
       `INSERT INTO progress (user_id, word_id, direction, box, right, wrong, last_seen,
@@ -337,10 +376,60 @@ export function apiRouter(db, config) {
     if (list.owner_id !== user.id) throw new HttpError(403, 'Nur die Ersteller:in darf diese Liste ändern.');
   }
 
+  const isShownGroup = (g) => !config.hiddenGroups.includes(g.id.toLowerCase()) && !config.hiddenGroups.includes(g.name.toLowerCase());
+
   function teacherGroups(userId) {
-    return q.userGroups
-      .all(userId)
-      .filter((g) => !config.hiddenGroups.includes(g.id.toLowerCase()) && !config.hiddenGroups.includes(g.name.toLowerCase()));
+    return q.groupFlags.all(userId).filter(isShownGroup).map((g) => ({ id: g.id, name: g.name, gamification: !!g.enabled }));
+  }
+
+  // ---------- Lernserie ----------
+
+  const timezone = config.timezone ?? 'Europe/Berlin';
+  const isoOf = (ms) => new Date(ms).toISOString();
+
+  // Aus für die ganze Schule oder wenn alle (angezeigten) Gruppen der Person sie abgeschaltet haben
+  function streakEnabled(userId) {
+    if (config.gamification === false) return false;
+    const groups = teacherGroups(userId);
+    return !groups.length || groups.some((g) => g.gamification);
+  }
+
+  const dueUntilEndOf = (userId, day) => q.dueCount.get({ u: userId, until: isoOf(endOfDay(day, timezone)) }).n;
+
+  // Tagesziel nach neuen Antworten prüfen. counts: Antworten pro Tag aus dieser Übertragung,
+  // dueBefore: was an dem Tag vor diesen Antworten fällig war. Ergebnis: heute zum ersten Mal erledigt?
+  function recordLearningDays(userId, counts, dueBefore) {
+    const nextDue = q.firstDue.get({ u: userId }).due ?? null;
+    const today = localDay(Date.now(), timezone);
+    let reached = false;
+    for (const [day, added] of counts) {
+      const row = q.learningDay.get(userId, day);
+      const answers = (row?.answers ?? 0) + added;
+      const hadDue = !!row?.had_due || dueBefore.get(day) > 0;
+      let done = !!row?.done;
+      if (!done && hadDue) {
+        done = dueUntilEndOf(userId, day) === 0 || answers >= DAILY_GOAL;
+        if (done && day === today) reached = true;
+      }
+      q.putLearningDay.run(userId, day, answers, hadDue ? 1 : 0, done ? 1 : 0, nextDue);
+    }
+    return reached;
+  }
+
+  // Für die Startseite: Serie, Lerntage, Tagesziel und die Woche
+  function streakSummary(userId) {
+    if (!streakEnabled(userId)) return { enabled: false };
+    const stored = q.learningDays.all(userId);
+    const rows = stored.map((r) => ({ day: r.day, done: !!r.done, had_due: !!r.had_due, next_due: r.next_due }));
+    const today = localDay(Date.now(), timezone);
+    const row = stored.find((r) => r.day === today);
+    return {
+      enabled: true,
+      ...computeStreak(rows, today, timezone),
+      goal: DAILY_GOAL,
+      today: { done: !!row?.done, answers: row?.answers ?? 0, remaining: dueUntilEndOf(userId, today) },
+      week: weekOf(rows, today),
+    };
   }
 
   const wrap = (fn) => (req, res, next) => {
@@ -368,8 +457,21 @@ export function apiRouter(db, config) {
     ...req.user,
     device: !!req.session.data.device,
     remember: config.rememberDays > 0,
+    gamification: config.gamification !== false,
     groups: req.user.isTeacher ? teacherGroups(req.user.id) : [],
   })));
+
+  router.get('/streak', wrap((req) => streakSummary(req.user.id)));
+
+  // Lernserie für eine Gruppe ein- oder ausschalten (nur Lehrkräfte, die der Gruppe angehören)
+  router.put('/group-settings', wrap((req) => {
+    requireTeacher(req);
+    const id = typeof req.body?.group_id === 'string' ? req.body.group_id : '';
+    if (!teacherGroups(req.user.id).some((g) => g.id === id)) throw new HttpError(403, 'Diese Gruppe gehört nicht zu dir.');
+    if (typeof req.body.gamification !== 'boolean') throw new HttpError(400, 'Ungültige Daten.');
+    q.setGroupSetting.run(id, req.body.gamification ? 1 : 0);
+    return { group_id: id, gamification: req.body.gamification };
+  }));
 
   // ?due_until=<ISO-Zeitpunkt>: bis wann ein Wort als „heute fällig“ zählt (Ende des lokalen Tages im Browser)
   router.get('/lists', wrap((req) => {
@@ -597,6 +699,7 @@ export function apiRouter(db, config) {
   // Ohne Internet gegebene Antworten kommen später: at ist der Zeitpunkt der Antwort (nie in der Zukunft
   // und nie vor der letzten bekannten Antwort), id macht doppeltes Senden unschädlich.
   // listFor(result) liefert die Liste des Worts oder null (dann wird die Antwort übergangen).
+  // Ergebnis: { touched: betroffene Listen, goalReached: das Tagesziel wurde heute damit erreicht }
   function applyResults(user, results, listFor) {
     const nowMs = Date.now();
     const timeOf = (r) => {
@@ -605,11 +708,27 @@ export function apiRouter(db, config) {
     };
     const sorted = results.map((r) => ({ r, t: timeOf(r) })).sort((x, y) => x.t - y.t);
     const touched = new Set();
+    const counts = new Map(); // Lernserie: übernommene Antworten pro Tag
+    const count = (t) => {
+      const day = localDay(t, timezone);
+      counts.set(day, (counts.get(day) ?? 0) + 1);
+    };
+    let goalReached = false;
     transaction(db, () => {
+      // Was an den Tagen der Antworten fällig war, bevor sie den Plan verschieben
+      const trackStreak = sorted.length > 0 && streakEnabled(user.id);
+      const dueBefore = new Map();
+      if (trackStreak) for (const { t } of sorted) {
+        const day = localDay(t, timezone);
+        if (!dueBefore.has(day)) dueBefore.set(day, dueUntilEndOf(user.id, day));
+      }
       for (const { r, t } of sorted) {
         const list = listFor(r);
         if (list?.kind === 'grammar') {
-          if (applyRound(user, r, list, t)) touched.add(list.id);
+          if (applyRound(user, r, list, t)) {
+            touched.add(list.id);
+            count(t);
+          }
           continue;
         }
         const wordId = Number(r?.word_id);
@@ -635,9 +754,11 @@ export function apiRouter(db, config) {
         const exercise = EXERCISES.includes(r.exercise) ? r.exercise : '';
         q.logReview.run(user.id, wordId, direction, grade, next.stability, ts, exercise, clientId);
         touched.add(list.id);
+        count(t);
       }
+      if (trackStreak && counts.size) goalReached = recordLearningDays(user.id, counts, dueBefore);
     });
-    return touched;
+    return { touched, goalReached };
   }
 
   // Ergebnisse einer Lernrunde für eine Liste
@@ -645,8 +766,8 @@ export function apiRouter(db, config) {
     const list = loadList(req.params.id);
     assertCanSee(list, req.user);
     const results = Array.isArray(req.body?.results) ? req.body.results.slice(0, MAX_RESULTS) : [];
-    applyResults(req.user, results, () => list);
-    return { progress: progressOf(list, req.user.id) };
+    const { goalReached } = applyResults(req.user, results, () => list);
+    return { progress: progressOf(list, req.user.id), streak: { ...streakSummary(req.user.id), reached: goalReached } };
   }));
 
   // Antworten aus mehreren Listen auf einmal – so überträgt der Browser, was ohne Internet gelernt wurde.
@@ -668,10 +789,10 @@ export function apiRouter(db, config) {
       }
       return visible.get(id);
     };
-    const touched = applyResults(req.user, results, listFor);
+    const { touched, goalReached } = applyResults(req.user, results, listFor);
     const progress = {};
     for (const id of touched) progress[id] = progressOf(visible.get(id), req.user.id);
-    return { progress };
+    return { progress, streak: { ...streakSummary(req.user.id), reached: goalReached } };
   }));
 
   router.delete('/lists/:id/progress', wrap((req) => {
