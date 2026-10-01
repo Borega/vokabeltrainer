@@ -2,7 +2,9 @@
 // Trennzeichen (Semikolon, Komma, Tab) wird automatisch erkannt – Excel speichert
 // in Deutschland meist mit Semikolon.
 
-const HEADER_WORDS = /^(deutsch|englisch|französisch|franzoesisch|latein|spanisch|italienisch|russisch|niederländisch|niederlaendisch|polnisch|türkisch|tuerkisch|altgriechisch|griechisch|chinesisch|german|english|french|spanish|latin|italian|russian|dutch|polish|turkish|greek|chinese|français|francais|español|espanol|wort|begriff|vokabel|übersetzung|uebersetzung|bedeutung|a|b|word|term|translation|definition|notiz|note|hinweis)$/i;
+import { learnSide, sameLanguage } from './exercises.js';
+
+const HEADER_WORDS = /^(deutsch|englisch|französisch|franzoesisch|latein|spanisch|italienisch|russisch|niederländisch|niederlaendisch|polnisch|türkisch|tuerkisch|altgriechisch|griechisch|chinesisch|arabisch|ukrainisch|persisch|farsi|kurdisch|rumänisch|bulgarisch|albanisch|kroatisch|serbisch|portugiesisch|japanisch|schwedisch|dänisch|norwegisch|german|english|french|spanish|latin|italian|russian|dutch|polish|turkish|greek|chinese|arabic|ukrainian|persian|portuguese|français|francais|español|espanol|wort|begriff|vokabel|übersetzung|uebersetzung|bedeutung|a|b|word|term|translation|definition|notiz|note|hinweis)$/i;
 
 export function detectDelimiter(text) {
   const lines = text.split(/\r?\n/).filter((l) => l.trim()).slice(0, 20);
@@ -192,19 +194,27 @@ export function textToWords(text) {
 
 // Prompt für eine KI, die eine Liste genau in dem Format liefert, das textToWords versteht.
 // Beispielsätze in der Fremdsprache mit markierter Lücke, damit Lückentexte entstehen.
-export function aiPrompt({ langA = 'Englisch', langB = 'Deutsch', grade = null, topic = '', count = 20 } = {}) {
-  const german = (l) => /^(deutsch|german)/i.test(l.trim());
-  const foreign = german(langA) && !german(langB) ? langB : langA;
-  const describe = (lang) => (lang === foreign
-    ? `das Wort auf ${lang} (Nomen mit bestimmtem Artikel, Verben im Infinitiv)`
-    : `die Bedeutung auf ${lang}; mehrere richtige Bedeutungen mit | trennen, z. B. „groß | hoch“`);
+// learn: gelernte Seite ('a' | 'b'), sonst wie learnSide geschätzt. Gleiche Sprache auf beiden Seiten
+// (Deutschunterricht): Begriff ↔ kurze Erklärung.
+export function aiPrompt({ langA = 'Englisch', langB = 'Deutsch', learn = '', grade = null, topic = '', count = 20 } = {}) {
+  const mono = sameLanguage({ lang_a: langA, lang_b: langB });
+  const side = learnSide({ lang_a: langA, lang_b: langB, learn_side: learn });
+  const foreign = side === 'b' ? langB : langA;
+  const describe = (s, lang) => (mono
+    ? (s === 'a'
+      ? `der Begriff auf ${lang} (Nomen mit bestimmtem Artikel, Verben im Infinitiv)`
+      : `eine kurze, einfache Erklärung oder ein Synonym auf ${lang}; mehrere richtige Antworten mit | trennen`)
+    : s === side
+      ? `das Wort auf ${lang} (Nomen mit bestimmtem Artikel, Verben im Infinitiv)`
+      : `die Bedeutung auf ${lang}; mehrere richtige Bedeutungen mit | trennen, z. B. „groß | hoch“`);
+  const kind = mono ? 'Wortschatzliste (Begriffe mit Bedeutung)' : 'Vokabelliste';
   return [
-    `Erstelle eine Vokabelliste für den ${foreign}-Unterricht${grade ? ` in Jahrgang ${grade}` : ''}${topic.trim() ? ` zum Thema „${topic.trim()}“` : ''} mit ${count} Einträgen.`,
+    `Erstelle eine ${kind} für den ${foreign}-Unterricht${grade ? ` in Jahrgang ${grade}` : ''}${topic.trim() ? ` zum Thema „${topic.trim()}“` : ''} mit ${count} Einträgen.`,
     'Antworte nur mit einem Codeblock im CSV-Format mit Semikolon als Trennzeichen, ohne weitere Erklärungen.',
     `Erste Zeile: ${langA};${langB};Notiz;Beispielsatz`,
     'Regeln:',
-    `- Spalte 1: ${describe(langA)}.`,
-    `- Spalte 2: ${describe(langB)}.`,
+    `- Spalte 1: ${describe('a', langA)}.`,
+    `- Spalte 2: ${describe('b', langB)}.`,
     '- Teile, die man weglassen darf, in Klammern, z. B. „(to) go“. Männliche und weibliche Form zusammen als „bueno/a“ oder „heureux, -euse“.',
     '- Spalte 3 (Notiz): nur wenn nötig und sehr kurz (z. B. Genus, unregelmäßig), sonst leer lassen.',
     `- Spalte 4 (Beispielsatz): ein kurzer, einfacher Satz auf ${foreign}${grade ? ` für Jahrgang ${grade}` : ''}. Das gesuchte Wort im Satz mit *Sternchen* markieren, auch in gebeugter Form, z. B. „Yesterday I *went* home.“`,

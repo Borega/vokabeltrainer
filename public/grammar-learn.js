@@ -44,7 +44,7 @@ export async function renderGrammarLearn(ctx, list) {
   await voicesReady();
   const lang = speechLang(list.lang_a);
   const tag = langTag(list.lang_a);
-  const speakable = canSpeak(lang) && !lang?.startsWith('de');
+  const speakable = canSpeak(lang);
   let sound = speakable && pref('sound') === 'on';
   const options = { caseSensitive: list.case_sensitive, accentSensitive: list.accent_sensitive };
 

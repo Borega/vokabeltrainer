@@ -1,20 +1,22 @@
 // Geteilte Listen filtern und sortieren. Wird im Browser und in den Tests verwendet.
 
+import { learnedLanguages } from './exercises.js';
+
 export const GRADES = Array.from({ length: 13 }, (_, i) => i + 1);
 export const gradeLabel = (grade) => (grade ? `Jahrgang ${grade}` : 'ohne Jahrgang');
 
 const key = (s) => (s ?? '').trim().toLocaleLowerCase('de');
 
 // Sprachen der Listen für die Auswahl, häufigste zuerst: [{ value, label }]. value ist die vereinheitlichte
-// Schreibweise (zum Merken und Vergleichen), label die erste gefundene zum Anzeigen. Jede Liste zählt pro Sprache
-// einmal. Deutsch fehlt – fast jede Liste hat eine deutsche Seite.
+// Schreibweise (zum Merken und Vergleichen), label die erste gefundene zum Anzeigen. Es zählt die gelernte
+// Sprache (siehe learnedLanguages): Deutsch nur bei Listen für den Deutschunterricht und DaZ, nicht bei
+// Englisch ↔ Deutsch.
 export function languagesOf(lists) {
   const found = new Map();
   for (const list of lists) {
-    const labels = new Map();
-    for (const l of [list.lang_a, list.lang_b]) if (!labels.has(key(l))) labels.set(key(l), (l ?? '').trim());
+    const labels = new Map(learnedLanguages(list).map((l) => [key(l), l]));
     for (const [k, label] of labels) {
-      if (!k || k === 'deutsch' || k === 'german') continue;
+      if (!k) continue;
       const entry = found.get(k) ?? { value: k, label, n: 0 };
       entry.n++;
       found.set(k, entry);
@@ -27,13 +29,13 @@ export function languagesOf(lists) {
 
 export const KINDS = { vocab: 'Vokabeln', grammar: 'Grammatik' };
 
-// lang: Sprache (auf einer der beiden Seiten), grade: Jahrgang als Zahl/Text, 'none' = ohne Angabe, '' = alle,
+// lang: gelernte Sprache, grade: Jahrgang als Zahl/Text, 'none' = ohne Angabe, '' = alle,
 // kind: 'vocab' | 'grammar' | '' (alle)
 export function filterLists(lists, { q = '', lang = '', grade = '', kind = '' } = {}) {
   const query = key(q);
   return lists.filter((l) =>
     (!kind || (l.kind ?? 'vocab') === kind)
-    && (!lang || [l.lang_a, l.lang_b].some((x) => key(x) === key(lang)))
+    && (!lang || learnedLanguages(l).some((x) => key(x) === key(lang)))
     && (grade === '' || (grade === 'none' ? !l.grade : l.grade === Number(grade)))
     && (!query || [l.title, l.lang_a, l.lang_b, l.owner_name].some((t) => key(t).includes(query))));
 }

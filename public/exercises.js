@@ -162,8 +162,8 @@ const loose = (s) => normalize(s, { caseSensitive: false, accentSensitive: false
 
 // Zu welcher Seite ('a' | 'b') gehört der Beispielsatz? Enthält er das Wort einer Seite, ist es diese.
 // Bei einer markierten Lücke, die keiner Seite wörtlich entspricht (went ↔ (to) go), ist es die
-// Fremdsprache – also nicht die deutsche Seite, im Zweifel Seite A.
-export function exampleSide(word, { langA, langB } = {}) {
+// gelernte Sprache (siehe learnSide).
+export function exampleSide(word, { langA, langB, learn } = {}) {
   const example = word.example?.trim();
   if (!example) return null;
   const marked = markedGap(example);
@@ -171,8 +171,7 @@ export function exampleSide(word, { langA, langB } = {}) {
   for (const side of ['a', 'b']) {
     if (variants(word[side]).some((v) => loose(v) === loose(marked.gap))) return side;
   }
-  const german = (label) => speechLang(label)?.startsWith('de') ?? false;
-  return german(langA) && !german(langB) ? 'b' : 'a';
+  return learnSide({ lang_a: langA, lang_b: langB, learn_side: learn });
 }
 
 // Lückentext für die Antwortseite side: { before, gap, after } oder null.
@@ -260,6 +259,33 @@ export function specialChars(words, side) {
   return [...found].sort((x, y) => rank(x) - rank(y) || x.localeCompare(y, 'fr'));
 }
 
+// ---------- Sprachen ----------
+
+export const isGermanLabel = (label) => speechLang(label)?.startsWith('de') ?? false;
+
+// Gleiche Sprache auf beiden Seiten (Deutsch ↔ Deutsch: Begriff ↔ Bedeutung)?
+export function sameLanguage({ lang_a: a, lang_b: b } = {}) {
+  if (!a?.trim() || !b?.trim()) return false;
+  const tagA = langTag(a);
+  return tagA ? tagA === langTag(b) : a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
+// Welche Seite einer Vokabelliste ist die Sprache, die gelernt wird? Die Lehrkraft stellt es ein (learn_side,
+// z. B. Deutsch bei DaZ: Deutsch ↔ Türkisch). Ältere Listen haben keine Angabe: dann die nicht deutsche Seite,
+// im Zweifel Seite A. Grammatiklisten haben nur Seite A.
+export function learnSide({ lang_a, lang_b, learn_side } = {}) {
+  if (learn_side === 'a' || learn_side === 'b') return learn_side;
+  return isGermanLabel(lang_a) && !isGermanLabel(lang_b) ? 'b' : 'a';
+}
+
+// Die gelernte(n) Sprache(n) einer Liste – zum Filtern geteilter Listen. Bei zwei verschiedenen Sprachen nur die
+// gelernte Seite, bei Grammatik und Deutsch ↔ Deutsch die eine Sprache.
+export function learnedLanguages(list) {
+  const labels = [list.lang_a, list.lang_b].map((l) => (l ?? '').trim()).filter(Boolean);
+  if (labels.length < 2 || sameLanguage(list)) return labels.slice(0, 1);
+  return [(learnSide(list) === 'b' ? list.lang_b : list.lang_a).trim()];
+}
+
 const LANG_CODES = [
   [/^(englisch|english|en)\b.*\b(usa?|amerik|american)/, 'en-US'],
   [/^(englisch|english)/, 'en-GB'],
@@ -280,12 +306,18 @@ const LANG_CODES = [
   [/^(norwegisch|norwegian)/, 'nb-NO'],
   [/^(ukrainisch|ukrainian)/, 'uk-UA'],
   [/^(arabisch|arabic)/, 'ar'],
+  [/^(persisch|farsi|persian)/, 'fa-IR'],
+  [/^(rumänisch|rumaenisch|romanian)/, 'ro-RO'],
+  [/^(bulgarisch|bulgarian)/, 'bg-BG'],
+  [/^(albanisch|albanian)/, 'sq-AL'],
+  [/^(kroatisch|croatian)/, 'hr-HR'],
+  [/^(serbisch|serbian)/, 'sr-RS'],
   [/^(neugriechisch|griechisch|greek)/, 'el-GR'],
 ];
 
 // Sprachkennung (BCP 47) für lang-Attribute (Screenreader, Rechtschreibung) – unabhängig davon, ob es eine
 // Stimme gibt: Latein und Altgriechisch werden nicht vorgelesen, sind aber trotzdem ausgezeichnet.
-const LANG_TAGS = [[/^(latein|latin)/, 'la'], [/^altgriech/, 'grc']];
+const LANG_TAGS = [[/^(latein|latin)/, 'la'], [/^altgriech/, 'grc'], [/^(kurdisch|kurdish)/, 'ku']];
 export function langTag(label) {
   const lower = (label ?? '').trim().toLowerCase();
   return LANG_TAGS.find(([re]) => re.test(lower))?.[1] ?? speechLang(label);

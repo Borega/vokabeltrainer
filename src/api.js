@@ -99,7 +99,7 @@ function parseListBody(body) {
   };
   if (kind === 'grammar') {
     // Eine Sprache; Richtung und Abfrageart gibt es bei Grammatik nicht
-    return { ...common, lang_b: '', mode: 'auto', direction: 'ab', allow_switch: 1, allow_mode_switch: 1, rules: parseRules(body.rules) };
+    return { ...common, lang_b: '', learn_side: 'a', mode: 'auto', direction: 'ab', allow_switch: 1, allow_mode_switch: 1, rules: parseRules(body.rules) };
   }
   const mode = MODES.includes(body.mode) ? body.mode : 'auto';
   const direction = ['ab', 'ba', 'mixed'].includes(body.direction) ? body.direction : 'ab';
@@ -126,6 +126,8 @@ function parseListBody(body) {
     direction,
     allow_switch: body.allow_switch === false ? 0 : 1,
     allow_mode_switch: body.allow_mode_switch === false ? 0 : 1,
+    // Ohne Angabe (ältere Clients) bleibt es bei der Schätzung im Browser
+    learn_side: ['a', 'b'].includes(body.learn_side) ? body.learn_side : '',
     words,
   };
 }
@@ -137,6 +139,7 @@ function listJson(row) {
     title: row.title,
     lang_a: row.lang_a,
     lang_b: row.lang_b,
+    learn_side: row.learn_side ?? '',
     mode: row.mode,
     case_sensitive: !!row.case_sensitive,
     accent_sensitive: !!row.accent_sensitive,
@@ -454,9 +457,9 @@ export function apiRouter(db, config) {
   function writeList(listId, data) {
     const ts = now();
     db.prepare(
-      `UPDATE lists SET title = ?, lang_a = ?, lang_b = ?, mode = ?, case_sensitive = ?, accent_sensitive = ?,
+      `UPDATE lists SET title = ?, lang_a = ?, lang_b = ?, learn_side = ?, mode = ?, case_sensitive = ?, accent_sensitive = ?,
          direction = ?, allow_switch = ?, allow_mode_switch = ?, grade = ?, shared = ?, updated_at = ? WHERE id = ?`,
-    ).run(data.title, data.lang_a, data.lang_b, data.mode, data.case_sensitive, data.accent_sensitive,
+    ).run(data.title, data.lang_a, data.lang_b, data.learn_side, data.mode, data.case_sensitive, data.accent_sensitive,
       data.direction, data.allow_switch, data.allow_mode_switch, data.grade, data.shared, ts, listId);
 
     if (data.kind === 'grammar') writeRules(listId, data.rules);
@@ -522,11 +525,11 @@ export function apiRouter(db, config) {
       const ts = now();
       const { id } = db
         .prepare(
-          `INSERT INTO lists (owner_id, kind, title, lang_a, lang_b, mode, case_sensitive, accent_sensitive,
+          `INSERT INTO lists (owner_id, kind, title, lang_a, lang_b, learn_side, mode, case_sensitive, accent_sensitive,
              direction, allow_switch, allow_mode_switch, grade, shared, copied_from, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?) RETURNING id`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?) RETURNING id`,
         )
-        .get(req.user.id, list.kind, isOwner ? `${list.title} (Kopie)` : list.title, list.lang_a, list.lang_b, list.mode,
+        .get(req.user.id, list.kind, isOwner ? `${list.title} (Kopie)` : list.title, list.lang_a, list.lang_b, list.learn_side, list.mode,
           list.case_sensitive, list.accent_sensitive, list.direction, list.allow_switch, list.allow_mode_switch, list.grade,
           ownerName ? `${list.title} – ${ownerName}` : list.copied_from, ts, ts);
       if (list.kind === 'grammar') {

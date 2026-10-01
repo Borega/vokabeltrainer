@@ -96,6 +96,14 @@ test('KI-Prompt: Fremdsprache, Jahrgang, Thema, Format', () => {
   assert.match(p, /Satz auf Spanisch für Jahrgang 7/);
   const plain = aiPrompt({ langA: 'Französisch', langB: 'Deutsch' });
   assert.match(plain, /Französisch-Unterricht mit 20 Einträgen\./);
+  const daz = aiPrompt({ langA: 'Deutsch', langB: 'Türkisch', learn: 'a' });
+  assert.match(daz, /Vokabelliste für den Deutsch-Unterricht/);
+  assert.match(daz, /Spalte 1: das Wort auf Deutsch/);
+  assert.match(daz, /Spalte 2: die Bedeutung auf Türkisch/);
+  const mono = aiPrompt({ langA: 'Deutsch', langB: 'Deutsch', topic: 'Fremdwörter' });
+  assert.match(mono, /Wortschatzliste \(Begriffe mit Bedeutung\) für den Deutsch-Unterricht zum Thema „Fremdwörter“/);
+  assert.match(mono, /Spalte 1: der Begriff auf Deutsch/);
+  assert.match(mono, /Spalte 2: eine kurze, einfache Erklärung oder ein Synonym auf Deutsch/);
 });
 
 test('KI-Antwort ohne Codeblock: Einleitung und Schluss fallen weg', () => {

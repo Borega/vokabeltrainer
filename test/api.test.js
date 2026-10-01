@@ -872,7 +872,7 @@ test('Grammatik-Auswertung: Gruppen, schwierige Regeln, häufige Fehler ohne Nam
   assert.equal((await teacher('POST', `/lists/${vocab}/feedback`, { item_id: 1, answer: 'x', text: 'y' })).status, 400);
 });
 
-test('Migration 9: Stand 8 → 9, Vokabellisten bleiben unverändert', async () => {
+test('Migration 9 und 10: Stand 8 → aktuell, Vokabellisten bleiben unverändert', async () => {
   const { MIGRATIONS, openDb } = await import('../src/db.js');
   const { mkdtempSync, rmSync } = await import('node:fs');
   const { tmpdir } = await import('node:os');
@@ -886,14 +886,16 @@ test('Migration 9: Stand 8 → 9, Vokabellisten bleiben unverändert', async () 
     old.exec(`PRAGMA foreign_keys = OFF;
       DROP TABLE grammar_log; DROP TABLE rule_progress; DROP TABLE items; DROP TABLE rules;
       ALTER TABLE lists DROP COLUMN kind;
+      ALTER TABLE lists DROP COLUMN learn_side;
       INSERT INTO lists (id, title, mode, created_at, updated_at) VALUES (3, 'Alt', 'type', 't', 't');
       INSERT INTO words (list_id, pos, a, b) VALUES (3, 0, 'dog', 'Hund');
       PRAGMA user_version = 8;`);
     old.close();
-    assert.equal(MIGRATIONS.length, 9);
     migrated = openDb(dir);
-    assert.equal(migrated.prepare('PRAGMA user_version').get().user_version, 9);
-    assert.deepEqual({ ...migrated.prepare('SELECT kind, title, mode FROM lists WHERE id = 3').get() }, { kind: 'vocab', title: 'Alt', mode: 'type' });
+    assert.equal(migrated.prepare('PRAGMA user_version').get().user_version, MIGRATIONS.length);
+    assert.deepEqual({ ...migrated.prepare('SELECT kind, title, mode, learn_side FROM lists WHERE id = 3').get() },
+      { kind: 'vocab', title: 'Alt', mode: 'type', learn_side: '' }, 'ältere Listen: gelernte Seite wird geschätzt');
+    assert.throws(() => migrated.prepare("UPDATE lists SET learn_side = 'c' WHERE id = 3").run(), 'nur a, b oder leer');
     assert.equal(migrated.prepare('SELECT COUNT(*) AS n FROM words WHERE list_id = 3').get().n, 1);
     assert.throws(() => migrated.prepare("UPDATE lists SET kind = 'quatsch' WHERE id = 3").run(), 'nur vocab oder grammar');
     const tables = migrated.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map((t) => t.name);
@@ -902,4 +904,23 @@ test('Migration 9: Stand 8 → 9, Vokabellisten bleiben unverändert', async () 
     migrated?.close();
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('Deutsch: gelernte Seite (DaZ) speichern, lesen und kopieren; Grammatik immer Seite A', async () => {
+  const teacher = await login('Frau Daz', { teacher: true, groups: 'DaZ 1' });
+  const groups = [{ id: 'daz.1', name: 'DaZ 1' }];
+  const daz = { ...listBody, lang_a: 'Deutsch', lang_b: 'Türkisch', learn_side: 'a', groups, words: [{ a: 'der Hund', b: 'köpek' }] };
+  const { body: { id } } = await teacher('POST', '/lists', daz);
+  assert.equal((await teacher('GET', `/lists/${id}`)).body.learn_side, 'a');
+  await teacher('PUT', `/lists/${id}`, { ...daz, learn_side: 'quatsch' });
+  assert.equal((await teacher('GET', `/lists/${id}`)).body.learn_side, '', 'ungültig → wie ältere Listen');
+  await teacher('PUT', `/lists/${id}`, { ...daz, learn_side: 'b' });
+  const copy = await teacher('POST', `/lists/${id}/copy`, {});
+  assert.equal((await teacher('GET', `/lists/${copy.body.id}`)).body.learn_side, 'b');
+  const grammar = await teacher('POST', '/lists', {
+    kind: 'grammar', title: 'das oder dass', lang_a: 'Deutsch', learn_side: 'b', grade: 6, groups,
+    rules: [{ title: 'dass', summary: 'Konjunktion: dass', items: [{ source: 'Ich weiß, *dass* du kommst.' }] }],
+  });
+  assert.equal(grammar.status, 201);
+  assert.equal((await teacher('GET', `/lists/${grammar.body.id}`)).body.learn_side, 'a');
 });

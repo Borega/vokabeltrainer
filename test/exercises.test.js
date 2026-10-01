@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  choiceOptions, clozeFor, editorChars, exampleSide, gapProblem, gradeFor, hintPattern, hintTarget, langTag, markGap, maxHints, pickExercise, specialChars, speechLang, speechText,
+  choiceOptions, clozeFor, editorChars, exampleSide, gapProblem, gradeFor, hintPattern, hintTarget, langTag, learnSide, learnedLanguages, markGap, maxHints, pickExercise, sameLanguage, specialChars, speechLang, speechText,
 } from '../public/exercises.js';
 
 const fixed = (v) => () => v;
@@ -75,6 +75,10 @@ test('Lückentext: Wort im Satz finden oder markierte Lücke nehmen', () => {
   assert.deepEqual(clozeFor(go, 'a', { langA: 'Englisch', langB: 'Deutsch' }), { before: 'Yesterday I ', gap: 'went', after: ' home.' });
   const de = { a: 'gehen', b: '(to) go', example: 'Yesterday I *went* home.' };
   assert.equal(exampleSide(de, { langA: 'Deutsch', langB: 'Englisch' }), 'b', 'deutsche Seite A: Satz gehört zu B');
+  // DaZ: Deutsch ist die gelernte Seite, die markierte Lücke gehört dann zu Deutsch
+  const daz = { a: 'gehen', b: 'gitmek', example: 'Gestern *ging* ich nach Hause.' };
+  assert.equal(exampleSide(daz, { langA: 'Deutsch', langB: 'Türkisch', learn: 'a' }), 'a');
+  assert.equal(exampleSide(daz, { langA: 'Deutsch', langB: 'Türkisch' }), 'b', 'ohne Angabe wie bisher geschätzt');
   assert.equal(clozeFor({ a: 'cat', b: 'Katze', example: 'Cats are cute.' }, 'a'), null, 'nur ganze Wörter');
   assert.equal(clozeFor({ a: 'cat', b: 'Katze', example: '' }, 'a'), null);
 });
@@ -152,4 +156,24 @@ test('Sonderzeichen-Leiste im Editor je Sprache', () => {
   assert.ok(editorChars('es-ES').includes('ñ'));
   assert.deepEqual(editorChars('en-GB'), []);
   assert.deepEqual(editorChars(null), []);
+});
+
+test('Sprachen: gelernte Seite, gleiche Sprache, gelernte Sprachen einer Liste', () => {
+  assert.equal(learnSide({ lang_a: 'Englisch', lang_b: 'Deutsch' }), 'a');
+  assert.equal(learnSide({ lang_a: 'Deutsch', lang_b: 'Spanisch' }), 'b');
+  assert.equal(learnSide({ lang_a: 'Deutsch', lang_b: 'Arabisch', learn_side: 'a' }), 'a', 'DaZ: eingestellt');
+  assert.equal(learnSide({ lang_a: 'Deutsch', lang_b: 'Deutsch' }), 'a');
+  assert.ok(sameLanguage({ lang_a: 'Deutsch', lang_b: 'deutsch ' }));
+  assert.ok(sameLanguage({ lang_a: 'Englisch', lang_b: 'English' }));
+  assert.ok(!sameLanguage({ lang_a: 'Englisch', lang_b: 'Englisch (amerikanisch)' }));
+  assert.ok(!sameLanguage({ lang_a: 'Deutsch', lang_b: '' }));
+  assert.ok(sameLanguage({ lang_a: 'Klingonisch', lang_b: 'klingonisch' }), 'ohne Sprachcode nach Namen');
+  assert.deepEqual(learnedLanguages({ lang_a: 'Englisch', lang_b: 'Deutsch' }), ['Englisch']);
+  assert.deepEqual(learnedLanguages({ lang_a: 'Deutsch', lang_b: 'Ukrainisch', learn_side: 'a' }), ['Deutsch']);
+  assert.deepEqual(learnedLanguages({ lang_a: 'Deutsch', lang_b: 'Deutsch' }), ['Deutsch']);
+  assert.deepEqual(learnedLanguages({ kind: 'grammar', lang_a: 'Deutsch', lang_b: '' }), ['Deutsch']);
+  assert.equal(speechLang('Persisch'), 'fa-IR');
+  assert.equal(speechLang('Englisch (amerikanisch)'), 'en-US');
+  assert.equal(langTag('Kurdisch'), 'ku');
+  assert.equal(speechLang('Kurdisch'), null);
 });

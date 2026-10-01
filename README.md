@@ -26,6 +26,8 @@ Gruppen (Klassen/Kurse) und die Rolle „Lehrkraft“ werden direkt aus IServ ü
 - Pro Wort optional ein **Beispielsatz**: Kommt das Wort darin vor, wird daraus ein Lückentext.
   Gebeugte Formen mit Sternchen markieren: `Yesterday I *went* home.`
 - Pro Liste festlegen:
+  - die **Sprachen** aus einer Auswahlliste (Schulfremdsprachen, Deutsch und Herkunftssprachen für DaZ) und bei zwei
+    verschiedenen Sprachen, welche davon **gelernt wird** (siehe unten „Deutsch: Deutschunterricht und DaZ“)
   - Abfrage als **Lernleiter** (empfohlen, Standard für neue Listen), **Karteikarten**, **Eintippen** oder **Auswählen**
     – und ob Schüler:innen die Abfrageart selbst wechseln dürfen (Standard: ja)
   - beim Eintippen: Groß-/Kleinschreibung und Akzente/Umlaute beachten – ja/nein
@@ -96,7 +98,9 @@ Behalten (*production effect*, MacLeod et al. 2010).
 Stimmen verwendet, die auf dem Gerät selbst laufen – Online-Stimmen (z. B. „Google …“ in Chrome), die den
 Text an den Anbieter schicken würden, bleiben außen vor. Hat das Gerät keine passende Stimme, gibt es
 keinen Ton und keine Hörübungen. Die Sprache ergibt sich aus der Sprachbezeichnung der Liste
-(„Englisch“ → britisches Englisch, „Englisch (USA)“ → amerikanisches; ein Code wie `en-AU` geht auch; Französisch und Spanisch immer europäisch, siehe unten).
+(„Englisch“ → britisches Englisch, „Englisch (amerikanisch)“ → amerikanisches; Französisch und Spanisch immer europäisch, siehe unten).
+Ältere Listen mit frei eingetippter Bezeichnung (z. B. „Englisch (USA)“ oder `en-AU`) behalten sie, bis die Lehrkraft
+im Editor eine Sprache aus der Auswahl wählt.
 Latein und Altgriechisch werden nicht vorgelesen.
 
 **Prüfregeln beim Eintippen**
@@ -134,6 +138,23 @@ Verben im Infinitiv, Alternativen mit `|`, optionale Teile in Klammern, weiblich
 Beispielsätze passend zum Jahrgang mit markierter Lücke. Liefert die KI stattdessen eine Tabelle oder eine
 Liste mit Gedankenstrichen, wird das ebenfalls erkannt. KI-Listen können Fehler enthalten – vor dem Freigeben
 bitte gegenlesen.
+
+**Deutsch: Deutschunterricht und DaZ**
+- **Deutschunterricht** (Begriffe, Fremdwörter, Fachwortschatz): auf beiden Seiten „Deutsch“ wählen. Seite A ist dann
+  der **Begriff**, Seite B die **Bedeutung** (Erklärung oder Synonym) – so heißen die Seiten auch beim Lernen. Der
+  KI-Prompt fragt entsprechend nach Begriffen mit kurzer Erklärung.
+- **DaZ / Deutsch als Fremdsprache**: „Deutsch“ und die Herkunftssprache wählen (z. B. Türkisch, Arabisch, Ukrainisch)
+  und bei **Gelernt wird** „Deutsch“ einstellen. Danach richten sich Lückentexte (Beispielsätze auf Deutsch),
+  Aussprache und Hörübungen (deutsche Stimme) sowie der KI-Prompt. Ohne diese Einstellung gilt wie bisher die nicht
+  deutsche Seite als gelernte Sprache.
+- Unter „Geteilte Listen“ filtert **Sprache** nach der gelernten Sprache: „Deutsch“ zeigt Listen für den
+  Deutschunterricht, DaZ-Listen und deutsche Grammatik – nicht jede Englisch-↔-Deutsch-Liste.
+- **Deutsche Grammatik**: Grammatikliste mit Sprache „Deutsch“; „Groß-/Kleinschreibung beachten“ ist dann
+  voreingestellt. Ein falscher Umlaut oder ß gilt beim Eintippen als falsch, nicht als „Fast!“ – *konnte* statt
+  *könnte* ist eine andere Form. In einer Auswahl dürfen sich die Formen nur im Umlaut oder in der Groß- und
+  Kleinschreibung unterscheiden: `Wenn ich fliegen {könnte|konnte|kann}, …`, `Beim {Essen|essen} redet man nicht.`
+  „Fehler finden“ eignet sich dagegen nicht für reine Rechtschreibfehler (Groß/klein, ß/ss) – dafür Lücke oder Auswahl
+  nehmen.
 
 ## Grammatik
 

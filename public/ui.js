@@ -98,8 +98,46 @@ export function formatDue(date) {
   return `am ${new Date(date).toLocaleDateString('de-DE')}`;
 }
 
-// Sprachen zur Auswahl im Editor (Vorschlagsliste)
-export const LANGUAGES = ['Deutsch', 'Englisch', 'Französisch', 'Spanisch', 'Latein', 'Italienisch', 'Russisch', 'Niederländisch', 'Polnisch', 'Türkisch', 'Altgriechisch', 'Chinesisch'];
+// Sprachen zur Auswahl im Editor: die Schulfremdsprachen zuerst, dann weitere (auch Herkunftssprachen für DaZ)
+export const MAIN_LANGUAGES = ['Deutsch', 'Englisch', 'Französisch', 'Spanisch', 'Latein'];
+export const MORE_LANGUAGES = ['Albanisch', 'Altgriechisch', 'Arabisch', 'Bulgarisch', 'Chinesisch', 'Dänisch',
+  'Englisch (amerikanisch)', 'Griechisch', 'Italienisch', 'Japanisch', 'Kroatisch', 'Kurdisch', 'Niederländisch',
+  'Norwegisch', 'Persisch', 'Polnisch', 'Portugiesisch', 'Rumänisch', 'Russisch', 'Schwedisch', 'Serbisch', 'Türkisch',
+  'Ukrainisch'];
+export const LANGUAGES = [...MAIN_LANGUAGES, ...MORE_LANGUAGES];
+
+const langKey = (s) => (s ?? '').trim().toLocaleLowerCase('de');
+
+// Bezeichnung aus der Auswahl, die zu label passt (Schreibweise egal, auch „English“ → „Englisch“), sonst null
+export function knownLanguage(label, tagOf) {
+  const k = langKey(label);
+  if (!k) return null;
+  const exact = LANGUAGES.find((l) => langKey(l) === k);
+  if (exact) return exact;
+  const tag = tagOf?.(label);
+  return tag ? LANGUAGES.find((l) => tagOf(l) === tag) ?? null : null;
+}
+
+// Auswahlfeld für die Sprache einer Liste. Eine ältere, frei eingetippte Bezeichnung, die nicht in der Auswahl
+// steht, bleibt als eigene Option erhalten. select.setLanguage(label) wählt eine passende Sprache (z. B. aus der
+// Kopfzeile einer CSV-Datei) und gibt zurück, ob es eine gab.
+export function languageSelect(value, tagOf) {
+  const current = (value ?? '').trim();
+  const known = knownLanguage(current, tagOf);
+  const option = (l) => h('option', { value: l }, l);
+  const select = h('select', { required: true },
+    h('option', { value: '' }, 'Bitte wählen …'),
+    current && !LANGUAGES.includes(current) && !known ? h('option', { value: current }, current) : null,
+    h('optgroup', { label: 'Häufig' }, MAIN_LANGUAGES.map(option)),
+    h('optgroup', { label: 'Weitere Sprachen' }, MORE_LANGUAGES.map(option)));
+  select.value = known ?? current;
+  select.setLanguage = (label) => {
+    const match = knownLanguage(label, tagOf);
+    if (match) select.value = match;
+    return !!match;
+  };
+  return select;
+}
 
 // Beschriftetes Formularfeld mit optionalem Hinweis
 export const field = (label, input, hint) => h('label', { class: 'field' }, h('span', {}, label), input, hint ? h('small', { class: 'muted' }, hint) : null);

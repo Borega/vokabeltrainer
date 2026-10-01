@@ -63,3 +63,15 @@ test('Filter nach Art: Vokabeln oder Grammatik (ältere Einträge ohne kind sind
   assert.deepEqual(titles(filterLists(mixed, { kind: 'grammar', lang: 'englisch' })), ['C']);
   assert.deepEqual(languagesOf(mixed.filter((l) => l.kind === 'grammar')).map((l) => l.label), ['Englisch', 'Französisch'], 'leere zweite Sprache stört nicht');
 });
+
+test('Deutsch erscheint nur bei Listen, in denen Deutsch gelernt wird', () => {
+  const ls = [
+    { title: 'Unit 1', lang_a: 'Englisch', lang_b: 'Deutsch' },
+    { title: 'Fremdwörter', lang_a: 'Deutsch', lang_b: 'Deutsch' },
+    { title: 'DaZ Schule', lang_a: 'Deutsch', lang_b: 'Arabisch', learn_side: 'a' },
+    { title: 'Kasus', kind: 'grammar', lang_a: 'Deutsch', lang_b: '' },
+  ];
+  assert.deepEqual(languagesOf(ls), [{ value: 'deutsch', label: 'Deutsch' }, { value: 'englisch', label: 'Englisch' }]);
+  assert.deepEqual(titles(filterLists(ls, { lang: 'deutsch' })), ['Fremdwörter', 'DaZ Schule', 'Kasus']);
+  assert.deepEqual(titles(filterLists(ls, { lang: 'arabisch' })), [], 'die Herkunftssprache wird nicht gelernt');
+});
