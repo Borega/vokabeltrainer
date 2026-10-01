@@ -318,6 +318,7 @@ export function apiRouter(db, config) {
          SELECT p.due FROM rule_progress p JOIN rules r ON r.id = p.rule_id
            WHERE p.user_id = :u AND p.due IS NOT NULL AND r.list_id IN (${STREAK_LISTS}))`,
     ),
+    streakListIds: db.prepare(`SELECT id FROM (${STREAK_LISTS})`),
     learningDays: db.prepare('SELECT day, answers, had_due, done, next_due FROM learning_days WHERE user_id = ? ORDER BY day'),
     learningDay: db.prepare('SELECT answers, had_due, done FROM learning_days WHERE user_id = ? AND day = ?'),
     putLearningDay: db.prepare(
@@ -396,23 +397,21 @@ export function apiRouter(db, config) {
 
   const dueUntilEndOf = (userId, day) => q.dueCount.get({ u: userId, until: isoOf(endOfDay(day, timezone)) }).n;
 
-  // Tagesziel nach neuen Antworten prüfen. counts: Antworten pro Tag aus dieser Übertragung,
-  // dueBefore: was an dem Tag vor diesen Antworten fällig war. Ergebnis: heute zum ersten Mal erledigt?
-  function recordLearningDays(userId, counts, dueBefore) {
-    const nextDue = q.firstDue.get({ u: userId }).due ?? null;
-    const today = localDay(Date.now(), timezone);
+  // Tagesziel eines Tages nach neuen Antworten prüfen. answered: Antworten aus Listen mit Lernserie,
+  // dueAnswered: davon fällige (nur sie zählen für die Obergrenze), dueBefore: was an dem Tag vor diesen Antworten
+  // fällig war. Ergebnis: heute zum ersten Mal erledigt?
+  function recordLearningDay(userId, day, dueAnswered, dueBefore) {
+    const row = q.learningDay.get(userId, day);
+    const answers = (row?.answers ?? 0) + dueAnswered;
+    const hadDue = !!row?.had_due || dueBefore > 0;
+    let done = !!row?.done;
     let reached = false;
-    for (const [day, added] of counts) {
-      const row = q.learningDay.get(userId, day);
-      const answers = (row?.answers ?? 0) + added;
-      const hadDue = !!row?.had_due || dueBefore.get(day) > 0;
-      let done = !!row?.done;
-      if (!done && hadDue) {
-        done = dueUntilEndOf(userId, day) === 0 || answers >= DAILY_GOAL;
-        if (done && day === today) reached = true;
-      }
-      q.putLearningDay.run(userId, day, answers, hadDue ? 1 : 0, done ? 1 : 0, nextDue);
+    if (!done && hadDue) {
+      done = dueUntilEndOf(userId, day) === 0 || answers >= DAILY_GOAL;
+      reached = done && day === localDay(Date.now(), timezone);
     }
+    const nextDue = q.firstDue.get({ u: userId }).due ?? null;
+    q.putLearningDay.run(userId, day, answers, hadDue ? 1 : 0, done ? 1 : 0, nextDue);
     return reached;
   }
 
@@ -661,12 +660,13 @@ export function apiRouter(db, config) {
 
   // Grammatik: eine Runde einer Regel { list_id, rule_id, grade, items: [{ item_id, exercise, grade, attempts,
   // answer }], at, id }. Die Regel bekommt eine Bewertung (grade, die schlechteste der Runde), jede Aufgabe steht
-  // einzeln im Verlauf – answer ist die erste falsche Antwort. Ergebnis: übernommen?
-  function applyRound(user, r, list, t) {
+  // einzeln im Verlauf – answer ist die erste falsche Antwort. Ergebnis: null (übergangen) oder { wasDue }:
+  // war die Regel bis dahin (dueLimit) fällig?
+  function applyRound(user, r, list, t, dueLimit) {
     const ruleId = Number(r?.rule_id);
-    if (!Number.isInteger(ruleId) || !q.ruleInList.get(ruleId, list.id)) return false;
+    if (!Number.isInteger(ruleId) || !q.ruleInList.get(ruleId, list.id)) return null;
     const clientId = typeof r.id === 'string' && r.id.length <= 100 ? r.id : null;
-    if (clientId && q.seenGrammarClientId.get(user.id, clientId)) return false;
+    if (clientId && q.seenGrammarClientId.get(user.id, clientId)) return null;
     const items = (Array.isArray(r.items) ? r.items.slice(0, MAX_ROUND_ITEMS) : []).flatMap((it) => {
       if (!Object.hasOwn(GRADES, it?.grade)) return [];
       const itemId = Number(it.item_id);
@@ -680,7 +680,7 @@ export function apiRouter(db, config) {
       }];
     });
     const grade = Object.hasOwn(GRADES, r.grade) ? r.grade : roundGrade(items.map((i) => i.grade));
-    if (!grade) return false;
+    if (!grade) return null;
     const right = items.length ? items.filter((i) => i.grade !== 'again').length : grade === 'again' ? 0 : 1;
     const wrong = items.length ? items.length - right : grade === 'again' ? 1 : 0;
     const previous = q.getRuleProgress.get(user.id, ruleId);
@@ -690,7 +690,7 @@ export function apiRouter(db, config) {
     q.putRuleProgress.run({ user_id: user.id, rule_id: ruleId, right, wrong, last_seen: ts, ...next });
     for (const it of items) q.logGrammar.run(user.id, ruleId, it.item_id, it.grade, it.exercise, it.attempts, it.answer, null, ts, null);
     q.logGrammar.run(user.id, ruleId, null, grade, 'round', 1, null, next.stability, ts, clientId);
-    return true;
+    return { wasDue: !!previous?.due && previous.due <= dueLimit };
   }
 
   // Antworten übernehmen: { word_id, direction, grade: again|hard|good|easy, correct, exercise, at, id }
@@ -707,56 +707,66 @@ export function apiRouter(db, config) {
       return Number.isNaN(t) || t > nowMs ? nowMs : t;
     };
     const sorted = results.map((r) => ({ r, t: timeOf(r) })).sort((x, y) => x.t - y.t);
+    // Tag für Tag (aufsteigend): Was an einem Tag fällig war, hängt davon ab, was frühere Tage derselben
+    // Übertragung schon verschoben oder neu angelegt haben.
+    const byDay = new Map();
+    for (const entry of sorted) {
+      const day = localDay(entry.t, timezone);
+      if (!byDay.has(day)) byDay.set(day, []);
+      byDay.get(day).push(entry);
+    }
     const touched = new Set();
-    const counts = new Map(); // Lernserie: übernommene Antworten pro Tag
-    const count = (t) => {
-      const day = localDay(t, timezone);
-      counts.set(day, (counts.get(day) ?? 0) + 1);
-    };
     let goalReached = false;
     transaction(db, () => {
-      // Was an den Tagen der Antworten fällig war, bevor sie den Plan verschieben
       const trackStreak = sorted.length > 0 && streakEnabled(user.id);
-      const dueBefore = new Map();
-      if (trackStreak) for (const { t } of sorted) {
-        const day = localDay(t, timezone);
-        if (!dueBefore.has(day)) dueBefore.set(day, dueUntilEndOf(user.id, day));
-      }
-      for (const { r, t } of sorted) {
-        const list = listFor(r);
-        if (list?.kind === 'grammar') {
-          if (applyRound(user, r, list, t)) {
-            touched.add(list.id);
-            count(t);
+      const streakLists = trackStreak ? new Set(q.streakListIds.all({ u: user.id }).map((l) => l.id)) : null;
+      for (const [day, entries] of byDay) {
+        const dueLimit = isoOf(endOfDay(day, timezone));
+        const dueBefore = trackStreak ? dueUntilEndOf(user.id, day) : 0;
+        let answered = 0; // Antworten aus Listen mit Lernserie
+        let dueAnswered = 0; // davon fällige: nur sie zählen für die Obergrenze
+        const note = (list, wasDue) => {
+          if (!streakLists?.has(list.id)) return;
+          answered++;
+          if (wasDue) dueAnswered++;
+        };
+        for (const { r, t } of entries) {
+          const list = listFor(r);
+          if (list?.kind === 'grammar') {
+            const applied = applyRound(user, r, list, t, dueLimit);
+            if (applied) {
+              touched.add(list.id);
+              note(list, applied.wasDue);
+            }
+            continue;
           }
-          continue;
+          const wordId = Number(r?.word_id);
+          if (!list || !Number.isInteger(wordId) || !q.wordInList.get(wordId, list.id)) continue;
+          const clientId = typeof r.id === 'string' && r.id.length <= 100 ? r.id : null;
+          if (clientId && q.seenClientId.get(user.id, clientId)) continue;
+          const direction = r.direction === 'ba' ? 'ba' : 'ab';
+          const grade = r.grade in GRADES ? r.grade : r.correct ? 'good' : 'again';
+          const correct = typeof r.correct === 'boolean' ? r.correct : grade !== 'again';
+          const previous = q.getProgress.get(user.id, wordId, direction);
+          const last = previous?.last_review ? Date.parse(previous.last_review) : 0;
+          const ts = new Date(Math.max(t, last)).toISOString();
+          const next = review(previous, grade, new Date(ts));
+          q.putProgress.run({
+            user_id: user.id,
+            word_id: wordId,
+            direction,
+            right: correct ? 1 : 0,
+            wrong: correct ? 0 : 1,
+            last_seen: ts,
+            ...next,
+          });
+          const exercise = EXERCISES.includes(r.exercise) ? r.exercise : '';
+          q.logReview.run(user.id, wordId, direction, grade, next.stability, ts, exercise, clientId);
+          touched.add(list.id);
+          note(list, !!previous?.due && previous.due <= dueLimit);
         }
-        const wordId = Number(r?.word_id);
-        if (!list || !Number.isInteger(wordId) || !q.wordInList.get(wordId, list.id)) continue;
-        const clientId = typeof r.id === 'string' && r.id.length <= 100 ? r.id : null;
-        if (clientId && q.seenClientId.get(user.id, clientId)) continue;
-        const direction = r.direction === 'ba' ? 'ba' : 'ab';
-        const grade = r.grade in GRADES ? r.grade : r.correct ? 'good' : 'again';
-        const correct = typeof r.correct === 'boolean' ? r.correct : grade !== 'again';
-        const previous = q.getProgress.get(user.id, wordId, direction);
-        const last = previous?.last_review ? Date.parse(previous.last_review) : 0;
-        const ts = new Date(Math.max(t, last)).toISOString();
-        const next = review(previous, grade, new Date(ts));
-        q.putProgress.run({
-          user_id: user.id,
-          word_id: wordId,
-          direction,
-          right: correct ? 1 : 0,
-          wrong: correct ? 0 : 1,
-          last_seen: ts,
-          ...next,
-        });
-        const exercise = EXERCISES.includes(r.exercise) ? r.exercise : '';
-        q.logReview.run(user.id, wordId, direction, grade, next.stability, ts, exercise, clientId);
-        touched.add(list.id);
-        count(t);
+        if (trackStreak && answered && recordLearningDay(user.id, day, dueAnswered, dueBefore)) goalReached = true;
       }
-      if (trackStreak && counts.size) goalReached = recordLearningDays(user.id, counts, dueBefore);
     });
     return { touched, goalReached };
   }

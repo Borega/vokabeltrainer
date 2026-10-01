@@ -51,10 +51,10 @@ gegen Bezahlung, zufällige Belohnungen („Beutekisten“), Vergleich mit Mitsc
 ### 3.1 Tagesziel und Lernserie
 
 **Ein Tag gilt als erledigt,** wenn nach den Antworten des Tages nichts mehr fällig ist (Fälligkeit bis zum
-Tagesende, Wörter und Grammatikregeln aller sichtbaren Listen) **oder** wenn an dem Tag mindestens 25 fällige
-Einträge beantwortet wurden. Die Obergrenze ist nötig, weil „Heute fällig“ heute nicht begrenzt ist: Nach
-den Ferien können mehrere hundert Einträge fällig sein, und ein unerreichbares Ziel würde genau die bestrafen,
-die zurückkommen.
+Tagesende, Wörter und Grammatikregeln aller Listen mit eingeschalteter Lernserie) **oder** wenn an dem Tag
+mindestens 25 fällige Einträge beantwortet wurden (neue Wörter und freies Üben zählen dafür nicht). Die Obergrenze
+ist nötig, weil „Heute fällig“ nicht begrenzt ist: Nach den Ferien können mehrere hundert Einträge fällig sein, und
+ein unerreichbares Ziel würde genau die bestrafen, die zurückkommen.
 
 - Ist gar nichts fällig, **zählt der Tag nicht und bricht die Serie nicht.**
 - Neue Wörter („neu“) und „Frei üben“ zählen nicht zum Ziel, ändern aber nichts daran.
@@ -94,14 +94,16 @@ Tag ein Punkt in einer Wochenzeile (Anknüpfung an den Terrakotta-Punkt im App-S
 
 ## 4. Technik
 
-- **Tag und Zeitzone:** Der Server speichert UTC. Der Tagesbeginn braucht eine Einstellung `TZ`
+- **Tag und Zeitzone:** Der Server speichert UTC. Der Tagesbeginn braucht eine Einstellung `TIMEZONE`
   (Standard `Europe/Berlin`), sonst stimmt die Serie um Mitternacht nicht.
-- **Lerntage:** neue Tabelle `learning_days(user_id, day, kind)` (Migration 12). Das Tagesziel hängt vom
-  aktuellen Stand der Fälligkeiten ab und lässt sich daher nicht allein aus `review_log` / `grammar_log`
-  ableiten. Die Auswertung läuft serverseitig in `applyResults`, nachdem die Antworten übernommen wurden.
-- **Offline:** Antworten tragen ihren Zeitpunkt (`at`). Bei verspäteter Übertragung wird jeder betroffene Tag
-  geprüft; für vergangene Tage gilt bewusst großzügig: erledigt, wenn jetzt nichts mehr fällig ist oder die
-  Obergrenze erreicht wurde.
+- **Lerntage:** neue Tabelle `learning_days(user_id, day, answers, had_due, done, next_due)` (Migration 12). Das
+  Tagesziel hängt vom aktuellen Stand der Fälligkeiten ab und lässt sich daher nicht allein aus `review_log` /
+  `grammar_log` ableiten. Die Auswertung läuft serverseitig in `applyResults`, nachdem die Antworten eines Tages
+  übernommen wurden. `answers` zählt nur **fällige** Einträge aus Listen mit Lernserie (nur sie zählen für die Obergrenze).
+- **Offline:** Antworten tragen ihren Zeitpunkt (`at`). Bei verspäteter Übertragung werden die Tage nacheinander
+  ausgewertet: Was an einem Tag fällig war, richtet sich nach dem Stand, den frühere Tage derselben Übertragung
+  hinterlassen haben. Für vergangene Tage gilt bewusst großzügig: erledigt, wenn bis zum Tagesende nichts mehr
+  fällig ist oder die Obergrenze erreicht wurde.
 - **Abzeichen:** Tabelle `badges_earned(user_id, badge, earned_at)`. Neue Abzeichen kommen in der Antwort von
   `/results` zurück; bei Offline-Antworten erscheint der Hinweis beim Übertragen.
 - **Schalter:** Spalte oder Tabelle pro Gruppe, abgefragt wie die Gruppenzuweisung der Listen.

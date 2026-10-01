@@ -9,9 +9,11 @@ const tage = (n) => `${n} ${n === 1 ? 'Tag' : 'Tage'}`;
 // Was heute ansteht, in einem Satz
 function todayLine({ today, goal }) {
   if (today.done) return 'Heute geschafft.';
-  if (today.remaining > goal) return `Heute ist viel fällig – ${goal} Antworten genügen für dein Tagesziel.`;
-  if (today.remaining > 0) return `Heute noch offen: ${today.remaining} fällig.`;
-  return 'Heute ist nichts fällig. Dein Tag zählt als frei.';
+  if (today.remaining === 0) return 'Heute ist nichts fällig. Dein Tag zählt als frei.';
+  // Obergrenze: Was schon beantwortet ist, zählt von den 25 ab
+  const toGoal = Math.max(0, goal - today.answers);
+  if (today.remaining > toGoal) return `Heute ist viel fällig – noch ${toGoal} ${toGoal === 1 ? 'Antwort genügt' : 'Antworten genügen'} für dein Tagesziel.`;
+  return `Heute noch offen: ${today.remaining} fällig.`;
 }
 
 // Text nach einer Übertragung, die das Tagesziel erreicht hat

@@ -64,8 +64,8 @@ Gruppen (Klassen/Kurse) und die Rolle „Lehrkraft“ werden direkt aus IServ ü
 - Nicht gewusste Wörter kommen in derselben Runde nach wenigen Karten erneut, bis sie einmal sitzen
 - Lernstand wird auf dem Server gespeichert und ist auf allen Geräten verfügbar
 - **Lernen ohne Internet**, z. B. zu Hause mit dem Schul-iPad – siehe unten
-- **Lernserie** auf der Startseite: ein Punkt pro erledigtem Tag in der Woche, dazu die Serie in Tagen, die besten
-  Tage und die Lerntage insgesamt – siehe [Lernserie](#lernserie)
+- **Lernserie** auf der Startseite: ein Punkt pro erledigtem Tag in der Woche, dazu die Serie in Tagen, die beste
+  Serie und die Lerntage insgesamt – siehe [Lernserie](#lernserie)
 - Tastatur: Leertaste = umdrehen, 1 / ← = nicht gewusst, 2 / → = gewusst, 3 / ↑ = leicht, Enter = prüfen / weiter;
   beim Auswählen 1–4
 
@@ -306,8 +306,9 @@ Ein Punkt pro Tag, an dem das **Tagesziel** erreicht ist, dazu die Serie („3 T
 **Lerntage insgesamt** (diese Zahl wird nie zurückgesetzt). Es gibt keine Bestenliste, keine Punkte und keine
 Vergleiche: Die Anzeige sieht nur die Schüler:in selbst. Die Lehrkraft-Auswertung ändert sich nicht.
 
-- **Tagesziel:** alles erledigen, was „heute fällig“ ist. Ist mehr als 25 fällig (z. B. nach den Ferien), genügen
-  25 Antworten. Fällig zählt aus den Listen, die die Person selbst bekommt (Gruppen mit eingeschalteter Lernserie).
+- **Tagesziel:** alles erledigen, was „heute fällig“ ist. Ist mehr als 25 fällig (z. B. nach den Ferien), genügt es,
+  25 fällige Einträge zu beantworten. Neue Wörter, Üben ohne Fälliges und Antworten aus Listen von Gruppen ohne Lernserie
+  zählen dafür nicht. Fällig zählt aus den Listen, die die Person selbst bekommt (Gruppen mit eingeschalteter Lernserie).
 - **Tage ohne Fälliges** sind frei: Sie zählen nicht und unterbrechen die Serie nicht. Üben an so einem Tag ändert
   daran nichts. Das ist wichtig, weil die Planung Wörter oft für mehrere Tage nicht fällig macht.
 - **Nachsicht:** Ein verpasster Tag wird automatisch überbrückt, wenn in den 6 Tagen davor keiner überbrückt wurde.
@@ -573,7 +574,7 @@ Gespeichert werden nur:
   die **eingegebene falsche Antwort** beim ersten Versuch (gekürzt auf 200 Zeichen). Das ist eine Leistungsangabe wie
   die übrigen Lernstandsdaten; sie wird wie diese gelöscht (`RETENTION_DAYS`, Zurücksetzen durch die Schüler:innen).
   Die Fehlerliste der Lehrkraft zeigt nur Anzahlen je Antwort, in der Einzelansicht einer Person auch deren Antworten.
-- für die Lernserie je Schüler:in und Tag mit Antworten: Anzahl der Antworten, ob etwas fällig war, ob das Tagesziel
+- für die Lernserie je Schüler:in und Tag mit Antworten: Anzahl der beantworteten fälligen Einträge, ob etwas fällig war, ob das Tagesziel
   erreicht wurde und wann danach wieder etwas fällig wird (keine Inhalte); pro Gruppe die Einstellung, ob die Lernserie an ist
 - bei „Angemeldet bleiben“: ein Geräteschlüssel (in der Datenbank nur als Hash), der nach `REMEMBER_DAYS` Tagen
   oder beim Abmelden verfällt

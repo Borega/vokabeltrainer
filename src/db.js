@@ -243,7 +243,7 @@ export const MIGRATIONS = [
   `ALTER TABLE lists ADD COLUMN template TEXT;
    CREATE UNIQUE INDEX lists_template ON lists(template) WHERE template IS NOT NULL;`,
   // 12: Lernserie (siehe streak.js und docs/gamification-plan.md). Eine Zeile pro Person und Tag mit Antworten:
-  //     answers  Antworten an dem Tag, had_due  war etwas fällig, done  Tagesziel erreicht,
+  //     answers  an dem Tag beantwortete fällige Einträge, had_due  war etwas fällig, done  Tagesziel erreicht,
   //     next_due wann nach der letzten Antwort wieder etwas fällig wird (Tage davor sind frei).
   //     group_settings: Lehrkräfte können die Lernserie pro Gruppe abschalten (ohne Zeile: an).
   `CREATE TABLE IF NOT EXISTS learning_days (

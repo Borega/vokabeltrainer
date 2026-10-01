@@ -1084,3 +1084,48 @@ test('Lernserie: Antworten aus mehreren Listen (Offline-Übertragung) füllen di
   assert.equal(res.body.streak.today.remaining, 1);
   assert.equal(res.body.streak.reached, false, 'nicht heute');
 });
+
+test('Lernserie: für die Obergrenze zählen nur fällige Einträge, keine neuen Wörter', async () => {
+  const { student, words, answer, send } = await streakSetup('Serie8', 'Klasse S8', 60);
+  // Gestern 30 Wörter falsch: heute fällig. Die anderen 30 sind neu.
+  await send(words.slice(0, 30).map((w) => answer(w, noonYesterday)));
+  const now = () => new Date().toISOString();
+  // 30 neue Wörter üben: nichts davon war fällig
+  let res = await send(words.slice(30).map((w) => answer(w, now(), 'good')));
+  assert.equal(res.body.streak.today.done, false, 'neue Wörter erfüllen das Ziel nicht, auch nicht ab 25');
+  assert.deepEqual([res.body.streak.today.answers, res.body.streak.today.remaining], [0, 30]);
+  // 25 fällige Einträge erfüllen es
+  res = await send(words.slice(0, 25).map((w) => answer(w, now(), 'good')));
+  assert.equal(res.body.streak.reached, true);
+  assert.equal((await student('GET', '/streak')).body.today.answers, 25);
+});
+
+test('Lernserie: Antworten aus einer Gruppe mit abgeschalteter Lernserie zählen nicht für die Obergrenze', async () => {
+  const a = await streakSetup('Serie9a', 'Klasse S9a');
+  const teacherB = await login('Lehrkraft S9b', { teacher: true, groups: 'Klasse S9b' });
+  const student = await login('Schüler Serie9a', { groups: 'Klasse S9a, Klasse S9b' });
+  const listB = await teacherB('POST', '/lists', {
+    ...listBody,
+    title: 'Aus',
+    groups: [{ id: 'klasse.s9b', name: 'Klasse S9b' }],
+    words: Array.from({ length: 26 }, (_, i) => ({ a: `b${i}`, b: `B${i}` })),
+  });
+  await teacherB('PUT', '/group-settings', { group_id: 'klasse.s9b', gamification: false });
+  const wordsB = (await student('GET', `/lists/${listB.body.id}`)).body.words;
+  const sendB = (results) => student('POST', `/lists/${listB.body.id}/results`, { results });
+  const row = (w, at, grade) => ({ word_id: w.id, direction: 'ab', grade, correct: grade !== 'again', at });
+  // In Liste A (an) ist heute ein Wort fällig; in Liste B (aus) sind es 26
+  await student('POST', `/lists/${a.listId}/results`, { results: [a.answer(a.words[0], noonYesterday)] });
+  await sendB(wordsB.map((w) => row(w, noonYesterday, 'again')));
+  const res = await sendB(wordsB.map((w) => row(w, new Date().toISOString(), 'good')));
+  assert.equal(res.body.streak.today.done, false);
+  assert.deepEqual([res.body.streak.today.answers, res.body.streak.today.remaining], [0, 1]);
+});
+
+test('Lernserie: in einer Übertragung zählt ein Wort, das erst durch frühere Antworten darin fällig wird', async () => {
+  const { student, words, send, answer } = await streakSetup('Serie10', 'Klasse S10');
+  // Ein neues Wort vor 2 Tagen, am Tag danach seine Wiederholung – beides in derselben Übertragung
+  const res = await send([answer(words[0], await noon(2)), answer(words[0], await noon(1), 'good')]);
+  assert.deepEqual([res.body.streak.current, res.body.streak.total], [1, 1], 'der zweite Tag war fällig und ist erledigt');
+  assert.equal((await student('GET', '/streak')).body.today.remaining, 0);
+});
