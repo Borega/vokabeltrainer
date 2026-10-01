@@ -161,6 +161,10 @@ test('Deutsch: Umlaut und ß sind eine andere Form, kein Akzentfehler', () => {
   assert.equal(checkGaps(de, ['konnte'], { accentSensitive: false }).state, 'correct', 'Liste ignoriert Akzente und Umlaute');
   assert.equal(checkText('Strasse', ['Straße'], opts).state, 'wrong');
   assert.equal(checkText('Äpfel', ['Äpfel'], opts).state, 'correct');
+  assert.equal(checkText('konte', ['könnte'], opts).state, 'wrong', 'Umlaut fehlt und Tippfehler: kein „fast“');
+  assert.equal(checkText('kontne', ['könnte'], opts).state, 'wrong');
+  assert.equal(checkText('könte', ['könnte'], opts).reason, 'typo', 'Umlaut richtig, ein Buchstabe fehlt: Tippfehler');
+  assert.equal(checkText('konte', ['könnte'], { accentSensitive: false }).reason, 'typo', 'Liste ignoriert Umlaute');
   // Auswahl: nur exakt gleiche Antworten sind doppelt
   assert.equal(parseItem('Wenn ich fliegen {könnte|konnte|kann}, …').type, 'choice');
   assert.equal(parseItem('Beim {Essen|essen} redet man nicht.').type, 'choice');

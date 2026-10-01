@@ -1,9 +1,9 @@
 ## Adjektive: Angleichung
-Merksatz: Das Adjektiv passt sich an Geschlecht und Zahl an und steht meist nach dem Nomen: la casa blanca.
+Merksatz: Das Adjektiv passt sich an Geschlecht und Zahl an und steht meist nach dem Nomen: la casa blanca. -e und die meisten Konsonanten: eine Form; -or und Länder: + -a.
 Erklärung:
 -o wird zu -a: un chico alt*o*, una chica alt*a*. Plural mit -s: los chicos alt*os*, las chicas alt*as*.
-Adjektive auf -e oder Konsonant haben eine Form für beide Geschlechter: un chico inteligente, una chica inteligente; fácil – fácil*es*.
-Länderadjektive auf Konsonant bekommen -a: alemán – aleman*a*, español – español*a*.
+Adjektive auf -e und die meisten auf Konsonant haben eine Form für beide Geschlechter: un chico inteligente, una chica inteligente; un examen fácil, una pregunta fácil; Plural fácil*es*.
+Ausnahmen bekommen -a: Adjektive auf -or (trabajador – trabajador*a*), -ón und -ín (dormilón – dormilon*a*) und Länderadjektive (alemán – aleman*a*, español – español*a*).
 Die meisten Adjektive stehen nach dem Nomen: un coche rojo.
 Aufgaben:
 Mi hermana es muy *alta* (alto).
@@ -30,8 +30,10 @@ La camisa es {roja|rojo|rojas}.
 ! la camisa – weiblich, Singular.
 Los libros son {interesantes|interesantos|interesante}.
 ! Adjektive auf -e: Plural mit -s.
-Es un examen {difícil|difícila|difíciles}.
-! Konsonant: gleiche Form für beide Geschlechter.
+Es una pregunta {difícil|difícila|difíciles}.
+! Adjektive auf -l: gleiche Form für beide Geschlechter.
+Mi madre es muy *trabajadora* (trabajador).
+! Adjektive auf -or bekommen -a.
 Fehler: La casa es bonito. → La casa es bonita.
 ! casa ist weiblich: -a.
 Fehler: Las chicas son simpáticos. → Las chicas son simpáticas.

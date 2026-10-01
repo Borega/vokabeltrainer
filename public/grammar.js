@@ -241,7 +241,9 @@ function checkVariants(input, variants, options) {
     const reason = options.accentSensitive !== false && clean(v, noAccents) === clean(input, noAccents) ? 'accents' : 'case';
     return { state: 'almost', reason, match: v };
   }
-  const typo = variants.find((v) => isTypo(givenLoose, clean(v)));
+  // Tippfehler: Wenn Akzente zählen, muss der Umlaut trotzdem stimmen (konte ist kein Tippfehler für könnte)
+  const typoKey = options.accentSensitive !== false ? umlautKey : clean;
+  const typo = variants.find((v) => isTypo(typoKey(input), typoKey(v)));
   return typo !== undefined ? { state: 'almost', reason: 'typo', match: typo } : { state: 'wrong' };
 }
 

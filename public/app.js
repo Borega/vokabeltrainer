@@ -951,8 +951,12 @@ async function renderLearn(id) {
   const speakable = (side) => canSpeak(speech[side]);
   // Seite, deren Aussprache geübt wird: die gelernte Sprache (bei DaZ also Deutsch)
   const foreign = speakable(learned) ? learned : null;
-  // Hören: nur Wörter der gelernten Seite – sind beide Seiten Fremdsprachen (Französisch ↔ Englisch), beide
-  const listenSide = (side) => side === learned || (!isGermanLabel(list.lang_a) && !isGermanLabel(list.lang_b));
+  const label = (side) => (side === 'a' ? list.lang_a : list.lang_b);
+  // Die deutsche Seite, wenn Deutsch nicht gelernt wird (Englisch ↔ Deutsch): Sie wird nicht vorgelesen
+  const nativeGerman = (side) => side !== learned && isGermanLabel(label(side));
+  // Hören: nur Wörter der gelernten Seite. Ältere Listen ohne Einstellung mit zwei Fremdsprachen
+  // (Französisch ↔ Englisch) wie bisher auf beiden Seiten.
+  const listenSide = (side) => side === learned || (!list.learn_side && !isGermanLabel(list.lang_a) && !isGermanLabel(list.lang_b));
   let sound = !!foreign && pref('sound') === 'on';
 
   // Fällige Einträge (Wort + Richtung), die ältesten zuerst – pro Wort höchstens einer.
@@ -1112,9 +1116,9 @@ async function renderLearn(id) {
 
   const sides = (dir) => (dir === 'ab' ? ['a', 'b'] : ['b', 'a']);
 
-  // Ansagen nur in der Fremdsprache (nicht Deutsch) und nur mit einer Stimme auf dem Gerät
+  // Ansagen nicht für die deutsche Seite, wenn Deutsch nicht gelernt wird, und nur mit einer Stimme auf dem Gerät
   function speakBtn(side, text) {
-    if (!speakable(side) || isGerman(side)) return null;
+    if (!speakable(side) || nativeGerman(side)) return null;
     return h('button', {
       type: 'button', class: 'icon speak', title: 'Anhören', 'aria-label': `Anhören: ${text}`,
       onclick: (e) => { e.stopPropagation(); speak(speechText(text), speech[side]); },

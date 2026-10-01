@@ -21,7 +21,7 @@ He is {an|a} honest man.
 ! honest beginnt mit stummem h, also Vokallaut: an honest man.
 We saw {an|a} elephant at the zoo.
 ! an vor Vokallaut: an elephant.
-My sister has {a|an} umbrella with flowers on it.
+My sister has {an|a} umbrella with flowers on it.
 ! umbrella beginnt mit Vokallaut: an umbrella.
 Paris is {a|an} big city.
 ! big beginnt mit Konsonantlaut: a big city.
