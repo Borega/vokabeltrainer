@@ -695,14 +695,15 @@ export async function renderGrammarLearn(ctx, list) {
       leaveRound?.();
       ctx.cleanupKeys();
       const firstTry = results.filter((r) => r.firstTry).length;
-      const pct = total ? Math.round((firstTry / total) * 100) : 0;
+      const asked = results.length; // Erstversuche; Wiederholungen zählen nicht mit
+      const pct = asked ? Math.round((firstTry / asked) * 100) : 0;
       const missed = results.filter((r) => !r.correct);
       const outlook = h('p', { class: 'small muted' });
       const remaining = h('div', {});
       const perRuleGrade = [...states.entries()].map(([id, st]) => [ruleById.get(id), roundGrade(st.grades)]).filter(([, g]) => g);
       view(h('section', { class: 'panel result' },
         h('h1', {}, pct === 100 ? 'Perfekt!' : pct >= 70 ? 'Gut gemacht!' : 'Weiter üben!'),
-        h('p', { class: 'score' }, `${firstTry} von ${total} Aufgaben beim ersten Versuch richtig (${pct} %)`),
+        h('p', { class: 'score' }, `${firstTry} von ${asked} Aufgaben beim ersten Versuch richtig (${pct} %)`),
         outlook,
         h('ul', { class: 'rule-results' }, perRuleGrade.map(([rule, grade]) => h('li', {}, h('span', {}, rule.title), h('span', { class: `chip grade-${grade}` }, GRADE_TEXT[grade])))),
         missed.length
