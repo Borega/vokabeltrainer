@@ -1054,7 +1054,7 @@ async function renderLearn(id) {
       h('h2', {}, 'Wie viele Wörter?'),
       segmented('Anzahl', [['10', '10'], ['20', '20'], ['all', `Alle${mode === 'free' ? ` (${list.words.length})` : ''}`]], size, (s) => { size = s; setupView(); }),
       nothingToDo
-        ? h('p', { class: 'done-today' }, 'Für heute ist alles erledigt 🎉',
+        ? h('p', { class: 'done-today' }, 'Für heute ist alles erledigt.',
             next ? h('span', { class: 'small muted' }, ` Nächste Wiederholung: ${formatDue(next)}.`) : null)
         : null,
       h('div', { class: 'actions' },
@@ -1433,7 +1433,7 @@ async function renderLearn(id) {
       const outlook = h('p', { class: 'small muted' });
       const remaining = h('div', {});
       view(h('section', { class: 'panel result' },
-        h('h1', {}, pct === 100 ? 'Perfekt! 🎉' : pct >= 70 ? 'Gut gemacht!' : 'Weiter üben!'),
+        h('h1', {}, pct === 100 ? 'Perfekt!' : pct >= 70 ? 'Gut gemacht!' : 'Weiter üben!'),
         h('p', { class: 'score' }, `${right} von ${total} beim ersten Versuch richtig (${pct} %)`),
         outlook,
         wrongWords.length
