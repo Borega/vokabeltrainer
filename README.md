@@ -64,6 +64,8 @@ Gruppen (Klassen/Kurse) und die Rolle „Lehrkraft“ werden direkt aus IServ ü
 - Nicht gewusste Wörter kommen in derselben Runde nach wenigen Karten erneut, bis sie einmal sitzen
 - Lernstand wird auf dem Server gespeichert und ist auf allen Geräten verfügbar
 - **Lernen ohne Internet**, z. B. zu Hause mit dem Schul-iPad – siehe unten
+- **Lernserie** auf der Startseite: ein Punkt pro erledigtem Tag in der Woche, dazu die Serie in Tagen, die beste
+  Serie und die Lerntage insgesamt – siehe [Lernserie](#lernserie)
 - Tastatur: Leertaste = umdrehen, 1 / ← = nicht gewusst, 2 / → = gewusst, 3 / ↑ = leicht, Enter = prüfen / weiter;
   beim Auswählen 1–4
 
@@ -297,6 +299,28 @@ gemeinsam zuweisen), Tempo-Runden mit Zeitdruck sowie KI zum Prüfen oder Erzeug
 - Shintani, N. (2015). The effectiveness of processing instruction and production-based instruction on L2 grammar acquisition: A meta-analysis. *Applied Linguistics, 36*(3), 306–325.
 - Spada, N., & Tomita, Y. (2010). Interactions between type of instruction and type of language feature: A meta-analysis. *Language Learning, 60*(2), 263–308.
 - Wong, W., & VanPatten, B. (2003). The evidence is IN: Drills are OUT. *Foreign Language Annals, 36*(3), 403–423.
+
+## Lernserie
+
+Ein Punkt pro Tag, an dem das **Tagesziel** erreicht ist, dazu die Serie („3 Tage in Folge“), die beste Serie und die
+**Lerntage insgesamt** (diese Zahl wird nie zurückgesetzt). Es gibt keine Bestenliste, keine Punkte und keine
+Vergleiche: Die Anzeige sieht nur die Schüler:in selbst. Die Lehrkraft-Auswertung ändert sich nicht.
+
+- **Tagesziel:** alles erledigen, was „heute fällig“ ist. Ist mehr als 25 fällig (z. B. nach den Ferien), genügt es,
+  25 fällige Einträge zu beantworten. Neue Wörter, Üben ohne Fälliges und Antworten aus Listen von Gruppen ohne Lernserie
+  zählen dafür nicht. Fällig zählt aus den Listen, die die Person selbst bekommt (Gruppen mit eingeschalteter Lernserie).
+- **Tage ohne Fälliges** sind frei: Sie zählen nicht und unterbrechen die Serie nicht. Üben an so einem Tag ändert
+  daran nichts. Das ist wichtig, weil die Planung Wörter oft für mehrere Tage nicht fällig macht.
+- **Nachsicht:** Ein verpasster Tag wird automatisch überbrückt, wenn in den 6 Tagen davor keiner überbrückt wurde.
+  Zwei verpasste Tage in einer Woche beenden die Serie. Die beste Serie und die Lerntage bleiben.
+- **Offline gelernt:** Antworten tragen ihren Zeitpunkt; beim Übertragen werden die betroffenen Tage nachgetragen.
+  Dabei wird großzügig gerechnet (siehe `src/api.js`, `recordLearningDays`).
+- **Abschalten:** Lehrkräfte schalten die Lernserie pro Gruppe ab (Startseite, Abschnitt „Lernserie“). Für die
+  ganze Schule geht es mit `GAMIFICATION=false`. Eine Person mit mehreren Gruppen behält sie, solange sie in einer
+  Gruppe an ist; gezählt werden dann nur die Listen aus Gruppen, in denen sie an ist.
+- **Zeitzone:** Wann ein Tag beginnt und endet, bestimmt `TIMEZONE` (Standard `Europe/Berlin`).
+
+Die Herleitung aus der Forschung steht in [docs/gamification-plan.md](docs/gamification-plan.md).
 
 ## Lernen ohne Internet (iPad)
 
@@ -533,6 +557,8 @@ Alle Einstellungen stehen kommentiert in [`.env.example`](.env.example).
 | `HIDDEN_GROUPS` | Gruppen, die bei der Zuweisung ausgeblendet werden | `alle,lehrer,schueler,schüler` |
 | `RETENTION_DAYS` | inaktive Konten nach so vielen Tagen löschen (0 = nie) | `400` |
 | `TEMPLATES` | mitgelieferte Grammatik-Vorlagen unter „Geteilte Listen“ anbieten (`false` entfernt sie) | `true` |
+| `GAMIFICATION` | Lernserie (Wochenpunkte, Tagesziel) für die ganze Schule; `false` schaltet sie ab | `true` |
+| `TIMEZONE` | Zeitzone der Schule: Beginn und Ende eines Lerntags | `Europe/Berlin` |
 | `SESSION_DAYS` | Dauer einer Anmeldung (Sitzungs-Cookie) | `7` |
 | `REMEMBER_DAYS` | „Angemeldet bleiben“: so viele Tage nach der IServ-Anmeldung meldet sich die App selbst wieder an (0 = aus) | `30` |
 | `FRAME_ANCESTORS` | Einbettung per iframe erlauben | `'self'` |
@@ -548,6 +574,8 @@ Gespeichert werden nur:
   die **eingegebene falsche Antwort** beim ersten Versuch (gekürzt auf 200 Zeichen). Das ist eine Leistungsangabe wie
   die übrigen Lernstandsdaten; sie wird wie diese gelöscht (`RETENTION_DAYS`, Zurücksetzen durch die Schüler:innen).
   Die Fehlerliste der Lehrkraft zeigt nur Anzahlen je Antwort, in der Einzelansicht einer Person auch deren Antworten.
+- für die Lernserie je Schüler:in und Tag mit Antworten: Anzahl der beantworteten fälligen Einträge, ob etwas fällig war, ob das Tagesziel
+  erreicht wurde und wann danach wieder etwas fällig wird (keine Inhalte); pro Gruppe die Einstellung, ob die Lernserie an ist
 - bei „Angemeldet bleiben“: ein Geräteschlüssel (in der Datenbank nur als Hash), der nach `REMEMBER_DAYS` Tagen
   oder beim Abmelden verfällt
 

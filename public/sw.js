@@ -21,6 +21,7 @@ const SHELL = [
   '/schedule.js',
   '/speech.js',
   '/stats-ui.js',
+  '/streak-ui.js',
   '/store.js',
   '/theme.js',
   '/ui.js',

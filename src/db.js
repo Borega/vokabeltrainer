@@ -242,6 +242,23 @@ export const MIGRATIONS = [
   //     (Dateipfad in vorlagen/grammatik). Andere Listen ohne Besitzer:in (Konto gelöscht) haben keinen.
   `ALTER TABLE lists ADD COLUMN template TEXT;
    CREATE UNIQUE INDEX lists_template ON lists(template) WHERE template IS NOT NULL;`,
+  // 12: Lernserie (siehe streak.js und docs/gamification-plan.md). Eine Zeile pro Person und Tag mit Antworten:
+  //     answers  an dem Tag beantwortete fällige Einträge, had_due  war etwas fällig, done  Tagesziel erreicht,
+  //     next_due wann nach der letzten Antwort wieder etwas fällig wird (Tage davor sind frei).
+  //     group_settings: Lehrkräfte können die Lernserie pro Gruppe abschalten (ohne Zeile: an).
+  `CREATE TABLE IF NOT EXISTS learning_days (
+     user_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     day       TEXT NOT NULL,
+     answers   INTEGER NOT NULL DEFAULT 0,
+     had_due   INTEGER NOT NULL DEFAULT 0,
+     done      INTEGER NOT NULL DEFAULT 0,
+     next_due  TEXT,
+     PRIMARY KEY (user_id, day)
+   );
+   CREATE TABLE IF NOT EXISTS group_settings (
+     group_id      TEXT PRIMARY KEY,
+     gamification  INTEGER NOT NULL DEFAULT 1
+   );`,
 ];
 
 function migrate(db) {
