@@ -19,22 +19,22 @@
 :root {
   --bg: #efeadf;
   --surface: #fbf8f1;
-  --text: #26332b;
-  --muted: #586457;
+  --text: #2a3322;
+  --muted: #5a6350;
   --border: #dcd5c5;
   --primary: #9c4a27;
   --primary-text: #fbf8f1;
-  --right: #3e6b4e;
-  --right-bg: #dfe9cf;
+  --right: #3f6b2c;
+  --right-bg: #e1ecc6;
   --wrong: #9e3b3b;
   --wrong-bg: #f2dcdc;
   --warn: #8a5a14;
-  --chip: #dfe6cd;
-  --moss: #2f4a3a;
-  --hero: #2f4a3a;
+  --chip: #e4ebbd;
+  --moss: #55671f;
+  --hero: #55671f;
   --on-hero: #fbf8f1;
-  --hero-soft: #dce6c8;
-  --shadow: 0 1px 2px rgb(38 51 43 / 6%), 0 10px 28px rgb(38 51 43 / 6%);
+  --hero-soft: #e4ebbd;
+  --shadow: 0 1px 2px rgb(48 56 28 / 6%), 0 10px 28px rgb(48 56 28 / 6%);
   --radius: 24px;
   --radius-sm: 14px;
   --font-head: "Fraunces", Georgia, "Times New Roman", serif;
@@ -45,46 +45,46 @@
    Beide Blöcke müssen gleich bleiben. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #161d18;
-    --surface: #202a23;
-    --text: #e9ecdf;
-    --muted: #a7b2a3;
-    --border: #34413a;
+    --bg: #171b12;
+    --surface: #21271a;
+    --text: #eceedc;
+    --muted: #adb59b;
+    --border: #394029;
     --primary: #e39a74;
     --primary-text: #1c140f;
-    --right: #8cc6a0;
-    --right-bg: #223a2b;
+    --right: #a3d28a;
+    --right-bg: #25371c;
     --wrong: #eb9090;
     --wrong-bg: #3e2323;
     --warn: #e2b25a;
-    --chip: #2c3a2e;
-    --moss: #b6d3bd;
-    --hero: #2c4a3a;
-    --on-hero: #eef2e4;
-    --hero-soft: #b9d3bf;
+    --chip: #2f3822;
+    --moss: #cddb92;
+    --hero: #4a5c1b;
+    --on-hero: #f3f5e2;
+    --hero-soft: #dbe5a8;
     --shadow: 0 1px 2px rgb(0 0 0 / 40%);
     color-scheme: dark;
   }
 }
 
 :root[data-theme="dark"] {
-  --bg: #161d18;
-  --surface: #202a23;
-  --text: #e9ecdf;
-  --muted: #a7b2a3;
-  --border: #34413a;
+  --bg: #171b12;
+  --surface: #21271a;
+  --text: #eceedc;
+  --muted: #adb59b;
+  --border: #394029;
   --primary: #e39a74;
   --primary-text: #1c140f;
-  --right: #8cc6a0;
-  --right-bg: #223a2b;
+  --right: #a3d28a;
+  --right-bg: #25371c;
   --wrong: #eb9090;
   --wrong-bg: #3e2323;
   --warn: #e2b25a;
-  --chip: #2c3a2e;
-  --moss: #b6d3bd;
-  --hero: #2c4a3a;
-  --on-hero: #eef2e4;
-  --hero-soft: #b9d3bf;
+  --chip: #2f3822;
+  --moss: #cddb92;
+  --hero: #4a5c1b;
+  --on-hero: #f3f5e2;
+  --hero-soft: #dbe5a8;
   --shadow: 0 1px 2px rgb(0 0 0 / 40%);
   color-scheme: dark;
 }
