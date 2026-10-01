@@ -257,6 +257,19 @@ tr.inactive td { color: var(--muted); }
 .week .day.future .dot { border-style: dashed; }
 .week .label { font-size: .75rem; font-weight: 700; color: var(--muted); }
 .week .day.today .label { color: var(--text); }
+.streak-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem 1rem; }
+.badges-link { gap: .5rem; }
+
+/* Abzeichen: der Punkt aus dem App-Symbol, gefüllt wenn erreicht */
+.badges { list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 1rem; padding: 0; margin: 1.25rem 0 0; }
+.badge { display: flex; gap: 1rem; align-items: flex-start; background: var(--surface); border-radius: var(--radius); padding: 1.25rem; box-shadow: var(--shadow); }
+.badge .medal { flex: none; display: grid; place-items: center; box-sizing: border-box; width: 3rem; height: 3rem; border-radius: 50%; border: 2px solid var(--border); color: var(--muted); font-size: 1.4rem; }
+.badge.earned .medal { background: var(--primary); border-color: var(--primary); color: var(--primary-text); }
+.badge.secret .medal { border-style: dashed; }
+.badge-body { min-width: 0; flex: 1; }
+.badge-body h3 { margin: 0 0 .15rem; font-size: 1.05rem; }
+.badge-body p { margin: .15rem 0 0; }
+.badge-body .bar { margin-top: .5rem; }
 .rate .btn { flex: 1 1 0; min-width: 0; }
 .learn-setup { max-width: 640px; margin: 0 auto; }
 .learn-setup .actions { margin-top: 1.5rem; }
