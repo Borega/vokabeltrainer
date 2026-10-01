@@ -435,7 +435,7 @@ input.gap-input.is-wrong { border-color: var(--wrong); background: var(--wrong-b
 .chunks.answer-line { min-height: 3.2rem; padding: .5rem; border: 2px dashed var(--border); border-radius: 10px; }
 .chunks.answer-line.is-right { border-color: var(--right); border-style: solid; background: var(--right-bg); }
 .chunks.answer-line.is-wrong { border-color: var(--wrong); border-style: solid; }
-.chunk { font: inherit; font-size: 1.05rem; padding: .45rem .8rem; min-height: 44px; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; }
+.chunk { font: inherit; font-size: 1.05rem; padding: .45rem .8rem; min-height: 44px; min-width: 44px; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; }
 .chunk:hover:not(:disabled) { border-color: var(--primary); }
 .chunk:disabled { cursor: default; }
 .chunk.is-wrong { border-color: var(--wrong); background: var(--wrong-bg); color: var(--wrong); }

@@ -56,7 +56,7 @@ Was ein Nachbarprodukt nicht wahrheitsgemäß von sich behaupten könnte (vom Nu
 ## Evidence on Hand
 
 - README mit Funktionsumfang, Forschungsbelegen und Literatur; `docs/grammatik-plan.md` mit Herleitung der Grammatik-Umsetzung.
-- Automatische Tests (131) und eine laufende CI.
+- Automatische Tests und eine laufende CI.
 - Nicht vorhanden und nicht zu erfinden: Nutzerzahlen, Testimonials, Schulnamen, Preise, Lernerfolgsmessungen, Benchmarks.
 
 ## Product Principles
