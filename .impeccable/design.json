@@ -252,13 +252,29 @@
       "description": "32 px Rundung, 2-px-Rand transparent, bei Antwort grün/rot/ocker; Wort in Fraunces.",
       "html": "<div class=\"ds-exercise\"><strong class=\"ds-result\">Richtig!</strong><p>She <b class=\"ds-form\">has lived</b> here since 2010.</p></div>",
       "css": ".ds-exercise { background: var(--surface, #fbf8f1); border: 2px solid var(--right, #3f6b2c); border-radius: 32px; padding: 2rem; box-shadow: 0 1px 2px rgb(48 56 28 / 6%), 0 10px 28px rgb(48 56 28 / 6%); color: var(--text, #2a3322); } .ds-exercise p { font-family: Fraunces, Georgia, serif; font-size: 1.5rem; margin: .5rem 0 0; } .ds-exercise .w { font-family: Fraunces, Georgia, serif; font-size: 2rem; font-weight: 600; } .ds-result { color: var(--right, #3f6b2c); font-weight: 700; } .ds-form { background: var(--chip, #e4ebbd); color: var(--moss, #55671f); padding: 0 .35em; border-radius: 8px; }"
+    },
+    {
+      "name": "Lernserie (Wochenpunkte)",
+      "kind": "custom",
+      "refersTo": "streak-week",
+      "description": "Sieben Punkte Mo–So: erledigt Terrakotta gefüllt, heute mit Terrakotta-Rand, kommend gestrichelt. Leise, privat, ohne Vergleich.",
+      "html": "<ol class=\"ds-week\"><li class=\"ds-day ds-done\"><span class=\"ds-dot\"></span><span class=\"ds-lbl\">Mo</span></li><li class=\"ds-day ds-done\"><span class=\"ds-dot\"></span><span class=\"ds-lbl\">Di</span></li><li class=\"ds-day ds-today\"><span class=\"ds-dot\"></span><span class=\"ds-lbl\">Mi</span></li><li class=\"ds-day ds-future\"><span class=\"ds-dot\"></span><span class=\"ds-lbl\">Do</span></li></ol>",
+      "css": ".ds-week { list-style: none; display: flex; gap: .5rem; padding: 0; margin: 0; } .ds-day { display: flex; flex-direction: column; align-items: center; gap: .3rem; flex: 1 1 0; max-width: 3.5rem; } .ds-dot { box-sizing: border-box; width: 1.75rem; height: 1.75rem; border-radius: 50%; border: 2px solid var(--border, #dcd5c5); } .ds-done .ds-dot { background: var(--primary, #9c4a27); border-color: var(--primary, #9c4a27); } .ds-today .ds-dot { border-color: var(--primary, #9c4a27); } .ds-future .ds-dot { border-style: dashed; } .ds-lbl { font-size: .75rem; font-weight: 700; color: var(--muted, #5a6350); }"
+    },
+    {
+      "name": "Abzeichen",
+      "kind": "custom",
+      "refersTo": "badge-card",
+      "description": "Karte mit Medaille: erreicht Terrakotta gefüllt, offen mit Linie und Fortschritt, verborgen gestrichelt und ohne Text.",
+      "html": "<div class=\"ds-badges\"><div class=\"ds-badge ds-earned\"><span class=\"ds-medal\">★</span><div><h3>10 Wörter sicher</h3><p>Erreicht am 1.10.2026</p></div></div><div class=\"ds-badge\"><span class=\"ds-medal\">★</span><div><h3>50 Wörter sicher</h3><p>20 von 50</p></div></div></div>",
+      "css": ".ds-badges { display: grid; gap: 1rem; } .ds-badge { display: flex; gap: 1rem; align-items: flex-start; background: var(--surface, #fbf8f1); border-radius: 24px; padding: 1.25rem; box-shadow: 0 1px 2px rgb(48 56 28 / 6%), 0 10px 28px rgb(48 56 28 / 6%); color: var(--text, #2a3322); } .ds-badge h3 { margin: 0 0 .15rem; font-size: 1.05rem; } .ds-badge p { margin: 0; font-size: .875rem; color: var(--muted, #5a6350); } .ds-medal { flex: none; display: grid; place-items: center; box-sizing: border-box; width: 3rem; height: 3rem; border-radius: 50%; border: 2px solid var(--border, #dcd5c5); color: var(--muted, #5a6350); font-size: 1.4rem; } .ds-earned .ds-medal { background: var(--primary, #9c4a27); border-color: var(--primary, #9c4a27); color: var(--primary-text, #fbf8f1); }"
     }
   ],
   "narrative": {
     "northStar": "Der Lerngarten",
-    "overview": "Die Oberfläche ist ein ruhiger, warmer Ort zum Üben: Sandfarbener Grund wie ungebleichtes Papier, weiche Leinen-Karten ohne Rahmen, ein tiefes Oliv für das, was heute zählt, und ein einziges Terrakotta für jede Handlung. Überschriften und Lernwörter stehen in einer warmen Serifenschrift, der übrige Text in einer freundlichen, klaren Grotesk. Das wirkt eher wie ein gut gestaltetes Schulbuch als wie eine Software-Oberfläche. Bewertet wird sachlich – ein sattes Grün für richtig, ein Ton-Rot für falsch, ein Ocker für Hinweise –, nie wie in einem Spiel. Das Produkt verzichtet bewusst auf Punkte, Serien, Konfetti, Ranglisten und Zeitdruck; das System tut es ebenso.",
+    "overview": "Die Oberfläche ist ein ruhiger, warmer Ort zum Üben: Sandfarbener Grund wie ungebleichtes Papier, weiche Leinen-Karten ohne Rahmen, ein tiefes Oliv für das, was heute zählt, und ein einziges Terrakotta für jede Handlung. Überschriften und Lernwörter stehen in einer warmen Serifenschrift, der übrige Text in einer freundlichen, klaren Grotesk. Das wirkt eher wie ein gut gestaltetes Schulbuch als wie eine Software-Oberfläche. Bewertet wird sachlich – ein sattes Grün für richtig, ein Ton-Rot für falsch, ein Ocker für Hinweise –, nie wie in einem Spiel. Das Produkt verzichtet bewusst auf Punkte, Level, Ranglisten, Konfetti, Vergleiche mit anderen und Zeitdruck; das System tut es ebenso. Zwei Ausnahmen sind gewollt und bleiben leise: die Lernserie (ein Punkt pro erledigtem Tag) und Abzeichen fürs Können.",
     "keyCharacteristics": [
-      "Ein Akzent (Terrakotta) für Handlung; Oliv als Grundton für Flächen mit Gewicht; Bewertung über Farbe, Fläche und Text.",
+      "Ein Akzent (Terrakotta) für Handlung und für den Punkt, der „erreicht“ heißt; Oliv als Grundton für Flächen mit Gewicht; Bewertung über Farbe, Fläche und Text.",
       "Warmer Sand und dunkler Wald sind gleichwertig; beide folgen dem Gerät, per Knopf überschreibbar.",
       "Karten ohne Rahmen, mit weichem Schatten und großer Rundung (24–32 px); Knöpfe, Schalter und Chips vollrund.",
       "Serif (Fraunces) für Überschriften, Lernwörter, Sätze und Marke; Grotesk (Nunito Sans) für Text und Bedienung.",
@@ -269,7 +285,7 @@
     "rules": [
       {
         "name": "The One Clay Rule",
-        "body": "Terrakotta ist der einzige Akzent und trägt nur Handlung und Fokus: Knopf, Link, Auswahl. Es erscheint auf höchstens einem Zehntel einer Seite; Grün, Ton-Rot und Ocker gehören ausschließlich der Bewertung, Moos dem Gewicht.",
+        "body": "Terrakotta ist der einzige Akzent und trägt Handlung und Fokus (Knopf, Link, Auswahl) sowie den Punkt aus dem App-Symbol: Ein gefüllter Terrakotta-Punkt heißt „erreicht“ (Wochenpunkt, Abzeichen). Es erscheint auf höchstens einem Zehntel einer Seite; Grün, Ton-Rot und Ocker gehören ausschließlich der Bewertung, Moos dem Gewicht.",
         "section": "colors"
       },
       {
@@ -299,7 +315,12 @@
       },
       {
         "name": "The Answer-Colors-The-Card Rule",
-        "body": "Nach einer Antwort färbt sich der Rand der Übungskarte (2 px, vorher transparent) grün, rot oder ockerfarben; Eingabe- und Antwortfelder nehmen die zugehörige Fläche an. Das ist die gesamte Belohnungs- und Fehlermechanik.",
+        "body": "Nach einer Antwort färbt sich der Rand der Übungskarte (2 px, vorher transparent) grün, rot oder ockerfarben; Eingabe- und Antwortfelder nehmen die zugehörige Fläche an. Das ist die Rückmeldung zu einer einzelnen Antwort; darüber hinaus gibt es nur die Lernserie und die Abzeichen (siehe The Quiet Reward Rule).",
+        "section": "elevation"
+      },
+      {
+        "name": "The Quiet Reward Rule",
+        "body": "Lernserie und Abzeichen bleiben leise und privat: ein Satz, ein Punkt, eine Meldung – nie ein Dialog, Ton, Konfetti oder ein Zähler, den andere sehen. Sie hängen am Können (sicher gewusst, Tagesziel erreicht), nicht an Menge oder Anmelden; ein verpasster Tag wird abgefedert und nie als Verlust inszeniert. Verborgene Abzeichen verraten nichts, bis man sie hat.",
         "section": "elevation"
       }
     ],
@@ -315,7 +336,7 @@
       "Do kurze, direkte deutsche Sätze schreiben und gendergerecht mit Doppelpunkt („Schüler:innen“)."
     ],
     "donts": [
-      "Don't Gamification einführen: keine Punkte, Serien, Abzeichen, Konfetti, Ranglisten, Zeitdruck (das Produkt verzichtet darauf bewusst; Tempo-Runden sind ausgeschlossen).",
+      "Don't Punkte, Level, Ranglisten, Vergleiche mit anderen, Konfetti, Münzen oder einen Shop und Zeitdruck einführen (Tempo-Runden sind ausgeschlossen). Bewusste Ausnahmen, klein und pro Gruppe abschaltbar: die Lernserie und Abzeichen fürs Können (siehe The Quiet Reward Rule).",
       "Don't einen zweiten Akzent neben Terrakotta einführen; Grün, Ton-Rot, Ocker bleiben der Bewertung vorbehalten, Moos dem Gewicht.",
       "Don't Terrakotta für Fehler oder Warnungen verwenden – es ist zu nah an Ton-Rot.",
       "Don't Rahmen um Karten, stärkere Schatten, Verläufe, Glas-Effekte oder farbige Seitenstreifen nutzen, um etwas wichtiger zu machen.",

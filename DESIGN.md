@@ -177,7 +177,7 @@ components:
 
 **Creative North Star: „Der Lerngarten“**
 
-Die Oberfläche ist ein ruhiger, warmer Ort zum Üben: Sandfarbener Grund wie ungebleichtes Papier, weiche Leinen-Karten ohne Rahmen, ein tiefes Oliv für das, was heute zählt, und ein einziges Terrakotta für jede Handlung. Überschriften und Lernwörter stehen in einer warmen Serifenschrift, der übrige Text in einer freundlichen, klaren Grotesk. Das wirkt eher wie ein gut gestaltetes Schulbuch als wie eine Software-Oberfläche. Bewertet wird sachlich – ein sattes Grün für richtig, ein Ton-Rot für falsch, ein Ocker für Hinweise –, nie wie in einem Spiel. Das Produkt verzichtet bewusst auf Punkte, Serien, Konfetti, Ranglisten und Zeitdruck; das System tut es ebenso.
+Die Oberfläche ist ein ruhiger, warmer Ort zum Üben: Sandfarbener Grund wie ungebleichtes Papier, weiche Leinen-Karten ohne Rahmen, ein tiefes Oliv für das, was heute zählt, und ein einziges Terrakotta für jede Handlung. Überschriften und Lernwörter stehen in einer warmen Serifenschrift, der übrige Text in einer freundlichen, klaren Grotesk. Das wirkt eher wie ein gut gestaltetes Schulbuch als wie eine Software-Oberfläche. Bewertet wird sachlich – ein sattes Grün für richtig, ein Ton-Rot für falsch, ein Ocker für Hinweise –, nie wie in einem Spiel. Das Produkt verzichtet bewusst auf Punkte, Level, Ranglisten, Konfetti, Vergleiche mit anderen und Zeitdruck; das System tut es ebenso. Zwei Ausnahmen sind gewollt und bleiben leise: die Lernserie (ein Punkt pro erledigtem Tag) und Abzeichen fürs Können.
 
 Die Oberfläche richtet sich an Kinder und Jugendliche ebenso wie an Lehrkräfte, die zwischen zwei Stunden Listen pflegen. Der Ton bleibt ruhig, sachlich und ermutigend: kurze deutsche Sätze („Richtig!“, „Fast!“, „Weiter üben!“), große Druckflächen auf dem iPad, der Stoff steht im Mittelpunkt. Dichte entsteht nur dort, wo Lehrkräfte sie brauchen (Editor, Auswertung); die Lernansicht bleibt eine einzige Karte pro Aufgabe. Alle Schriften liegen auf dem eigenen Server (`/fonts`), nichts wird von Fremdservern geladen.
 
@@ -195,7 +195,7 @@ Die Oberfläche richtet sich an Kinder und Jugendliche ebenso wie an Lehrkräfte
 Warme, erdige Palette: Sand, Leinen und Moos tragen die Fläche, Terrakotta die Handlung; Grün, Ton-Rot und Ocker tauchen nur als Bewertung auf. Jede Farbe gibt es in zwei Fassungen (hell/dunkel) mit gleicher Rolle; die dunklen Werte tragen den Zusatz „-dunkel“.
 
 ### Primary
-- **Terrakotta** (#9c4a27 hell, #e39a74 dunkel): der einzige Akzent. Haupt-Knopf, Logo-Punkt, Links, ausgewählter Schalter, Fokusring (45 % Deckkraft). Text darauf: Leinen (#fbf8f1) bzw. fast Schwarz (#1c140f) im Dunkeln.
+- **Terrakotta** (#9c4a27 hell, #e39a74 dunkel): der einzige Akzent. Haupt-Knopf, Logo-Punkt, Links, ausgewählter Schalter, erreichte Wochenpunkte und Abzeichen, Fokusring (45 % Deckkraft). Text darauf: Leinen (#fbf8f1) bzw. fast Schwarz (#1c140f) im Dunkeln.
 
 ### Secondary
 - **Moos** (#55671f hell; im Dunkeln als Fläche #4a5c1b, als Text #cddb92): Grundton für Gewicht. „Heute fällig“-Fläche, Merksatz einer Regel, Knopf-Rand und -Text, Marke, Chip-Text. Text auf Oliv-Flächen: Leinen bzw. #f3f5e2.
@@ -212,7 +212,7 @@ Warme, erdige Palette: Sand, Leinen und Moos tragen die Fläche, Terrakotta die 
 - **Salbei** (#e4ebbd hell, #2f3822 dunkel): Chips, Lücken-Hintergrund, gesuchte Form im Satz, Tastenkürzel-Kacheln.
 
 ### Named Rules
-**The One Clay Rule.** Terrakotta ist der einzige Akzent und trägt nur Handlung und Fokus: Knopf, Link, Auswahl. Es erscheint auf höchstens einem Zehntel einer Seite; Grün, Ton-Rot und Ocker gehören ausschließlich der Bewertung, Moos dem Gewicht.
+**The One Clay Rule.** Terrakotta ist der einzige Akzent und trägt Handlung und Fokus (Knopf, Link, Auswahl) sowie den Punkt aus dem App-Symbol: Ein gefüllter Terrakotta-Punkt heißt „erreicht“ (Wochenpunkt, Abzeichen). Es erscheint auf höchstens einem Zehntel einer Seite; Grün, Ton-Rot und Ocker gehören ausschließlich der Bewertung, Moos dem Gewicht.
 
 **The Clay-Is-Not-Error Rule.** Terrakotta und Ton-Rot liegen farblich nah beieinander. Deshalb markiert Ton-Rot nur, was falsch ist – immer mit Text und Fläche – und Terrakotta nie einen Fehler.
 
@@ -266,7 +266,9 @@ Weich und flach. Karten und Panels haben keinen Rand; sie heben sich durch die h
 ### Named Rules
 **The Soft-Not-Heavy Rule.** Eine Fläche hebt sich durch Farbe und den einen weichen Schatten ab. Kein Element bekommt einen stärkeren Schatten, einen Rahmen oder einen Verlauf, um „wichtiger“ zu wirken – Gewicht entsteht durch die Oliv-Fläche.
 
-**The Answer-Colors-The-Card Rule.** Nach einer Antwort färbt sich der Rand der Übungskarte (2 px, vorher transparent) grün, rot oder ockerfarben; Eingabe- und Antwortfelder nehmen die zugehörige Fläche an. Das ist die gesamte Belohnungs- und Fehlermechanik.
+**The Answer-Colors-The-Card Rule.** Nach einer Antwort färbt sich der Rand der Übungskarte (2 px, vorher transparent) grün, rot oder ockerfarben; Eingabe- und Antwortfelder nehmen die zugehörige Fläche an. Das ist die Rückmeldung zu einer einzelnen Antwort; darüber hinaus gibt es nur die Lernserie und die Abzeichen (siehe The Quiet Reward Rule).
+
+**The Quiet Reward Rule.** Lernserie und Abzeichen bleiben leise und privat: ein Satz, ein Punkt, eine Meldung – nie ein Dialog, Ton, Konfetti oder ein Zähler, den andere sehen. Sie hängen am Können (sicher gewusst, Tagesziel erreicht), nicht an Menge oder Anmelden; ein verpasster Tag wird abgefedert und nie als Verlust inszeniert. Verborgene Abzeichen verraten nichts, bis man sie hat.
 
 ## Shapes
 
@@ -315,6 +317,20 @@ Große Kachel (56 px, 18 px Rundung) mit Tastenkürzel-Kachel links (1–4, Salb
 ### Übungskarte
 Die Aufgabe ist immer eine Karte (32 px Rundung, 2-px-Rand transparent, 2 rem Innenabstand) mit Sprachlabel, dem Wort oder Satz groß in Fraunces, Antwortfeld, Sonderzeichen-Leiste und Rückmeldung darunter. Bei Grammatik kommt oben eine Zeile mit Aufgabentyp-Chip, Regeltitel und „Regel“ mit Buch-Symbol; Fehlerstellen sind rot wellig unterstrichen (`word-wrong`), korrigierte Stellen grün und fett (`word-fix`). Der Merksatz einer Regel steht in einer Oliv-Fläche.
 
+### Lernserie (Wochenpunkte)
+- **Panel:** Leinen, 24 px, ohne Rahmen. Überschrift in Fraunces: „n Tage in Folge“ (ab 2 Tagen, sonst „Lernserie“), darunter ein Satz zum heutigen Tag (0.875rem, Salbeigrau).
+- **Wochenzeile:** sieben Punkte für Mo–So (28 px, vollrund, 2 px Sandlinie) mit Kürzel (0.75rem, fett). Erledigt: Terrakotta gefüllt; heute: Terrakotta-Rand; kommend: gestrichelt. Jeder Punkt trägt eine `aria`-Beschriftung („Montag: Tagesziel erreicht“); Farbe ist nie das einzige Zeichen.
+- **Fußzeile:** „Lerntage insgesamt“ und „Beste Serie“ (0.875rem, Salbeigrau) links, rechts der Standard-Knopf mit Stern-Symbol „Abzeichen: n von 12“; er rutscht unter die Zahlen, wenn der Platz fehlt.
+- **Meldung:** Erreicht das Ergebnis einer Runde das Tagesziel oder ein Abzeichen, erscheint ein Satz als Toast („Tagesziel erreicht – 2 Tage in Folge. Neues Abzeichen: 10 Wörter sicher.“), nie als Dialog.
+
+### Abzeichen-Sammlung
+- **Raster:** Karten ab 300 px Breite, Leinen, 24 px, ohne Rahmen (Schatten).
+- **Medaille:** Kreis, 48 px, 2 px Sandlinie, Linien-Symbol in Salbeigrau. Erreicht: Terrakotta gefüllt, Symbol in Leinen. Verborgen und nicht erreicht: gestrichelt mit Stern; Titel und Text verraten nichts.
+- **Fortschritt:** Bei nicht erreichten ein Balken in Wachstum-Grün wie überall („20 von 50“); bei erreichten das Datum.
+
+### Gruppen-Schalter (Lehrkräfte)
+Panel „Lernserie und Abzeichen“ mit einem Kontrollkästchen pro Gruppe, auf der Startseite unter den Listen. Speichert beim Umschalten und meldet das als Toast.
+
 ### Auswertung
 Kennzahl-Kacheln, Diagramme als Linie und Säulen in Moos ohne Füllverlauf, sortierbare Tabellen mit Fortschrittsbalken in Wachstum-Grün und Stufen-Chips (neu → gefestigt) in zunehmend dichter Salbei-Tönung.
 
@@ -335,7 +351,7 @@ Dichte Formulare in Panels; Werkzeugleiste klebt unter der Kopfzeile; Grammatik-
 - **Do** kurze, direkte deutsche Sätze schreiben und gendergerecht mit Doppelpunkt („Schüler:innen“).
 
 ### Don't:
-- **Don't** Gamification einführen: keine Punkte, Serien, Abzeichen, Konfetti, Ranglisten, Zeitdruck (das Produkt verzichtet darauf bewusst; Tempo-Runden sind ausgeschlossen).
+- **Don't** Punkte, Level, Ranglisten, Vergleiche mit anderen, Konfetti, Münzen oder einen Shop und Zeitdruck einführen (Tempo-Runden sind ausgeschlossen). Bewusste Ausnahmen, klein und pro Gruppe abschaltbar: die Lernserie und Abzeichen fürs Können (siehe The Quiet Reward Rule).
 - **Don't** einen zweiten Akzent neben Terrakotta einführen; Grün, Ton-Rot, Ocker bleiben der Bewertung vorbehalten, Moos dem Gewicht.
 - **Don't** Terrakotta für Fehler oder Warnungen verwenden – es ist zu nah an Ton-Rot.
 - **Don't** Rahmen um Karten, stärkere Schatten, Verläufe, Glas-Effekte oder farbige Seitenstreifen nutzen, um etwas wichtiger zu machen.

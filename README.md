@@ -337,15 +337,47 @@ steht unter „Abzeichen“ (Link im Kasten „Lernserie“) und zeigt bei den �
 | Erste Regel sicher, 5 Regeln sicher | Grammatikregeln, die sicher sitzen |
 | Liste gemeistert | alle Wörter einer Liste (mindestens 5) bzw. alle Regeln (mindestens 3) sind sicher |
 | 7 / 30 / 100 Lerntage | so oft wurde das Tagesziel erreicht |
-| *Nach 4 Wochen noch gewusst* (verborgen) | ein Wort nach mindestens 28 Tagen ohne Abfrage gewusst |
-| *Fehler besiegt* (verborgen) | beim letzten Mal falsch, an einem späteren Tag richtig |
+| *Nach 4 Wochen noch gewusst* (verborgen) | ein Wort nach mindestens 28 Tagen ohne Abfrage richtig beantwortet |
+| *Fehler besiegt* (verborgen) | beim letzten Mal nicht gewusst, an einem späteren Tag richtig beantwortet |
 | *Beide Richtungen* (verborgen) | 10 Wörter sind in beiden Richtungen sicher |
 
 Verborgene Abzeichen sind in der Sammlung nicht beschrieben, bis man sie hat: Nicht angekündigte Belohnungen
 untergraben die Motivation weniger als angekündigte (Deci, Koestner & Ryan 1999). Jedes Abzeichen wird einmal vergeben
 und bleibt, auch wenn ein Lernstand später zurückgesetzt wird. Gezählt wird nur aus Listen, für die die Lernserie gilt;
 der Schalter pro Gruppe und `GAMIFICATION=false` gelten auch für die Abzeichen. Die Lehrkraft sieht keine Abzeichen
-einzelner Schüler:innen.
+einzelner Schüler:innen. Bei den beiden Ereignis-Abzeichen zählt nur eine richtige Antwort: Ein „Fast!“ (kleiner
+Tippfehler) ist für die App falsch und löst sie nicht aus.
+
+### Wissenschaftliche Grundlagen der Lernserie und Abzeichen
+
+Spielerische Elemente wirken im Unterricht nur klein bis mittel, und schlecht gemacht können sie schaden. Deshalb ist hier alles klein,
+privat und abschaltbar; die ausführliche Herleitung steht in [docs/gamification-plan.md](docs/gamification-plan.md).
+
+| Befund | Umsetzung |
+|---|---|
+| Gamification wirkt klein bis mittel: auf Wissen g = 0,49, auf Motivation g = 0,36, auf Verhalten g = 0,25; in den methodisch strengsten Studien blieb nur der Effekt auf das Wissen stabil (Sailer & Homner 2020) | keine großen Versprechen; wenige, ruhige Elemente, die sich pro Gruppe abschalten lassen |
+| Bei Schüler:innen (K-12, 41 Effekte) ist der Motivationseffekt mittel (g = 0,65), aber sehr uneinheitlich; er fällt je Schulstufe verschieden aus (Sekundarstufe g ≈ 1,0, High School ≈ 0,8, Grundschule geringer) und ist bei extrinsischer Motivation (g = 0,71) etwas größer als bei intrinsischer (g = 0,64) (Kurnaz & Koçtürk 2025) | gedacht für Jahrgang 5–13; weil vor allem die extrinsische Motivation steigt, sind die Schutzmaßnahmen unten nötig |
+| Erwartete, greifbare Belohnungen (Geld, Preise, Zertifikate) senken die intrinsische Motivation: für Belohnungen fürs Mitmachen, fürs Fertigwerden und für Leistung d = −0,40, −0,36 bzw. −0,28; bei Kindern stärker als bei Studierenden. Unerwartete Belohnungen wirkten nicht (d = 0,01), positive Rückmeldung wirkte positiv (d = 0,33), bei Kindern allerdings nicht im Wahlverhalten (Deci, Koestner & Ryan 1999) | nichts Greifbares (keine Punkte, kein Shop); Abzeichen als Rückmeldung zum Können; einige Abzeichen sind unangekündigt (verborgen) |
+| Der Befund ist umstritten: Negative Effekte treten danach vor allem bei interessanten Aufgaben auf, wenn die Belohnung greifbar, angekündigt und nur lose an die Leistung gebunden ist (Cameron, Banko & Pierce 2001) | Abzeichen sind symbolisch und an sicheres Können gebunden, also eher außerhalb dieser Bedingungen. Belegt ist das für digitale Abzeichen nicht |
+| Ein Kurs mit Abzeichen (Pflicht) und Bestenliste hatte nach 16 Wochen weniger intrinsische Motivation, Zufriedenheit und Empowerment als ein Kurs ohne, dazu schlechtere Ergebnisse in der Abschlussprüfung. Vermutet werden sozialer Vergleich, fehlende Wahl und nachlassende Neuheit; es waren zwei Kurse, nicht zufällig zugeteilt (Hanus & Fox 2015) | keine Bestenliste, kein Vergleich mit anderen, keine Pflicht, abschaltbar |
+| Duolingo-Nutzer:innen verlieren sich in Wettbewerb, im reinen Spielen und im Herdenverhalten, sodass das Lernen in den Hintergrund rückt (Hadi Mogavi et al. 2022) | kein Wettbewerb; Abzeichen und Tagesziel hängen am Lernen, nicht an Spielzeit |
+| In einer Übersicht über 87 Arbeiten zu unerwünschten Wirkungen nennen die Studien am häufigsten Abzeichen, Bestenlisten, Wettbewerbe und Punkte; häufig sind fehlende messbare Wirkung, schlechtere Leistung, Motivationsprobleme und Schummeln (Almeida et al. 2023) | Abzeichen sind also keine harmlose Zugabe. Darum nur fürs Können, nicht für Menge oder Anmelden; für das Tagesziel zählen nur fällige Einträge |
+| Wettbewerb zusammen mit Zusammenarbeit wirkte besonders auf das Verhalten (Sailer & Homner 2020) | möglicher Schritt 3: gemeinsames Klassenziel ohne Namen und ohne Rangliste (noch nicht umgesetzt) |
+
+**Grenzen:** Zur Serie selbst gibt es kaum unabhängige Studien. Dass sie nachsichtig ist (freie Tage, ein überbrückter Tag pro
+Woche, Obergrenze nach den Ferien), ist eine Gestaltungsentscheidung, um die oben genannten Risiken klein zu halten, und keine
+Folgerung aus einer Studie. Angaben von Herstellern (etwa zur Bindung bei Duolingo) sind nicht als Beleg verwendet. Ob die
+Lernserie hier wirkt, ist nicht gemessen; der Schalter pro Gruppe erlaubt es, aktive Tage pro Woche mit und ohne Lernserie zu
+vergleichen. Die Zahlen stammen aus den Kurzfassungen der Arbeiten, bei Deci et al. aus dem Volltext.
+
+**Literatur (Lernserie und Abzeichen)**
+- Almeida, C., Kalinowski, M., Uchoa, A., & Feijó, B. (2023). Negative effects of gamification in education software: Systematic mapping and practitioner perceptions. arXiv:2305.08346.
+- Cameron, J., Banko, K. M., & Pierce, W. D. (2001). Pervasive negative effects of rewards on intrinsic motivation: The myth continues. *The Behavior Analyst, 24*(1), 1–44.
+- Deci, E. L., Koestner, R., & Ryan, R. M. (1999). A meta-analytic review of experiments examining the effects of extrinsic rewards on intrinsic motivation. *Psychological Bulletin, 125*(6), 627–668.
+- Hadi Mogavi, R., Guo, B., Zhang, Y., Haq, E.-U., Hui, P., & Ma, X. (2022). When gamification spoils your learning: A qualitative case study of gamification misuse in a language-learning app. arXiv:2203.16175.
+- Hanus, M. D., & Fox, J. (2015). Assessing the effects of gamification in the classroom: A longitudinal study on intrinsic motivation, social comparison, satisfaction, effort, and academic performance. *Computers & Education, 80*, 152–161.
+- Kurnaz, F., & Koçtürk, M. (2025). A meta-analysis of gamification's impact on student motivation in K-12 education. *Psychology in the Schools*.
+- Sailer, M., & Homner, L. (2020). The gamification of learning: A meta-analysis. *Educational Psychology Review, 32*(1), 77–112.
 
 ## Lernen ohne Internet (iPad)
 
@@ -628,11 +660,13 @@ npm test
 ```
 
 Aufbau:
-- `src/` – Express-Server: OIDC-Login (`auth.js`), REST-API (`api.js`), SQLite (`db.js`), Sessions (`session.js`)
+- `src/` – Express-Server: OIDC-Login (`auth.js`), REST-API (`api.js`), SQLite (`db.js`), Sessions (`session.js`);
+  `streak.js` (Lernserie: Serie, Tageszeiten, Woche) und `badges.js` (Abzeichen: Katalog, Schwellen) als reine Funktionen
 - `public/` – Oberfläche ohne Build-Schritt (Vanilla JS); `check.js`, `csv.js` und `exercises.js` (Übungsarten,
   Lernleiter, Ablenker, Tipps, Lückentext) werden auch in den Tests genutzt, `speech.js` für die Aussprache.
   Grammatik: `grammar.js` (Aufgaben-Syntax, Prüfung, Hinweise, Rundenplanung, Bewertung – läuft im Browser, auf dem
   Server beim Speichern und in den Tests), `grammar-editor.js`, `grammar-learn.js`, `grammar-stats.js`;
+  Lernserie und Abzeichen: `streak-ui.js` (Wochenpunkte, Schalter für Lehrkräfte), `badges-ui.js` (Sammlung, Hinweis);
   gemeinsame Bausteine: `ui.js`, `stats-ui.js`.
   Offline: `schedule.js` (FSRS-Planung, auch vom Server genutzt), `offline.js` (Abgleich), `store.js`
   (IndexedDB), `sw.js` (Service Worker), `manifest.webmanifest`
