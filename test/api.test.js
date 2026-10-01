@@ -1206,6 +1206,32 @@ test('Abzeichen: eine als falsch gezählte Antwort („fast“) vergibt weder La
   assert.deepEqual(res.body.badges, [], 'fast zählt als falsch');
 });
 
+test('Abzeichen: „vier Wochen nicht gesehen“ gilt für das Wort, nicht für die Richtung', async () => {
+  const { words, answer, send } = await streakSetup('Abz8', 'Klasse A8', 3);
+  const dir = (w, at, grade, direction) => ({ ...answer(w, at, grade), direction });
+  // Wort 0: vor 40 Tagen Englisch → Deutsch gewusst, vor 2 Tagen Deutsch → Englisch (falsch), jetzt wieder Englisch → Deutsch
+  await send([dir(words[0], noon(40), 'good', 'ab')]);
+  await send([dir(words[0], noon(2), 'again', 'ba')]);
+  let res = await send([dir(words[0], new Date().toISOString(), 'good', 'ab')]);
+  assert.equal(res.body.badges.some((b) => b.id === 'langzeit'), false, 'das Wort wurde vor 2 Tagen gesehen, nur nicht in dieser Richtung');
+  // Wort 1: vor 40 Tagen in einer Richtung gesehen, jetzt in der anderen gewusst: vier Wochen nicht gesehen
+  await send([dir(words[1], noon(40), 'good', 'ab')]);
+  res = await send([dir(words[1], new Date().toISOString(), 'good', 'ba')]);
+  assert.ok(res.body.badges.some((b) => b.id === 'langzeit'));
+});
+
+test('Abzeichen: „Fehler besiegt“ gilt für die Richtung, in der der Fehler passierte', async () => {
+  const { words, answer, send } = await streakSetup('Abz9', 'Klasse A9', 3);
+  const dir = (w, at, grade, direction) => ({ ...answer(w, at, grade), direction });
+  await send([dir(words[0], noon(3), 'again', 'ab')]);
+  // Richtig in der anderen Richtung ist nicht derselbe Fehler
+  let res = await send([dir(words[0], new Date().toISOString(), 'good', 'ba')]);
+  assert.equal(res.body.badges.some((b) => b.id === 'fehler'), false);
+  // Richtig in der Richtung, in der es falsch war: besiegt
+  res = await send([dir(words[0], new Date().toISOString(), 'good', 'ab')]);
+  assert.ok(res.body.badges.some((b) => b.id === 'fehler'));
+});
+
 test('Abzeichen: 7 Lerntage', async () => {
   const { student, words, answer, send } = await streakSetup('Abz5', 'Klasse A5', 2);
   // 7 Lerntage: an jedem Tag war das Wort fällig und wurde beantwortet

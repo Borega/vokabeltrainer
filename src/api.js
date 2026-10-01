@@ -341,6 +341,8 @@ export function apiRouter(db, config) {
     earnedBadges: db.prepare('SELECT badge, earned_at FROM badges_earned WHERE user_id = ?'),
     addBadge: db.prepare('INSERT OR IGNORE INTO badges_earned (user_id, badge, earned_at) VALUES (?, ?, ?)'),
     doneDays: db.prepare('SELECT COUNT(*) AS n FROM learning_days WHERE user_id = ? AND done = 1'),
+    // Wann wurde das Wort zuletzt in irgendeiner Richtung abgefragt?
+    lastWordReview: db.prepare('SELECT MAX(last_review) AS at FROM progress WHERE user_id = ? AND word_id = ?'),
     lastReview: db.prepare('SELECT grade, at FROM review_log WHERE user_id = ? AND word_id = ? AND direction = ? ORDER BY at DESC, id DESC LIMIT 1'),
     learningDays: db.prepare('SELECT day, answers, had_due, done, next_due FROM learning_days WHERE user_id = ? ORDER BY day'),
     learningDay: db.prepare('SELECT answers, had_due, done FROM learning_days WHERE user_id = ? AND day = ?'),
@@ -807,7 +809,9 @@ export function apiRouter(db, config) {
           const next = review(previous, grade, new Date(ts));
           // Nur richtige Antworten zählen: „fast“ (hard, aber nicht richtig) ist für die App falsch
           if (streakLists?.has(list.id) && correct && grade !== 'again') {
-            if (previous?.last_review && Date.parse(ts) - Date.parse(previous.last_review) >= LONG_RECALL_DAYS * DAY) events.longRecall = true;
+            // „Vier Wochen nicht gesehen“ gilt für das Wort in beiden Richtungen; ein Fehler dagegen für die Richtung, in der er passierte
+            const lastSeen = q.lastWordReview.get(user.id, wordId)?.at;
+            if (lastSeen && Date.parse(ts) - Date.parse(lastSeen) >= LONG_RECALL_DAYS * DAY) events.longRecall = true;
             const lastLog = q.lastReview.get(user.id, wordId, direction);
             if (lastLog?.grade === 'again' && localDay(Date.parse(lastLog.at), timezone) < day) events.errorFixed = true;
           }

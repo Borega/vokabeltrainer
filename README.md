@@ -337,8 +337,8 @@ steht unter „Abzeichen“ (Link im Kasten „Lernserie“) und zeigt bei den �
 | Erste Regel sicher, 5 Regeln sicher | Grammatikregeln, die sicher sitzen |
 | Liste gemeistert | alle Wörter einer Liste (mindestens 5) bzw. alle Regeln (mindestens 3) sind sicher |
 | 7 / 30 / 100 Lerntage | so oft wurde das Tagesziel erreicht |
-| *Nach 4 Wochen noch gewusst* (verborgen) | ein Wort nach mindestens 28 Tagen ohne Abfrage richtig beantwortet |
-| *Fehler besiegt* (verborgen) | beim letzten Mal nicht gewusst, an einem späteren Tag richtig beantwortet |
+| *Nach 4 Wochen noch gewusst* (verborgen) | ein Wort nach mindestens 28 Tagen ohne Abfrage (in beiden Richtungen) richtig beantwortet |
+| *Fehler besiegt* (verborgen) | beim letzten Mal in dieser Richtung nicht gewusst, an einem späteren Tag richtig beantwortet |
 | *Beide Richtungen* (verborgen) | 10 Wörter sind in beiden Richtungen sicher |
 
 Verborgene Abzeichen sind in der Sammlung nicht beschrieben, bis man sie hat: Nicht angekündigte Belohnungen

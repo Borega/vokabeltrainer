@@ -27,7 +27,7 @@ export const BADGES = [
   { id: 'lerntage-100', title: '100 Lerntage', text: 'An hundert Tagen hast du alles Fällige erledigt.', ...count('days', 100) },
   // Erst sichtbar, wenn man sie hat: Unangekündigte Belohnungen untergraben die Motivation weniger (Deci et al. 1999)
   { id: 'langzeit', hidden: true, title: 'Nach 4 Wochen noch gewusst', text: 'Du hast ein Wort vier Wochen nicht gesehen und wusstest es trotzdem.', test: (s) => !!s.longRecall },
-  { id: 'fehler', hidden: true, title: 'Fehler besiegt', text: 'Beim letzten Mal falsch, diesmal richtig.', test: (s) => !!s.errorFixed },
+  { id: 'fehler', hidden: true, title: 'Fehler besiegt', text: 'Beim letzten Mal in dieser Richtung falsch, diesmal richtig.', test: (s) => !!s.errorFixed },
   { id: 'beide', hidden: true, title: 'Beide Richtungen', text: 'Zehn Wörter sind in beide Richtungen sicher.', test: (s) => s.bothWays >= 10 },
 ];
 
