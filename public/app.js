@@ -1599,8 +1599,10 @@ async function renderShared() {
       h('h3', {}, list.title),
       h('span', { class: 'langs' }, langsLine(list))),
     h('div', { class: 'chips' }, isGrammar(list) ? h('span', { class: 'chip grammar' }, 'Grammatik') : null,
+      list.template ? h('span', { class: 'chip' }, 'Vorlage') : null,
       h('span', { class: `chip${list.grade ? '' : ' muted'}` }, gradeLabel(list.grade))),
-    h('p', { class: 'muted small' }, [...sizeParts(list), isGrammar(list) ? null : modeLabel(list.mode), list.owner_name && `von ${list.owner_name}`, `geändert ${formatDate(list.updated_at)}`].filter(Boolean).join(' · ')),
+    h('p', { class: 'muted small' }, [...sizeParts(list), isGrammar(list) ? null : modeLabel(list.mode),
+      list.template ? 'mitgeliefert' : list.owner_name && `von ${list.owner_name}`, `geändert ${formatDate(list.updated_at)}`].filter(Boolean).join(' · ')),
     h('div', { class: 'actions' },
       h('button', { class: 'btn primary', onclick: () => copyList(list) }, 'Kopieren'),
       h('a', { class: 'btn', href: `#/learn/${list.id}` }, 'Ansehen & ausprobieren')));

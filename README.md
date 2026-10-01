@@ -165,6 +165,15 @@ für Kolleg:innen freigegeben, kopiert (mit Regeln und Aufgaben), offline gelade
 Listen“ lässt sich nach **Art** filtern. Weil Grammatik aufeinander aufbaut, kommen neue Regeln in der Reihenfolge
 der Lehrkraft dran.
 
+### Mitgelieferte Vorlagen
+
+Die App bringt fertige Grammatiklisten für **Englisch** und **Deutsch** mit (je 14 Themen, siehe
+[`vorlagen/grammatik/`](vorlagen/grammatik/)). Sie stehen beim Start automatisch unter „Geteilte Listen“, markiert als
+**Vorlage**: Lehrkräfte probieren sie aus und legen mit **Kopieren** eine eigene Liste an, die sie anpassen und ihren
+Gruppen zuweisen. Die Vorlagen selbst gehören niemandem – niemand kann sie ändern oder löschen, Schüler:innen sehen sie
+nicht. Ändert sich eine Vorlagendatei, wird die Vorlage beim nächsten Start aktualisiert; bereits angelegte Kopien
+bleiben, wie sie sind. Mit `TEMPLATES=false` werden die Vorlagen nicht angeboten.
+
 ### Aufgaben schreiben
 
 Pro Regel ein Textfeld, **eine Aufgabe pro Zeile** – schnell zu tippen und leicht aus Arbeitsblättern zu übernehmen.
@@ -523,6 +532,7 @@ Alle Einstellungen stehen kommentiert in [`.env.example`](.env.example).
 | `TEACHER_ROLES` / `TEACHER_GROUPS` | wer als Lehrkraft gilt | `ROLE_TEACHER,teacher,lehrer` / `lehrer` |
 | `HIDDEN_GROUPS` | Gruppen, die bei der Zuweisung ausgeblendet werden | `alle,lehrer,schueler,schüler` |
 | `RETENTION_DAYS` | inaktive Konten nach so vielen Tagen löschen (0 = nie) | `400` |
+| `TEMPLATES` | mitgelieferte Grammatik-Vorlagen unter „Geteilte Listen“ anbieten (`false` entfernt sie) | `true` |
 | `SESSION_DAYS` | Dauer einer Anmeldung (Sitzungs-Cookie) | `7` |
 | `REMEMBER_DAYS` | „Angemeldet bleiben“: so viele Tage nach der IServ-Anmeldung meldet sich die App selbst wieder an (0 = aus) | `30` |
 | `FRAME_ANCESTORS` | Einbettung per iframe erlauben | `'self'` |

@@ -872,7 +872,7 @@ test('Grammatik-Auswertung: Gruppen, schwierige Regeln, häufige Fehler ohne Nam
   assert.equal((await teacher('POST', `/lists/${vocab}/feedback`, { item_id: 1, answer: 'x', text: 'y' })).status, 400);
 });
 
-test('Migration 9 und 10: Stand 8 → aktuell, Vokabellisten bleiben unverändert', async () => {
+test('Migration 9 bis 11: Stand 8 → aktuell, Vokabellisten bleiben unverändert', async () => {
   const { MIGRATIONS, openDb } = await import('../src/db.js');
   const { mkdtempSync, rmSync } = await import('node:fs');
   const { tmpdir } = await import('node:os');
@@ -887,6 +887,8 @@ test('Migration 9 und 10: Stand 8 → aktuell, Vokabellisten bleiben unveränder
       DROP TABLE grammar_log; DROP TABLE rule_progress; DROP TABLE items; DROP TABLE rules;
       ALTER TABLE lists DROP COLUMN kind;
       ALTER TABLE lists DROP COLUMN learn_side;
+      DROP INDEX lists_template;
+      ALTER TABLE lists DROP COLUMN template;
       INSERT INTO lists (id, title, mode, created_at, updated_at) VALUES (3, 'Alt', 'type', 't', 't');
       INSERT INTO words (list_id, pos, a, b) VALUES (3, 0, 'dog', 'Hund');
       PRAGMA user_version = 8;`);

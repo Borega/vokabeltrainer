@@ -28,6 +28,8 @@ export const config = {
   rememberDays: Number(env.REMEMBER_DAYS ?? 30),
   // Konten, die sich so lange nicht angemeldet haben, werden samt Lernstand gelöscht (0 = nie).
   retentionDays: Number(env.RETENTION_DAYS ?? 400),
+  // Mitgelieferte Grammatik-Vorlagen unter „Geteilte Listen“ anbieten (false: entfernen)
+  templates: bool(env.TEMPLATES, true),
   frameAncestors: env.FRAME_ANCESTORS ?? "'self'",
   appName: env.APP_NAME ?? 'Vokabeltrainer',
   loginLabel: env.LOGIN_LABEL ?? 'Mit IServ anmelden',

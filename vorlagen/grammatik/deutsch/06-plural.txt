@@ -1,0 +1,47 @@
+## Pluralbildung
+Merksatz: Den Plural lernt man mit dem Nomen: der Hund – die Hunde.
+Erklärung:
+Im Deutschen gibt es mehrere Pluralendungen:
+-e (der Hund – die Hund*e*), -e mit Umlaut (die Hand – die H*ä*nd*e*),
+-er mit Umlaut (das Buch – die B*ü*ch*er*), -(e)n (die Blume – die Blume*n*, die Frau – die Frau*en*),
+-s (das Auto – die Auto*s*) und ohne Endung (der Lehrer – die Lehrer, der Vogel – die V*ö*gel).
+Weibliche Nomen auf -e, -ung, -heit und -keit bekommen fast immer -(e)n, Nomen auf -in bekommen -nen.
+Aufgaben:
+Im Park spielen viele *Hunde* (Hund).
+! der Hund – die Hunde.
+Ich habe zwei *Hände* (Hand).
+! Plural mit Umlaut und -e.
+Auf dem Tisch liegen drei *Bücher* (Buch).
+! Plural mit Umlaut und -er.
+In der Vase stehen bunte *Blumen* (Blume).
+! Weibliche Nomen auf -e: Plural mit -n.
+Die *Frauen* (Frau) sitzen im Café.
+! die Frau – die Frauen.
+Wir haben zwei *Autos* (Auto).
+! Viele Nomen auf -o: Plural mit -s.
+Die *Lehrer* (Lehrer) treffen sich im Lehrerzimmer.
+! Männliche Nomen auf -er bleiben im Plural oft gleich.
+Im Baum sitzen viele *Vögel* (Vogel).
+! Ohne Endung, aber mit Umlaut.
+Meine Oma hat fünf *Kinder* (Kind).
+! das Kind – die Kinder.
+Die *Häuser* (Haus) in unserer Straße sind alt.
+! Plural mit Umlaut und -er.
+Wir lesen spannende *Zeitungen* (Zeitung).
+! Nomen auf -ung: Plural mit -en.
+Ich esse gern *Äpfel* (Apfel).
+! Ohne Endung, aber mit Umlaut.
+Die *Mäuse* (Maus) verstecken sich.
+! Plural mit Umlaut und -e.
+In unserer Klasse sind zwölf *Schülerinnen* (Schülerin).
+! Nomen auf -in: Plural mit -nen.
+Die {Tage|Täge|Tagen} werden kürzer.
+! der Tag – die Tage, ohne Umlaut.
+Die {Handys|Handyen|Handies} sind ausgeschaltet.
+! Wörter aus dem Englischen: Plural meist mit -s.
+Wir sammeln {Ideen|Idee|Ideens} für das Projekt.
+! Weibliche Nomen auf -e: Plural mit -n.
+Fehler: Ich habe zwei Bruders. → Ich habe zwei Brüder.
+! der Bruder – die Brüder: Umlaut, keine Endung.
+Fehler: Die Kinds spielen im Garten. → Die Kinder spielen im Garten.
+! das Kind – die Kinder.
