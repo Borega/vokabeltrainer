@@ -1,0 +1,40 @@
+## ser und estar
+Merksatz: ser: wer oder was jemand ist (Herkunft, Beruf, Eigenschaft). estar: wo jemand ist und wie es gerade geht.
+Erklärung:
+*ser* (soy, eres, es, somos, sois, son): Name, Herkunft, Beruf, Nationalität, dauerhafte Eigenschaften, Uhrzeit.
+Soy Ana. *Es* de Madrid. Mi padre *es* profesor. La casa *es* grande.
+*estar* (estoy, estás, está, estamos, estáis, están): Ort und Lage, Befinden, vorübergehende Zustände.
+Madrid *está* en España. *Estoy* cansado. La sopa *está* fría.
+Aufgaben:
+Yo *soy* (ser) de Alemania.
+! Herkunft: ser.
+Madrid *está* (estar) en el centro de España.
+! Lage, Ort: estar.
+Mi madre *es* (ser) médica.
+! Beruf: ser.
+Hoy *estoy* (estar) muy cansado.
+! Befinden: estar.
+Nosotros *somos* (ser) hermanos.
+! Wer jemand ist: ser.
+¿Dónde *están* (estar) mis llaves?
+! Wo? estar.
+La película *es* (ser) muy interesante.
+! Eigenschaft: ser.
+¿Cómo *estás* (estar), Pablo?
+! Wie geht es dir? estar.
+Mis abuelos *están* (estar) en el hospital.
+! Ort: estar.
+*Son* (ser) las tres y media.
+! Uhrzeit: ser.
+Vosotros *sois* (ser) muy simpáticos.
+! Eigenschaft: ser.
+La puerta {está|es} abierta.
+! Zustand: estar.
+Ana {es|está} alta y rubia.
+! Aussehen, dauerhafte Eigenschaft: ser.
+El café {está|es} frío.
+! Gerade jetzt kalt: estar.
+Fehler: Yo soy en casa. → Yo estoy en casa.
+! Ort: estar.
+Fehler: Mi hermano está estudiante. → Mi hermano es estudiante.
+! Beruf: ser.

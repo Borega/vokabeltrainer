@@ -167,7 +167,7 @@ der Lehrkraft dran.
 
 ### Mitgelieferte Vorlagen
 
-Die App bringt fertige Grammatiklisten für **Englisch** und **Deutsch** mit (je 14 Themen, siehe
+Die App bringt fertige Grammatiklisten für **Englisch**, **Deutsch**, **Französisch** und **Spanisch** mit (je 14 Themen, siehe
 [`vorlagen/grammatik/`](vorlagen/grammatik/)). Sie stehen beim Start automatisch unter „Geteilte Listen“, markiert als
 **Vorlage**: Lehrkräfte probieren sie aus und legen mit **Kopieren** eine eigene Liste an, die sie anpassen und ihren
 Gruppen zuweisen. Die Vorlagen selbst gehören niemandem – niemand kann sie ändern oder löschen, Schüler:innen sehen sie

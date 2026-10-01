@@ -1,0 +1,41 @@
+## Teilungsartikel: du, de la, de l', des
+Merksatz: Unbestimmte Menge: du (männlich), de la (weiblich), de l' (Vokal), des. Nach Mengenangaben und Verneinung: de.
+Erklärung:
+Bei Lebensmitteln und Dingen, von denen man eine unbestimmte Menge meint, steht der Teilungsartikel:
+*du* pain, *de la* confiture, *de l'*eau, *des* pâtes.
+Nach Mengenangaben steht nur *de* (d'): beaucoup *de* sucre, un kilo *de* tomates, une bouteille *d'*eau.
+Nach der Verneinung ebenfalls *de*: Je ne mange pas *de* viande.
+Nach aimer, adorer und détester steht der bestimmte Artikel: J'aime *le* chocolat.
+Aufgaben:
+Je mange *du* (du/de la) pain.
+! pain ist männlich: du.
+Tu veux *de la* (du/de la) confiture ?
+! confiture ist weiblich: de la.
+Elle boit *de l'*eau.
+! Vor Vokal: de l'.
+Nous achetons *des* (du/des) tomates.
+! Plural: des.
+Il faut un kilo *de* pommes.
+! Nach Mengenangaben: de.
+Je voudrais une bouteille *d'*eau.
+! Nach Mengenangaben, vor Vokal: d'.
+Il y a beaucoup *de* monde.
+! beaucoup de.
+Je ne bois pas *de* lait.
+! Nach der Verneinung: de.
+J'aime *le* (le/du) fromage.
+! Nach aimer: bestimmter Artikel.
+On prend *du* (du/de la) fromage ?
+! fromage ist männlich: du.
+Elle met {du|de la|des} sucre dans son thé.
+! sucre ist männlich: du.
+Achète {de la|du|des} salade, s'il te plaît.
+! salade ist weiblich: de la.
+Je prends un peu {de|du|des} riz.
+! Nach Mengenangaben (un peu): de.
+Fehler: Je bois du eau. → Je bois de l'eau.
+! Vor Vokal: de l'.
+Fehler: Il n'y a pas du pain. → Il n'y a pas de pain.
+! Nach der Verneinung: de.
+Fehler: J'aime du chocolat. → J'aime le chocolat.
+! Nach aimer: bestimmter Artikel.
