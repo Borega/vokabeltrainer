@@ -1,0 +1,307 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-01T14:35:56.194Z",
+  "title": "Design System: Vokabeltrainer",
+  "extensions": {
+    "colorMeta": {
+      "tintenblau": {
+        "role": "primary",
+        "displayName": "Tintenblau",
+        "canonical": "oklch(56.3% 0.182 261)",
+        "tonalRamp": [
+          "#001c55",
+          "#003287",
+          "#074cb8",
+          "#2b6bda",
+          "#498bfc",
+          "#7eaeff",
+          "#b2cfff",
+          "#e6effe"
+        ]
+      },
+      "haken-gruen": {
+        "role": "secondary",
+        "displayName": "Haken-Grün",
+        "canonical": "oklch(48.1% 0.117 152)",
+        "tonalRamp": [
+          "#002a10",
+          "#004820",
+          "#056732",
+          "#31854e",
+          "#52a36b",
+          "#72c389",
+          "#91e4a8",
+          "#c7ffd4"
+        ]
+      },
+      "rotstift-rot": {
+        "role": "secondary",
+        "displayName": "Rotstift-Rot",
+        "canonical": "oklch(55.1% 0.172 25)",
+        "tonalRamp": [
+          "#470005",
+          "#73000e",
+          "#9f121e",
+          "#c23b3b",
+          "#e55c58",
+          "#ff847d",
+          "#febab4",
+          "#fee9e6"
+        ]
+      },
+      "marker-bernstein": {
+        "role": "secondary",
+        "displayName": "Marker-Bernstein",
+        "canonical": "oklch(54.4% 0.117 71)",
+        "tonalRamp": [
+          "#321c00",
+          "#533200",
+          "#774a00",
+          "#9c6404",
+          "#bc8233",
+          "#dda154",
+          "#fec074",
+          "#feebd5"
+        ]
+      },
+      "heftpapier": {
+        "role": "neutral",
+        "displayName": "Heftpapier",
+        "canonical": "oklch(97.3% 0.006 265)",
+        "tonalRamp": [
+          "#202224",
+          "#393a3e",
+          "#545559",
+          "#707275",
+          "#8d8f93",
+          "#acaeb2",
+          "#ccced2",
+          "#eceef2"
+        ]
+      },
+      "tinte": {
+        "role": "neutral",
+        "displayName": "Tinte",
+        "canonical": "oklch(25.5% 0.027 263)",
+        "tonalRamp": [
+          "#1c222b",
+          "#353b45",
+          "#4f5561",
+          "#6b727e",
+          "#898f9c",
+          "#a7aebb",
+          "#c7cedb",
+          "#e7effc"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Lernwort",
+        "purpose": "Das abgefragte Wort auf der Lernkarte; bricht an jeder Stelle um."
+      },
+      "headline": {
+        "displayName": "Seitentitel",
+        "purpose": "Seiten- und Listentitel, Ergebnis."
+      },
+      "title": {
+        "displayName": "Abschnitt",
+        "purpose": "Abschnitts- und Kartentitel."
+      },
+      "body": {
+        "displayName": "Text",
+        "purpose": "Fließtext, Eingaben, Sätze in Übungen."
+      },
+      "label": {
+        "displayName": "Sprachlabel",
+        "purpose": "Sprachkennzeichnung über dem Wort, Großbuchstaben."
+      },
+      "code": {
+        "displayName": "Syntax",
+        "purpose": "Tipp-Muster, KI-Prompt und Aufgaben-Syntax im Grammatik-Editor."
+      }
+    },
+    "shadows": [
+      {
+        "name": "haarschatten-hell",
+        "value": "0 1px 3px rgb(20 30 50 / 8%), 0 4px 16px rgb(20 30 50 / 6%)",
+        "purpose": "Karten, Panels, Übungskarten, Toast im hellen Modus."
+      },
+      {
+        "name": "haarschatten-dunkel",
+        "value": "0 1px 3px rgb(0 0 0 / 40%)",
+        "purpose": "Dieselben Flächen im dunklen Modus."
+      },
+      {
+        "name": "fokusring",
+        "value": "0 0 0 3px color-mix(in srgb, var(--primary) 45%, transparent)",
+        "purpose": "Tastatur-Fokus (im CSS als outline mit 2 px Abstand)."
+      }
+    ],
+    "motion": [
+      {
+        "name": "fortschritt",
+        "value": "width .3s",
+        "purpose": "Füllen des Fortschrittsbalkens."
+      },
+      {
+        "name": "karte-umdrehen",
+        "value": "transform .45s",
+        "purpose": "Karteikarte um die senkrechte Achse drehen; bei reduzierter Bewegung aus."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "schmal",
+        "value": "640px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Button",
+      "kind": "button",
+      "refersTo": "button",
+      "description": "Standard-Knopf: Kartenweiß mit Linie; Hover färbt nur die Linie tintenblau.",
+      "html": "<button class=\"ds-btn\">Bearbeiten</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; padding: .5rem 1rem; min-height: 40px; border-radius: 8px; border: 1px solid var(--border, #d9dfe8); background: var(--surface, #fff); color: var(--text, #1c2330); font: inherit; font-weight: 500; cursor: pointer; } .ds-btn:hover { border-color: var(--primary, #2f6fde); } .ds-btn:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary, #2f6fde) 45%, transparent); outline-offset: 2px; }"
+    },
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Haupt-Handlung: Tintenblau gefüllt.",
+      "html": "<button class=\"ds-btn-primary\">Lernen</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; padding: .5rem 1rem; min-height: 40px; border-radius: 8px; border: 1px solid var(--border, #d9dfe8); background: var(--surface, #fff); color: var(--text, #1c2330); font: inherit; font-weight: 500; cursor: pointer; background: var(--primary, #2f6fde); border-color: var(--primary, #2f6fde); color: var(--primary-text, #fff); } .ds-btn-primary:hover { filter: brightness(1.08); } .ds-btn-primary:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary, #2f6fde) 45%, transparent); outline-offset: 2px; }"
+    },
+    {
+      "name": "Bewertungs-Knöpfe",
+      "kind": "button",
+      "refersTo": "button-right",
+      "description": "Karteikarten: Nicht gewusst in Rotstift-Rot, Gewusst in Haken-Grün.",
+      "html": "<div class=\"ds-rate\"><button class=\"ds-wrong\">✗ Nicht gewusst</button><button class=\"ds-right\">✓ Gewusst</button></div>",
+      "css": ".ds-rate { display: flex; gap: .5rem; } .ds-rate button { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: .4rem; padding: .5rem 1rem; min-height: 40px; border-radius: 8px; border: 1px solid var(--border, #d9dfe8); background: var(--surface, #fff); color: var(--text, #1c2330); font: inherit; font-weight: 500; cursor: pointer; min-height: 48px; padding: .75rem 1.5rem; font-size: 1.05rem; } .ds-wrong { background: var(--wrong-bg, #fbe7e7) !important; color: var(--wrong, #c23b3b) !important; border-color: var(--wrong, #c23b3b) !important; } .ds-right { background: var(--right-bg, #e3f5ea) !important; color: var(--right, #17703b) !important; border-color: var(--right, #17703b) !important; }"
+    },
+    {
+      "name": "Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Kennzeichnung (Jahrgang, fällig, freigegeben, Grammatik); nie bedienbar.",
+      "html": "<span class=\"ds-chip\">Jahrgang 8</span> <span class=\"ds-chip ds-due\">🔔 3 heute fällig</span>",
+      "css": ".ds-chip { background: var(--chip, #e8eefb); border-radius: 999px; padding: .1rem .55rem; font-size: .8rem; color: var(--text, #1c2330); } .ds-due { background: color-mix(in srgb, var(--warn, #9a6200) 18%, transparent); color: var(--warn, #9a6200); }"
+    },
+    {
+      "name": "Listenkarte",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Karte auf Heftpapier: Linie und Haarschatten, Titel, Sprache, Kennzeichen, Fortschritt, Aktionen.",
+      "html": "<article class=\"ds-card\"><h3>Unit 3 – At the zoo</h3><span class=\"ds-langs\">Englisch ↔ Deutsch</span><p class=\"ds-meta\">Jahrgang 7 · 24 Wörter · Lernleiter</p><div class=\"ds-bar\"><span></span></div><p class=\"ds-meta\">12 von 24 sicher · zuletzt heute</p><div><button class=\"ds-primary\">Lernen</button></div></article>",
+      "css": ".ds-card { background: var(--surface, #fff); border: 1px solid var(--border, #d9dfe8); border-radius: 12px; padding: 1rem; display: flex; flex-direction: column; gap: .5rem; box-shadow: var(--shadow, 0 1px 3px rgb(20 30 50 / 8%), 0 4px 16px rgb(20 30 50 / 6%)); color: var(--text, #1c2330); max-width: 290px; } .ds-card h3 { margin: 0; font-size: 1.05rem; } .ds-langs { color: var(--muted, #5f6b7d); font-size: .9rem; } .ds-meta { margin: 0; color: var(--muted, #5f6b7d); font-size: .875rem; } .ds-bar { height: 8px; background: var(--border, #d9dfe8); border-radius: 999px; overflow: hidden; } .ds-bar span { display: block; width: 50%; height: 100%; background: var(--right, #17703b); border-radius: 999px; } .ds-primary { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; padding: .5rem 1rem; min-height: 40px; border-radius: 8px; border: 1px solid var(--border, #d9dfe8); background: var(--surface, #fff); color: var(--text, #1c2330); font: inherit; font-weight: 500; cursor: pointer; background: var(--primary, #2f6fde); border-color: var(--primary, #2f6fde); color: var(--primary-text, #fff); }"
+    },
+    {
+      "name": "Eingabefeld",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Text-Eingabe mit Linie; Fokus zeigt den tintenblauen Ring.",
+      "html": "<input class=\"ds-input\" placeholder=\"Englisch\" aria-label=\"Übersetzung\">",
+      "css": ".ds-input { font: inherit; color: var(--text, #1c2330); background: var(--surface, #fff); border: 1px solid var(--border, #d9dfe8); border-radius: 8px; padding: .5rem .65rem; width: 240px; } .ds-input:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary, #2f6fde) 45%, transparent); outline-offset: 2px; }"
+    },
+    {
+      "name": "Auswahl-Schalter",
+      "kind": "nav",
+      "refersTo": "segmented-active",
+      "description": "Vollrunde Knöpfe für Modus, Richtung, Anzahl; aktiv tintenblau.",
+      "html": "<div class=\"ds-seg\" role=\"radiogroup\"><button role=\"radio\" aria-checked=\"true\" class=\"ds-active\">Heute fällig (12)</button><button role=\"radio\" aria-checked=\"false\">Frei üben</button></div>",
+      "css": ".ds-seg { display: flex; gap: .4rem; } .ds-seg button { font: inherit; padding: .5rem .9rem; border: 1px solid var(--border, #d9dfe8); border-radius: 999px; background: var(--surface, #fff); color: var(--text, #1c2330); cursor: pointer; } .ds-seg .ds-active { background: var(--primary, #2f6fde); color: var(--primary-text, #fff); border-color: var(--primary, #2f6fde); }"
+    },
+    {
+      "name": "Auswahl-Antwort",
+      "kind": "custom",
+      "refersTo": "choice-button",
+      "description": "Große Kachel mit Tastenkürzel; nach der Antwort grün (richtig) oder rot (falsch) getönt.",
+      "html": "<div class=\"ds-choices\"><button class=\"ds-choice\"><span class=\"ds-key\">1</span>has lived</button><button class=\"ds-choice ds-ok\"><span class=\"ds-key\">2</span>lived</button><button class=\"ds-choice ds-no\"><span class=\"ds-key\">3</span>lives</button></div>",
+      "css": ".ds-choices { display: grid; gap: .6rem; max-width: 280px; } .ds-choice { display: flex; align-items: center; gap: .6rem; min-height: 56px; padding: .7rem 1rem; text-align: left; font: inherit; font-size: 1.05rem; color: var(--text, #1c2330); background: var(--surface, #fff); border: 1px solid var(--border, #d9dfe8); border-radius: 10px; cursor: pointer; } .ds-choice:hover { border-color: var(--primary, #2f6fde); } .ds-key { display: inline-grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 6px; background: var(--chip, #e8eefb); color: var(--muted, #5f6b7d); font-size: .8rem; } .ds-ok { border-color: var(--right, #17703b); background: var(--right-bg, #e3f5ea); color: var(--right, #17703b); font-weight: 600; } .ds-no { border-color: var(--wrong, #c23b3b); background: var(--wrong-bg, #fbe7e7); color: var(--wrong, #c23b3b); }"
+    },
+    {
+      "name": "Lücke im Satz",
+      "kind": "input",
+      "refersTo": "gap-input",
+      "description": "Grammatik-Lücke: unterstrichenes Inline-Feld mit Grundform als Hinweis; Zustand über den Unterstrich.",
+      "html": "<p class=\"ds-sentence\">She <input class=\"ds-gap\" value=\"has lived\" aria-label=\"Lücke\"> <span class=\"ds-cue\">(live)</span> here since 2010.</p>",
+      "css": ".ds-sentence { font-size: 1.3rem; color: var(--text, #1c2330); } .ds-gap { width: 9ch; padding: .2rem .4rem; font: inherit; text-align: center; color: var(--text, #1c2330); background: var(--chip, #e8eefb); border: 0; border-bottom: 2px solid var(--primary, #2f6fde); border-radius: 4px 4px 0 0; } .ds-cue { color: var(--muted, #5f6b7d); }"
+    },
+    {
+      "name": "Übungskarte mit Rückmeldung",
+      "kind": "card",
+      "refersTo": "exercise",
+      "description": "Nach der Antwort färbt sich der Rand; Lösung mit hervorgehobener Form.",
+      "html": "<div class=\"ds-exercise\"><strong class=\"ds-result\">Richtig!</strong><p>She <b class=\"ds-form\">has lived</b> here since 2010. 🔊</p></div>",
+      "css": ".ds-exercise { background: var(--surface, #fff); border: 2px solid var(--right, #17703b); border-radius: 16px; padding: 1.5rem; box-shadow: var(--shadow, 0 1px 3px rgb(20 30 50 / 8%)); color: var(--text, #1c2330); max-width: 360px; } .ds-result { color: var(--right, #17703b); } .ds-exercise p { margin: .5rem 0 0; font-size: 1.15rem; } .ds-form { color: var(--primary, #2f6fde); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Das gepflegte Schulheft",
+    "overview": "Die Oberfläche ist ein ordentlich geführtes Heft: heller Grund wie Heftpapier, weiße Karten mit dünner Linie, ein einziges tintenblaues Schreibgerät für alles, was Aufmerksamkeit verdient. Regeln, Beispiele und Übungen folgen einander in klarer Reihenfolge; nichts springt, nichts blinkt. Bewertet wird wie mit dem Lehrerstift – ein Haken in Grün, eine Korrektur in Rot, ein Marker in Bernstein –, nie wie in einem Spiel. Das Produkt verzichtet bewusst auf Punkte, Serien, Konfetti, Ranglisten und Zeitdruck; das System tut es ebenso.",
+    "keyCharacteristics": [
+      "Ein Akzent (Tintenblau), Bewertung über Farbe und Rand statt über Schatten.",
+      "Helles und dunkles Heftpapier sind gleichwertig; beide folgen dem Gerät, per Knopf überschreibbar.",
+      "Weiße Karten mit 1-px-Linie und Haarschatten, großzügige Rundung (12–16 px), Auswahl-Schalter und Chips vollrund.",
+      "Eine Spalte, schmal (640 px) beim Lernen, breit (1100 px) beim Verwalten.",
+      "System-Schrift, eine Schrift in drei Größen-Rollen; Fremdsprachen bekommen lang.",
+      "Bewegung nur als Rückmeldung (Fortschrittsbalken, Karte umdrehen) und abschaltbar."
+    ],
+    "rules": [
+      {
+        "name": "The One Ink Rule",
+        "body": "Tintenblau ist der einzige Akzent und trägt nur Handlung und Fokus: Knopf, Link, Auswahl, Fortschritt. Es erscheint auf höchstens einem Zehntel einer Seite; Grün, Rot und Bernstein gehören ausschließlich der Bewertung.",
+        "section": "colors"
+      },
+      {
+        "name": "The Red Pencil Rule",
+        "body": "Rotstift-Rot markiert, was falsch ist – nie Dekoration und nie Warnung vor etwas Harmlosem. Wo etwas nur bald fällig oder nützlich ist, gilt Marker-Bernstein.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tint-Not-Shade Rule",
+        "body": "Zustände entstehen aus derselben Farbe als Fläche (Haken-Fläche, Rotstift-Fläche, 18 %-Bernstein), nicht aus dunkleren Abstufungen oder Verläufen.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Voice Rule",
+        "body": "Eine Schrift für alles. Monospace nur, wo Zeichen gezählt oder Syntax gelesen wird; keine Webfonts, keine Icon-Fonts.",
+        "section": "typography"
+      },
+      {
+        "name": "The Mark-The-Form Rule",
+        "body": "Die gesuchte Form im Satz ist fett und tintenblau; der Rest des Satzes bleibt ruhig. So lernt das Auge, worauf es ankommt.",
+        "section": "typography"
+      },
+      {
+        "name": "The Border-Before-Shadow Rule",
+        "body": "Eine Fläche hebt sich zuerst durch ihre Linie ab, erst dann durch den Haarschatten. Kein Element bekommt einen stärkeren Schatten, um „wichtiger“ zu wirken.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Answer-Colors-The-Card Rule",
+        "body": "Nach einer Antwort färbt sich der Rand der Übungskarte grün, rot oder bernsteinfarben (2 px); Eingabe- und Antwortfelder nehmen die zugehörige Fläche an. Das ist die gesamte Belohnungs- und Fehlermechanik.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do Farben und Maße über die Variablen (--primary, --surface, --border, --right, --wrong, --warn, --chip, --radius, --shadow) setzen, damit hell und dunkel identisch funktionieren; beide Blöcke bleiben gleich.",
+      "Do Bewertung über Rand und Fläche zeigen – Farbe nie als einziges Zeichen: immer auch Text („Richtig!“, „Leider falsch.“) und Symbol.",
+      "Do Breite und Dichte an der Aufgabe ausrichten: 640 px beim Lernen, 1100 px beim Verwalten.",
+      "Do jedes Element mit Fokusring, Tastaturbedienung und aria-Beschriftung ausstatten; Fremdsprachentext mit lang auszeichnen; Bewegung bei prefers-reduced-motion abschalten.",
+      "Do Breiten und Farben per CSSOM setzen (element.style.width), nicht per style-Attribut – die Content-Security-Policy erlaubt keine Inline-Styles.",
+      "Do kurze, direkte deutsche Sätze schreiben und gendergerecht mit Doppelpunkt („Schüler:innen“)."
+    ],
+    "donts": [
+      "Don't Gamification einführen: keine Punkte, Serien, Abzeichen, Konfetti, Ranglisten, Zeitdruck.",
+      "Don't einen zweiten Akzent neben Tintenblau einführen; Grün, Rot, Bernstein bleiben der Bewertung vorbehalten.",
+      "Don't stärkere Schatten, Verläufe, Glas-Effekte oder farbige Seitenstreifen an Karten nutzen, um etwas wichtiger zu machen.",
+      "Don't Schriften, Icons, Skripte oder Bilder von fremden Servern laden (Datenschutz-Zusage, CSP default-src 'self').",
+      "Don't Emojis als Hauptsymbole für Bewertung einsetzen; sie sind Zusatz zu Text (🔊, 📖, 🔔, ✓/✗ an Knöpfen).",
+      "Don't Fehler nur rot färben: falsche Stellen werden markiert und erklärt, nicht bestraft."
+    ]
+  }
+}

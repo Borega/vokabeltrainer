@@ -175,7 +175,7 @@ export async function renderGrammarLearn(ctx, list) {
           ]
         : null,
       nothingToDo
-        ? h('p', { class: 'done-today' }, 'Für heute ist alles erledigt 🎉', next ? h('span', { class: 'small muted' }, ` Nächste Wiederholung: ${formatDue(next)}.`) : null)
+        ? h('p', { class: 'done-today' }, 'Für heute ist alles erledigt.', next ? h('span', { class: 'small muted' }, ` Nächste Wiederholung: ${formatDue(next)}.`) : null)
         : null,
       h('div', { class: 'actions' },
         nothingToDo
@@ -263,7 +263,7 @@ export async function renderGrammarLearn(ctx, list) {
 
   function runRound(tasks) {
     const queue = tasks.map((t) => ({ ...t, retry: 0 }));
-    const total = tasks.length;
+    let total = tasks.length; // wächst mit jeder Wiederholung nach einem Fehler
     let done = 0;
     const results = []; // erste Versuche: { task, correct, firstTry, grade }
     // Pro Regel: Bewertungen und Aufgaben der Runde; eine Bewertung für die Regel, sobald alle Aufgaben dran waren
@@ -304,7 +304,8 @@ export async function renderGrammarLearn(ctx, list) {
     };
 
     function answered(task, res) {
-      if (!task.retry) {
+      if (task.retry) done++;
+      else {
         const st = states.get(task.ruleId);
         st.grades.push(res.grade);
         st.items.push({ item_id: task.itemId, exercise: task.kind, grade: res.grade, attempts: res.attempts, answer: res.answer });
@@ -322,6 +323,7 @@ export async function renderGrammarLearn(ctx, list) {
         const kind = pickKind({ level: progress.get(task.ruleId)?.box ?? 0, kinds: capabilities(entry.item), previous: task.kind, retry: true });
         const at = Math.min(queue.length, 2 + Math.floor(Math.random() * 3));
         queue.splice(at, 0, { ruleId: task.ruleId, itemId: entry.id, kind, retry: task.retry + 1 });
+        total++;
       }
     }
 
@@ -379,7 +381,7 @@ export async function renderGrammarLearn(ctx, list) {
       // Hinweis nach einer falschen Antwort: Hinweis der Lehrkraft zu genau dieser Antwort, sonst der Merksatz
       const hint = (answers) => {
         const fb = feedbackFor(item, answers, rule);
-        return fb.text ? h('p', { class: 'hint' }, h('strong', {}, fb.source === 'item' ? 'Hinweis: ' : 'Merksatz: '), marked(fb.text)) : null;
+        return fb.text ? h('p', { class: 'hint' }, h('span', { class: 'hint-label' }, fb.source === 'item' ? 'Hinweis: ' : 'Merksatz: '), marked(fb.text)) : null;
       };
 
       function evaluate(result) {
@@ -480,9 +482,10 @@ export async function renderGrammarLearn(ctx, list) {
       const node = h('p', { class: 'sentence gap-sentence', lang: tag }, item.parts.map((p) => {
         if (p.gap === undefined) return p.text;
         const gap = item.gaps[p.gap];
-        const longest = Math.max(...gap.answers.flatMap(expand).map((a) => a.length));
+        // Breite nach der Hauptlösung (lange Varianten wie „have not seen“ blähen das Feld nicht auf), höchstens 11 Zeichen
+        const width = Math.min(11, Math.max(4, expand(gap.answers[0])[0].length + 1));
         const input = h('input', {
-          class: 'gap-input', size: Math.max(4, longest + 1), lang: tag, autocomplete: 'off', autocapitalize: 'off', spellcheck: false,
+          class: 'gap-input', size: width, lang: tag, autocomplete: 'off', autocapitalize: 'off', spellcheck: false,
           'aria-label': item.gaps.length > 1 ? `Lücke ${p.gap + 1}` : 'Lücke',
         });
         inputs.push(input);
@@ -500,6 +503,13 @@ export async function renderGrammarLearn(ctx, list) {
         check() {
           const values = inputs.map((i) => i.value);
           if (values.every((v) => !v.trim())) return { empty: true };
+          // Wie beim Satzbau: Eine unvollständige Antwort kostet keinen Versuch
+          const open = inputs.find((i) => !i.value.trim());
+          if (open) {
+            toast('Fülle erst alle Lücken aus.', 'warn');
+            open.focus();
+            return { empty: true };
+          }
           const res = checkGaps(item, values, options);
           const bad = res.gaps.map((g, i) => ({ g, v: values[i].trim() })).filter(({ g }) => g.state !== 'correct');
           return { ...res, wrong: bad.map((b) => b.v).filter(Boolean), first: bad[0]?.v ?? '' };
@@ -577,12 +587,21 @@ export async function renderGrammarLearn(ctx, list) {
       const tiles = shuffledChunks(item).map((text, id) => ({ text, id }));
       const chosen = [];
       const pool = h('div', { class: 'chunks pool', role: 'group', 'aria-label': 'Satzteile' });
-      const line = h('div', { class: 'chunks answer-line', role: 'group', 'aria-label': 'Dein Satz' });
+      const line = h('div', { class: 'chunks answer-line', role: 'group', 'aria-label': 'Dein Satz', 'aria-live': 'polite' });
       let locked = false;
       let marks = [];
+      // Nach jedem Klick wird neu gezeichnet; der Fokus bleibt dabei bei der Tastatur-Bedienung nicht verloren:
+      // entfernter Satzteil → zurück im Vorrat, hinzugefügter → nächster Satzteil im Vorrat (sonst „Prüfen“)
       const chunkBtn = (tile, inLine, i) => h('button', {
         type: 'button', class: `chunk${inLine && marks[i] === false ? ' is-wrong' : ''}`, lang: tag, disabled: locked,
-        onclick: () => { if (inLine) chosen.splice(i, 1); else chosen.push(tile); marks = []; render(); },
+        dataset: { id: tile.id },
+        onclick: () => {
+          if (inLine) chosen.splice(i, 1); else chosen.push(tile);
+          marks = [];
+          render();
+          const next = inLine ? pool.querySelector(`[data-id="${tile.id}"]`) : pool.firstElementChild ?? node.closest('form')?.querySelector('button[type=submit]');
+          next?.focus();
+        },
       }, tile.text);
       function render() {
         fill(pool, tiles.filter((t) => !chosen.includes(t)).map((t) => chunkBtn(t, false)));
@@ -676,14 +695,15 @@ export async function renderGrammarLearn(ctx, list) {
       leaveRound?.();
       ctx.cleanupKeys();
       const firstTry = results.filter((r) => r.firstTry).length;
-      const pct = total ? Math.round((firstTry / total) * 100) : 0;
+      const asked = results.length; // Erstversuche; Wiederholungen zählen nicht mit
+      const pct = asked ? Math.round((firstTry / asked) * 100) : 0;
       const missed = results.filter((r) => !r.correct);
       const outlook = h('p', { class: 'small muted' });
       const remaining = h('div', {});
       const perRuleGrade = [...states.entries()].map(([id, st]) => [ruleById.get(id), roundGrade(st.grades)]).filter(([, g]) => g);
       view(h('section', { class: 'panel result' },
-        h('h1', {}, pct === 100 ? 'Perfekt! 🎉' : pct >= 70 ? 'Gut gemacht!' : 'Weiter üben!'),
-        h('p', { class: 'score' }, `${firstTry} von ${total} Aufgaben beim ersten Versuch richtig (${pct} %)`),
+        h('h1', {}, pct === 100 ? 'Perfekt!' : pct >= 70 ? 'Gut gemacht!' : 'Weiter üben!'),
+        h('p', { class: 'score' }, `${firstTry} von ${asked} Aufgaben beim ersten Versuch richtig (${pct} %)`),
         outlook,
         h('ul', { class: 'rule-results' }, perRuleGrade.map(([rule, grade]) => h('li', {}, h('span', {}, rule.title), h('span', { class: `chip grade-${grade}` }, GRADE_TEXT[grade])))),
         missed.length

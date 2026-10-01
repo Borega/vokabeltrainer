@@ -6,7 +6,7 @@
   --border: #d9dfe8;
   --primary: #2f6fde;
   --primary-text: #ffffff;
-  --right: #1e8a4c;
+  --right: #17703b;
   --right-bg: #e3f5ea;
   --wrong: #c23b3b;
   --wrong-bg: #fbe7e7;
@@ -132,7 +132,7 @@ p { margin: .4rem 0; }
   cursor: pointer; text-decoration: none; min-height: 40px;
 }
 .btn:hover { border-color: var(--primary); }
-.btn:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 45%, transparent); outline-offset: 2px; }
+.btn:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 45%, transparent); outline-offset: 2px; }
 .btn.primary { background: var(--primary); border-color: var(--primary); color: var(--primary-text); }
 .btn.primary:hover { filter: brightness(1.08); }
 .btn.ghost { background: transparent; }
@@ -260,7 +260,7 @@ tr.inactive td { color: var(--muted); }
 .exercise .feedback { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; min-height: 1.5em; }
 .chip.new { align-self: center; background: var(--right-bg); color: var(--right); }
 .word-line { display: inline-flex; align-items: center; justify-content: center; gap: .35rem; flex-wrap: wrap; }
-.icon.speak { font-size: 1.15rem; padding: .15rem .35rem; }
+.icon.speak { font-size: 1.15rem; padding: .15rem .35rem; min-width: 44px; min-height: 44px; display: inline-grid; place-items: center; }
 .icon.speak:hover { color: var(--primary); }
 .speak-row { min-height: 2rem; margin: -.5rem 0 0; }
 div.example, span.example { color: var(--muted); font-size: .95rem; font-style: italic; text-align: center; }
@@ -425,6 +425,7 @@ input.gap-input.is-wrong { border-color: var(--wrong); background: var(--wrong-b
 .word-wrong { color: var(--wrong); text-decoration: underline wavy; text-underline-offset: 3px; }
 .word-fix { font-weight: 700; color: var(--right); }
 .solution-line { flex-basis: 100%; font-size: 1.1rem; }
+.hint-label { font-weight: 700; }
 .hint { flex-basis: 100%; margin: 0; padding: .5rem .75rem; background: var(--chip); border-radius: 8px; }
 .grammar-feedback { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; min-height: 1.5em; }
 .rule-panel { padding: .75rem 1rem; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; }
@@ -434,7 +435,7 @@ input.gap-input.is-wrong { border-color: var(--wrong); background: var(--wrong-b
 .chunks.answer-line { min-height: 3.2rem; padding: .5rem; border: 2px dashed var(--border); border-radius: 10px; }
 .chunks.answer-line.is-right { border-color: var(--right); border-style: solid; background: var(--right-bg); }
 .chunks.answer-line.is-wrong { border-color: var(--wrong); border-style: solid; }
-.chunk { font: inherit; font-size: 1.05rem; padding: .45rem .8rem; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; }
+.chunk { font: inherit; font-size: 1.05rem; padding: .45rem .8rem; min-height: 44px; min-width: 44px; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; }
 .chunk:hover:not(:disabled) { border-color: var(--primary); }
 .chunk:disabled { cursor: default; }
 .chunk.is-wrong { border-color: var(--wrong); background: var(--wrong-bg); color: var(--wrong); }
@@ -463,4 +464,9 @@ textarea.tasks.invalid { border-color: var(--wrong); }
 @media (max-width: 640px) {
   .gap-sentence { line-height: 2.8; }
   .rule-tools { flex-wrap: wrap; }
+}
+
+/* Touch-Geräte: kleine Knöpfe und Sonderzeichen-Tasten auf 44 px (am Rechner bleibt die dichte Größe) */
+@media (pointer: coarse) {
+  .btn.small, .charbar .char, .word-toolbar .char { min-height: 44px; min-width: 44px; }
 }
