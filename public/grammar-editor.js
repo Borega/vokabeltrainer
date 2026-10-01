@@ -120,7 +120,7 @@ export async function renderGrammarEditor(ctx, list) {
     function updateHead() {
       const n = splitItems(tasks.value).items.length;
       fill(head, `Regel ${index + 1}: ${title.value.trim() || 'ohne Titel'}`, h('span', { class: 'muted small' }, ` · ${n} ${n === 1 ? 'Aufgabe' : 'Aufgaben'}`),
-        problems.length ? h('span', { class: 'error-inline' }, ' ⚠') : null);
+        problems.length ? h('span', { class: 'error-inline' }, ' – Fehler') : null);
     }
 
     const move = (dir) => {
@@ -344,7 +344,7 @@ export async function renderGrammarEditor(ctx, list) {
   }
 
   const syntax = h('details', { class: 'import-panel syntax-help' },
-    h('summary', {}, '❓ So schreibst du Aufgaben'),
+    h('summary', {}, 'So schreibst du Aufgaben'),
     h('div', { class: 'syntax-table' },
       h('p', { class: 'small muted' }, 'Eine Aufgabe pro Zeile. Nimm ganze Sätze, bei denen die Bedeutung die Form bestimmt (Signalwörter wie since, yesterday) – keine reinen Formentabellen.'),
       h('table', { class: 'stats' },

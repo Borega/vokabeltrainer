@@ -1,108 +1,123 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-01T14:35:56.194Z",
+  "generatedAt": "2026-10-01T15:03:14.105Z",
   "title": "Design System: Vokabeltrainer",
   "extensions": {
     "colorMeta": {
-      "tintenblau": {
+      "terrakotta": {
         "role": "primary",
-        "displayName": "Tintenblau",
-        "canonical": "oklch(56.3% 0.182 261)",
+        "displayName": "Terrakotta",
+        "canonical": "oklch(50.7% 0.120 42)",
         "tonalRamp": [
-          "#001c55",
-          "#003287",
-          "#074cb8",
-          "#2b6bda",
-          "#498bfc",
-          "#7eaeff",
-          "#b2cfff",
-          "#e6effe"
+          "#3e1000",
+          "#652200",
+          "#8a3914",
+          "#aa5734",
+          "#cb7552",
+          "#ed9470",
+          "#ffbca2",
+          "#ffe9e1"
         ]
       },
-      "haken-gruen": {
+      "moos": {
         "role": "secondary",
-        "displayName": "Haken-Grün",
-        "canonical": "oklch(48.1% 0.117 152)",
+        "displayName": "Moos",
+        "canonical": "oklch(48.3% 0.099 122)",
         "tonalRamp": [
-          "#002a10",
-          "#004820",
-          "#056732",
-          "#31854e",
-          "#52a36b",
-          "#72c389",
-          "#91e4a8",
-          "#c7ffd4"
+          "#1d2600",
+          "#334100",
+          "#4c5d13",
+          "#687b34",
+          "#859952",
+          "#a3b870",
+          "#c2d98f",
+          "#e3faaf"
         ]
       },
-      "rotstift-rot": {
+      "wachstum-gruen": {
         "role": "secondary",
-        "displayName": "Rotstift-Rot",
-        "canonical": "oklch(55.1% 0.172 25)",
+        "displayName": "Wachstum-Grün",
+        "canonical": "oklch(48.0% 0.105 137)",
         "tonalRamp": [
-          "#470005",
-          "#73000e",
-          "#9f121e",
-          "#c23b3b",
-          "#e55c58",
-          "#ff847d",
-          "#febab4",
-          "#fee9e6"
+          "#0b2a00",
+          "#1b4601",
+          "#376223",
+          "#538040",
+          "#709e5d",
+          "#8ebe7b",
+          "#adde9a",
+          "#cfffbd"
         ]
       },
-      "marker-bernstein": {
+      "ton-rot": {
         "role": "secondary",
-        "displayName": "Marker-Bernstein",
-        "canonical": "oklch(54.4% 0.117 71)",
+        "displayName": "Ton-Rot",
+        "canonical": "oklch(49.1% 0.132 23)",
+        "tonalRamp": [
+          "#470007",
+          "#700a15",
+          "#902e30",
+          "#b24d4b",
+          "#d46b68",
+          "#f68a86",
+          "#febab5",
+          "#ffe9e7"
+        ]
+      },
+      "ocker": {
+        "role": "secondary",
+        "displayName": "Ocker",
+        "canonical": "oklch(50.9% 0.102 70)",
         "tonalRamp": [
           "#321c00",
           "#533200",
           "#774a00",
-          "#9c6404",
-          "#bc8233",
-          "#dda154",
-          "#fec074",
+          "#976624",
+          "#b68444",
+          "#d7a363",
+          "#f8c283",
           "#feebd5"
         ]
       },
-      "heftpapier": {
+      "sand": {
         "role": "neutral",
-        "displayName": "Heftpapier",
-        "canonical": "oklch(97.3% 0.006 265)",
+        "displayName": "Sand",
+        "canonical": "oklch(93.8% 0.016 86)",
         "tonalRamp": [
-          "#202224",
-          "#393a3e",
-          "#545559",
-          "#707275",
-          "#8d8f93",
-          "#acaeb2",
-          "#ccced2",
-          "#eceef2"
+          "#252119",
+          "#3e3a31",
+          "#59554c",
+          "#767167",
+          "#938f85",
+          "#b2ada3",
+          "#d2cdc3",
+          "#f3eee3"
         ]
       },
-      "tinte": {
+      "waldtinte": {
         "role": "neutral",
-        "displayName": "Tinte",
-        "canonical": "oklch(25.5% 0.027 263)",
+        "displayName": "Waldtinte",
+        "canonical": "oklch(30.7% 0.032 131)",
         "tonalRamp": [
-          "#1c222b",
-          "#353b45",
-          "#4f5561",
-          "#6b727e",
-          "#898f9c",
-          "#a7aebb",
-          "#c7cedb",
-          "#e7effc"
+          "#1c2514",
+          "#353e2d",
+          "#4f5947",
+          "#6b7662",
+          "#88937f",
+          "#a7b29e",
+          "#c7d2bd",
+          "#e7f3dd"
         ]
       }
     },
     "typographyMeta": {
       "display": {
         "displayName": "Lernwort",
-        "purpose": "Das abgefragte Wort auf der Lernkarte; bricht an jeder Stelle um."
+        "purpose": "Das abgefragte Wort auf der Lernkarte (Fraunces); bricht an jeder Stelle um."
       },
       "headline": {
         "displayName": "Seitentitel",
-        "purpose": "Seiten- und Listentitel, Ergebnis."
+        "purpose": "Seiten- und Listentitel, Ergebnis (Fraunces)."
       },
       "title": {
         "displayName": "Abschnitt",
@@ -110,7 +125,7 @@
       },
       "body": {
         "displayName": "Text",
-        "purpose": "Fließtext, Eingaben, Sätze in Übungen."
+        "purpose": "Fließtext, Eingaben, Bedienung (Nunito Sans); Sätze in Übungen in Fraunces."
       },
       "label": {
         "displayName": "Sprachlabel",
@@ -123,13 +138,13 @@
     },
     "shadows": [
       {
-        "name": "haarschatten-hell",
-        "value": "0 1px 3px rgb(20 30 50 / 8%), 0 4px 16px rgb(20 30 50 / 6%)",
+        "name": "weicher-schatten-hell",
+        "value": "0 1px 2px rgb(48 56 28 / 6%), 0 10px 28px rgb(48 56 28 / 6%)",
         "purpose": "Karten, Panels, Übungskarten, Toast im hellen Modus."
       },
       {
-        "name": "haarschatten-dunkel",
-        "value": "0 1px 3px rgb(0 0 0 / 40%)",
+        "name": "schatten-dunkel",
+        "value": "0 1px 2px rgb(0 0 0 / 40%)",
         "purpose": "Dieselben Flächen im dunklen Modus."
       },
       {
@@ -162,57 +177,57 @@
       "name": "Button",
       "kind": "button",
       "refersTo": "button",
-      "description": "Standard-Knopf: Kartenweiß mit Linie; Hover färbt nur die Linie tintenblau.",
+      "description": "Standard-Knopf: vollrunde Pille, transparent mit Oliv-Rand; Hover färbt Rand und Text terrakotta.",
       "html": "<button class=\"ds-btn\">Bearbeiten</button>",
-      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; padding: .5rem 1rem; min-height: 40px; border-radius: 8px; border: 1px solid var(--border, #d9dfe8); background: var(--surface, #fff); color: var(--text, #1c2330); font: inherit; font-weight: 500; cursor: pointer; } .ds-btn:hover { border-color: var(--primary, #2f6fde); } .ds-btn:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary, #2f6fde) 45%, transparent); outline-offset: 2px; }"
+      "css": ".ds-btn, .ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; padding: .5rem 1.2rem; min-height: 40px; border-radius: 999px; font: inherit; font-weight: 700; cursor: pointer; } .ds-btn { border: 1.5px solid var(--moss, #55671f); background: transparent; color: var(--moss, #55671f); } .ds-btn:hover { border-color: var(--primary, #9c4a27); color: var(--primary, #9c4a27); } .ds-btn:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary, #9c4a27) 45%, transparent); outline-offset: 2px; }"
     },
     {
       "name": "Primary Button",
       "kind": "button",
       "refersTo": "button-primary",
-      "description": "Haupt-Handlung: Tintenblau gefüllt.",
+      "description": "Haupt-Handlung: Terrakotta gefüllt, vollrund.",
       "html": "<button class=\"ds-btn-primary\">Lernen</button>",
-      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; padding: .5rem 1rem; min-height: 40px; border-radius: 8px; border: 1px solid var(--border, #d9dfe8); background: var(--surface, #fff); color: var(--text, #1c2330); font: inherit; font-weight: 500; cursor: pointer; background: var(--primary, #2f6fde); border-color: var(--primary, #2f6fde); color: var(--primary-text, #fff); } .ds-btn-primary:hover { filter: brightness(1.08); } .ds-btn-primary:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary, #2f6fde) 45%, transparent); outline-offset: 2px; }"
+      "css": ".ds-btn, .ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; padding: .5rem 1.2rem; min-height: 40px; border-radius: 999px; font: inherit; font-weight: 700; cursor: pointer; } .ds-btn-primary { border: 1.5px solid var(--primary, #9c4a27); background: var(--primary, #9c4a27); color: var(--primary-text, #fbf8f1); } .ds-btn-primary:hover { filter: brightness(1.08); } .ds-btn-primary:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary, #9c4a27) 45%, transparent); outline-offset: 2px; }"
     },
     {
       "name": "Bewertungs-Knöpfe",
       "kind": "button",
       "refersTo": "button-right",
-      "description": "Karteikarten: Nicht gewusst in Rotstift-Rot, Gewusst in Haken-Grün.",
-      "html": "<div class=\"ds-rate\"><button class=\"ds-wrong\">✗ Nicht gewusst</button><button class=\"ds-right\">✓ Gewusst</button></div>",
-      "css": ".ds-rate { display: flex; gap: .5rem; } .ds-rate button { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: .4rem; padding: .5rem 1rem; min-height: 40px; border-radius: 8px; border: 1px solid var(--border, #d9dfe8); background: var(--surface, #fff); color: var(--text, #1c2330); font: inherit; font-weight: 500; cursor: pointer; min-height: 48px; padding: .75rem 1.5rem; font-size: 1.05rem; } .ds-wrong { background: var(--wrong-bg, #fbe7e7) !important; color: var(--wrong, #c23b3b) !important; border-color: var(--wrong, #c23b3b) !important; } .ds-right { background: var(--right-bg, #e3f5ea) !important; color: var(--right, #17703b) !important; border-color: var(--right, #17703b) !important; }"
+      "description": "Karteikarten: Nicht gewusst in Ton-Rot, Gewusst in Wachstum-Grün; getönte Flächen.",
+      "html": "<div class=\"ds-rate\"><button class=\"ds-wrong\">Nicht gewusst</button><button class=\"ds-right\">Gewusst</button></div>",
+      "css": ".ds-rate { display: flex; gap: .5rem; } .ds-rate button { flex: 1; min-height: 48px; padding: .75rem 1.5rem; border-radius: 999px; font: inherit; font-weight: 700; font-size: 1.05rem; cursor: pointer; border: 1.5px solid; } .ds-wrong { background: var(--wrong-bg, #f2dcdc); color: var(--wrong, #9e3b3b); border-color: var(--wrong, #9e3b3b); } .ds-right { background: var(--right-bg, #e1ecc6); color: var(--right, #3f6b2c); border-color: var(--right, #3f6b2c); }"
     },
     {
       "name": "Chip",
       "kind": "chip",
       "refersTo": "chip",
-      "description": "Kennzeichnung (Jahrgang, fällig, freigegeben, Grammatik); nie bedienbar.",
-      "html": "<span class=\"ds-chip\">Jahrgang 8</span> <span class=\"ds-chip ds-due\">🔔 3 heute fällig</span>",
-      "css": ".ds-chip { background: var(--chip, #e8eefb); border-radius: 999px; padding: .1rem .55rem; font-size: .8rem; color: var(--text, #1c2330); } .ds-due { background: color-mix(in srgb, var(--warn, #9a6200) 18%, transparent); color: var(--warn, #9a6200); }"
+      "description": "Kennzeichnung auf Salbei, Text in Moos, fett, vollrund.",
+      "html": "<span class=\"ds-chip\">Jahrgang 8</span> <span class=\"ds-chip ds-due\">3 heute fällig</span>",
+      "css": ".ds-chip { display: inline-block; background: var(--chip, #e4ebbd); color: var(--moss, #55671f); border-radius: 999px; padding: .15rem .7rem; font-size: .8rem; font-weight: 700; } .ds-due { background: color-mix(in srgb, var(--warn, #8a5a14) 18%, transparent); color: var(--warn, #8a5a14); }"
     },
     {
       "name": "Listenkarte",
       "kind": "card",
       "refersTo": "card",
-      "description": "Karte auf Heftpapier: Linie und Haarschatten, Titel, Sprache, Kennzeichen, Fortschritt, Aktionen.",
+      "description": "Leinen-Karte ohne Rahmen, 24 px Rundung, weicher Schatten.",
       "html": "<article class=\"ds-card\"><h3>Unit 3 – At the zoo</h3><span class=\"ds-langs\">Englisch ↔ Deutsch</span><p class=\"ds-meta\">Jahrgang 7 · 24 Wörter · Lernleiter</p><div class=\"ds-bar\"><span></span></div><p class=\"ds-meta\">12 von 24 sicher · zuletzt heute</p><div><button class=\"ds-primary\">Lernen</button></div></article>",
-      "css": ".ds-card { background: var(--surface, #fff); border: 1px solid var(--border, #d9dfe8); border-radius: 12px; padding: 1rem; display: flex; flex-direction: column; gap: .5rem; box-shadow: var(--shadow, 0 1px 3px rgb(20 30 50 / 8%), 0 4px 16px rgb(20 30 50 / 6%)); color: var(--text, #1c2330); max-width: 290px; } .ds-card h3 { margin: 0; font-size: 1.05rem; } .ds-langs { color: var(--muted, #5f6b7d); font-size: .9rem; } .ds-meta { margin: 0; color: var(--muted, #5f6b7d); font-size: .875rem; } .ds-bar { height: 8px; background: var(--border, #d9dfe8); border-radius: 999px; overflow: hidden; } .ds-bar span { display: block; width: 50%; height: 100%; background: var(--right, #17703b); border-radius: 999px; } .ds-primary { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; padding: .5rem 1rem; min-height: 40px; border-radius: 8px; border: 1px solid var(--border, #d9dfe8); background: var(--surface, #fff); color: var(--text, #1c2330); font: inherit; font-weight: 500; cursor: pointer; background: var(--primary, #2f6fde); border-color: var(--primary, #2f6fde); color: var(--primary-text, #fff); }"
+      "css": ".ds-card { background: var(--surface, #fbf8f1); border-radius: 24px; padding: 1.5rem; box-shadow: 0 1px 2px rgb(48 56 28 / 6%), 0 10px 28px rgb(48 56 28 / 6%); color: var(--text, #2a3322); } .ds-card h3 { font-family: Fraunces, Georgia, serif; font-weight: 600; margin: 0 0 .4rem; } .ds-langs, .ds-meta { color: var(--muted, #5a6350); font-size: .875rem; margin: 0 0 .4rem; display: block; } .ds-bar { height: 8px; border-radius: 999px; background: color-mix(in srgb, var(--moss, #55671f) 14%, transparent); overflow: hidden; margin: .4rem 0; } .ds-bar span { display: block; width: 50%; height: 100%; background: var(--right, #3f6b2c); } .ds-primary { font: inherit; font-weight: 700; padding: .5rem 1.2rem; min-height: 40px; border-radius: 999px; border: 1.5px solid var(--primary, #9c4a27); background: var(--primary, #9c4a27); color: var(--primary-text, #fbf8f1); cursor: pointer; }"
     },
     {
       "name": "Eingabefeld",
       "kind": "input",
       "refersTo": "input",
-      "description": "Text-Eingabe mit Linie; Fokus zeigt den tintenblauen Ring.",
+      "description": "1.5-px-Sandlinie, Leinen, 14 px Rundung; Fokusring in Terrakotta.",
       "html": "<input class=\"ds-input\" placeholder=\"Englisch\" aria-label=\"Übersetzung\">",
-      "css": ".ds-input { font: inherit; color: var(--text, #1c2330); background: var(--surface, #fff); border: 1px solid var(--border, #d9dfe8); border-radius: 8px; padding: .5rem .65rem; width: 240px; } .ds-input:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary, #2f6fde) 45%, transparent); outline-offset: 2px; }"
+      "css": ".ds-input { font: inherit; color: var(--text, #2a3322); background: var(--surface, #fbf8f1); border: 1.5px solid var(--border, #dcd5c5); border-radius: 14px; padding: .55rem .8rem; width: 100%; } .ds-input:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary, #9c4a27) 45%, transparent); outline-offset: 2px; }"
     },
     {
       "name": "Auswahl-Schalter",
       "kind": "nav",
       "refersTo": "segmented-active",
-      "description": "Vollrunde Knöpfe für Modus, Richtung, Anzahl; aktiv tintenblau.",
+      "description": "Vollrunde Knöpfe in einer Zeile; aktiv: Terrakotta gefüllt.",
       "html": "<div class=\"ds-seg\" role=\"radiogroup\"><button role=\"radio\" aria-checked=\"true\" class=\"ds-active\">Heute fällig (12)</button><button role=\"radio\" aria-checked=\"false\">Frei üben</button></div>",
-      "css": ".ds-seg { display: flex; gap: .4rem; } .ds-seg button { font: inherit; padding: .5rem .9rem; border: 1px solid var(--border, #d9dfe8); border-radius: 999px; background: var(--surface, #fff); color: var(--text, #1c2330); cursor: pointer; } .ds-seg .ds-active { background: var(--primary, #2f6fde); color: var(--primary-text, #fff); border-color: var(--primary, #2f6fde); }"
+      "css": ".ds-seg { display: flex; gap: .5rem; flex-wrap: wrap; } .ds-seg button { font: inherit; font-weight: 600; padding: .55rem 1.1rem; border: 1.5px solid var(--border, #dcd5c5); border-radius: 999px; background: var(--surface, #fbf8f1); color: var(--text, #2a3322); cursor: pointer; } .ds-seg button[aria-checked=\"true\"], .ds-seg .ds-active { background: var(--primary, #9c4a27); border-color: var(--primary, #9c4a27); color: var(--primary-text, #fbf8f1); }"
     },
     {
       "name": "Auswahl-Antwort",
@@ -220,87 +235,92 @@
       "refersTo": "choice-button",
       "description": "Große Kachel mit Tastenkürzel; nach der Antwort grün (richtig) oder rot (falsch) getönt.",
       "html": "<div class=\"ds-choices\"><button class=\"ds-choice\"><span class=\"ds-key\">1</span>has lived</button><button class=\"ds-choice ds-ok\"><span class=\"ds-key\">2</span>lived</button><button class=\"ds-choice ds-no\"><span class=\"ds-key\">3</span>lives</button></div>",
-      "css": ".ds-choices { display: grid; gap: .6rem; max-width: 280px; } .ds-choice { display: flex; align-items: center; gap: .6rem; min-height: 56px; padding: .7rem 1rem; text-align: left; font: inherit; font-size: 1.05rem; color: var(--text, #1c2330); background: var(--surface, #fff); border: 1px solid var(--border, #d9dfe8); border-radius: 10px; cursor: pointer; } .ds-choice:hover { border-color: var(--primary, #2f6fde); } .ds-key { display: inline-grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 6px; background: var(--chip, #e8eefb); color: var(--muted, #5f6b7d); font-size: .8rem; } .ds-ok { border-color: var(--right, #17703b); background: var(--right-bg, #e3f5ea); color: var(--right, #17703b); font-weight: 600; } .ds-no { border-color: var(--wrong, #c23b3b); background: var(--wrong-bg, #fbe7e7); color: var(--wrong, #c23b3b); }"
+      "css": ".ds-choice { display: flex; align-items: center; gap: .75rem; min-height: 56px; padding: .85rem 1rem; border: 1.5px solid var(--border, #dcd5c5); border-radius: 18px; background: var(--surface, #fbf8f1); color: var(--text, #2a3322); font: inherit; cursor: pointer; width: 100%; } .ds-key { background: var(--chip, #e4ebbd); color: var(--moss, #55671f); border-radius: 8px; padding: .1rem .5rem; font: inherit; font-weight: 700; } .ds-choices { display: grid; gap: .5rem; } .ds-ok { background: var(--right-bg, #e1ecc6); border-color: var(--right, #3f6b2c); color: var(--right, #3f6b2c); font-weight: 700; } .ds-no { background: var(--wrong-bg, #f2dcdc); border-color: var(--wrong, #9e3b3b); color: var(--wrong, #9e3b3b); }"
     },
     {
       "name": "Lücke im Satz",
       "kind": "input",
       "refersTo": "gap-input",
-      "description": "Grammatik-Lücke: unterstrichenes Inline-Feld mit Grundform als Hinweis; Zustand über den Unterstrich.",
+      "description": "Inline-Feld auf Salbei mit 12 px Rundung und Serif-Schrift; Zustand über 2-px-Rand und Fläche.",
       "html": "<p class=\"ds-sentence\">She <input class=\"ds-gap\" value=\"has lived\" aria-label=\"Lücke\"> <span class=\"ds-cue\">(live)</span> here since 2010.</p>",
-      "css": ".ds-sentence { font-size: 1.3rem; color: var(--text, #1c2330); } .ds-gap { width: 9ch; padding: .2rem .4rem; font: inherit; text-align: center; color: var(--text, #1c2330); background: var(--chip, #e8eefb); border: 0; border-bottom: 2px solid var(--primary, #2f6fde); border-radius: 4px 4px 0 0; } .ds-cue { color: var(--muted, #5f6b7d); }"
+      "css": ".ds-gap { font-family: Fraunces, Georgia, serif; font-size: inherit; color: var(--text, #2a3322); background: var(--chip, #e4ebbd); border: 2px solid transparent; border-radius: 12px; padding: .25rem .5rem; width: 6ch; } .ds-sentence { font-family: Fraunces, Georgia, serif; font-size: 1.3rem; } .ds-cue { color: var(--muted, #5a6350); font-family: \"Nunito Sans\", system-ui, sans-serif; font-size: .95rem; }"
     },
     {
       "name": "Übungskarte mit Rückmeldung",
       "kind": "card",
       "refersTo": "exercise",
-      "description": "Nach der Antwort färbt sich der Rand; Lösung mit hervorgehobener Form.",
-      "html": "<div class=\"ds-exercise\"><strong class=\"ds-result\">Richtig!</strong><p>She <b class=\"ds-form\">has lived</b> here since 2010. 🔊</p></div>",
-      "css": ".ds-exercise { background: var(--surface, #fff); border: 2px solid var(--right, #17703b); border-radius: 16px; padding: 1.5rem; box-shadow: var(--shadow, 0 1px 3px rgb(20 30 50 / 8%)); color: var(--text, #1c2330); max-width: 360px; } .ds-result { color: var(--right, #17703b); } .ds-exercise p { margin: .5rem 0 0; font-size: 1.15rem; } .ds-form { color: var(--primary, #2f6fde); }"
+      "description": "32 px Rundung, 2-px-Rand transparent, bei Antwort grün/rot/ocker; Wort in Fraunces.",
+      "html": "<div class=\"ds-exercise\"><strong class=\"ds-result\">Richtig!</strong><p>She <b class=\"ds-form\">has lived</b> here since 2010.</p></div>",
+      "css": ".ds-exercise { background: var(--surface, #fbf8f1); border: 2px solid var(--right, #3f6b2c); border-radius: 32px; padding: 2rem; box-shadow: 0 1px 2px rgb(48 56 28 / 6%), 0 10px 28px rgb(48 56 28 / 6%); color: var(--text, #2a3322); } .ds-exercise p { font-family: Fraunces, Georgia, serif; font-size: 1.5rem; margin: .5rem 0 0; } .ds-exercise .w { font-family: Fraunces, Georgia, serif; font-size: 2rem; font-weight: 600; } .ds-result { color: var(--right, #3f6b2c); font-weight: 700; } .ds-form { background: var(--chip, #e4ebbd); color: var(--moss, #55671f); padding: 0 .35em; border-radius: 8px; }"
     }
   ],
   "narrative": {
-    "northStar": "Das gepflegte Schulheft",
-    "overview": "Die Oberfläche ist ein ordentlich geführtes Heft: heller Grund wie Heftpapier, weiße Karten mit dünner Linie, ein einziges tintenblaues Schreibgerät für alles, was Aufmerksamkeit verdient. Regeln, Beispiele und Übungen folgen einander in klarer Reihenfolge; nichts springt, nichts blinkt. Bewertet wird wie mit dem Lehrerstift – ein Haken in Grün, eine Korrektur in Rot, ein Marker in Bernstein –, nie wie in einem Spiel. Das Produkt verzichtet bewusst auf Punkte, Serien, Konfetti, Ranglisten und Zeitdruck; das System tut es ebenso.",
+    "northStar": "Der Lerngarten",
+    "overview": "Die Oberfläche ist ein ruhiger, warmer Ort zum Üben: Sandfarbener Grund wie ungebleichtes Papier, weiche Leinen-Karten ohne Rahmen, ein tiefes Oliv für das, was heute zählt, und ein einziges Terrakotta für jede Handlung. Überschriften und Lernwörter stehen in einer warmen Serifenschrift, der übrige Text in einer freundlichen, klaren Grotesk. Das wirkt eher wie ein gut gestaltetes Schulbuch als wie eine Software-Oberfläche. Bewertet wird sachlich – ein sattes Grün für richtig, ein Ton-Rot für falsch, ein Ocker für Hinweise –, nie wie in einem Spiel. Das Produkt verzichtet bewusst auf Punkte, Serien, Konfetti, Ranglisten und Zeitdruck; das System tut es ebenso.",
     "keyCharacteristics": [
-      "Ein Akzent (Tintenblau), Bewertung über Farbe und Rand statt über Schatten.",
-      "Helles und dunkles Heftpapier sind gleichwertig; beide folgen dem Gerät, per Knopf überschreibbar.",
-      "Weiße Karten mit 1-px-Linie und Haarschatten, großzügige Rundung (12–16 px), Auswahl-Schalter und Chips vollrund.",
+      "Ein Akzent (Terrakotta) für Handlung; Oliv als Grundton für Flächen mit Gewicht; Bewertung über Farbe, Fläche und Text.",
+      "Warmer Sand und dunkler Wald sind gleichwertig; beide folgen dem Gerät, per Knopf überschreibbar.",
+      "Karten ohne Rahmen, mit weichem Schatten und großer Rundung (24–32 px); Knöpfe, Schalter und Chips vollrund.",
+      "Serif (Fraunces) für Überschriften, Lernwörter, Sätze und Marke; Grotesk (Nunito Sans) für Text und Bedienung.",
       "Eine Spalte, schmal (640 px) beim Lernen, breit (1100 px) beim Verwalten.",
-      "System-Schrift, eine Schrift in drei Größen-Rollen; Fremdsprachen bekommen lang.",
+      "Symbole sind schlichte Linien-Icons (SVG, `currentColor`), keine Emojis.",
       "Bewegung nur als Rückmeldung (Fortschrittsbalken, Karte umdrehen) und abschaltbar."
     ],
     "rules": [
       {
-        "name": "The One Ink Rule",
-        "body": "Tintenblau ist der einzige Akzent und trägt nur Handlung und Fokus: Knopf, Link, Auswahl, Fortschritt. Es erscheint auf höchstens einem Zehntel einer Seite; Grün, Rot und Bernstein gehören ausschließlich der Bewertung.",
+        "name": "The One Clay Rule",
+        "body": "Terrakotta ist der einzige Akzent und trägt nur Handlung und Fokus: Knopf, Link, Auswahl. Es erscheint auf höchstens einem Zehntel einer Seite; Grün, Ton-Rot und Ocker gehören ausschließlich der Bewertung, Moos dem Gewicht.",
         "section": "colors"
       },
       {
-        "name": "The Red Pencil Rule",
-        "body": "Rotstift-Rot markiert, was falsch ist – nie Dekoration und nie Warnung vor etwas Harmlosem. Wo etwas nur bald fällig oder nützlich ist, gilt Marker-Bernstein.",
+        "name": "The Clay-Is-Not-Error Rule",
+        "body": "Terrakotta und Ton-Rot liegen farblich nah beieinander. Deshalb markiert Ton-Rot nur, was falsch ist – immer mit Text und Fläche – und Terrakotta nie einen Fehler.",
         "section": "colors"
       },
       {
         "name": "The Tint-Not-Shade Rule",
-        "body": "Zustände entstehen aus derselben Farbe als Fläche (Haken-Fläche, Rotstift-Fläche, 18 %-Bernstein), nicht aus dunkleren Abstufungen oder Verläufen.",
+        "body": "Zustände entstehen aus derselben Farbe als Fläche (Wachstum-Fläche, Ton-Rot-Fläche, 18 %-Ocker), nicht aus dunkleren Abstufungen oder Verläufen.",
         "section": "colors"
       },
       {
-        "name": "The One Voice Rule",
-        "body": "Eine Schrift für alles. Monospace nur, wo Zeichen gezählt oder Syntax gelesen wird; keine Webfonts, keine Icon-Fonts.",
+        "name": "The Two Voices Rule",
+        "body": "Genau zwei Schriften: Serif für Stoff und Überschrift, Grotesk für alles Bedienbare. Monospace nur, wo Zeichen gezählt oder Syntax gelesen wird; keine Fremdserver, keine Icon-Fonts.",
         "section": "typography"
       },
       {
         "name": "The Mark-The-Form Rule",
-        "body": "Die gesuchte Form im Satz ist fett und tintenblau; der Rest des Satzes bleibt ruhig. So lernt das Auge, worauf es ankommt.",
+        "body": "Die gesuchte Form im Satz ist fett, moosgrün und auf Salbei hinterlegt (`.form`, wie mit einem Textmarker); der Rest des Satzes bleibt ruhig. So lernt das Auge, worauf es ankommt.",
         "section": "typography"
       },
       {
-        "name": "The Border-Before-Shadow Rule",
-        "body": "Eine Fläche hebt sich zuerst durch ihre Linie ab, erst dann durch den Haarschatten. Kein Element bekommt einen stärkeren Schatten, um „wichtiger“ zu wirken.",
+        "name": "The Soft-Not-Heavy Rule",
+        "body": "Eine Fläche hebt sich durch Farbe und den einen weichen Schatten ab. Kein Element bekommt einen stärkeren Schatten, einen Rahmen oder einen Verlauf, um „wichtiger“ zu wirken – Gewicht entsteht durch die Oliv-Fläche.",
         "section": "elevation"
       },
       {
         "name": "The Answer-Colors-The-Card Rule",
-        "body": "Nach einer Antwort färbt sich der Rand der Übungskarte grün, rot oder bernsteinfarben (2 px); Eingabe- und Antwortfelder nehmen die zugehörige Fläche an. Das ist die gesamte Belohnungs- und Fehlermechanik.",
+        "body": "Nach einer Antwort färbt sich der Rand der Übungskarte (2 px, vorher transparent) grün, rot oder ockerfarben; Eingabe- und Antwortfelder nehmen die zugehörige Fläche an. Das ist die gesamte Belohnungs- und Fehlermechanik.",
         "section": "elevation"
       }
     ],
     "dos": [
-      "Do Farben und Maße über die Variablen (--primary, --surface, --border, --right, --wrong, --warn, --chip, --radius, --shadow) setzen, damit hell und dunkel identisch funktionieren; beide Blöcke bleiben gleich.",
-      "Do Bewertung über Rand und Fläche zeigen – Farbe nie als einziges Zeichen: immer auch Text („Richtig!“, „Leider falsch.“) und Symbol.",
+      "Do Farben und Maße über die Variablen (`--primary`, `--surface`, `--border`, `--right`, `--wrong`, `--warn`, `--chip`, `--moss`, `--hero`, `--radius`, `--shadow`) setzen, damit hell und dunkel identisch funktionieren; beide Blöcke bleiben gleich.",
+      "Do Zustandsfarben nur auf die Kopfzeile der Rückmeldung („Richtig!“, „Leider falsch.“) legen, nie auf Hinweise oder den Merksatz; Text auf Zustandsflächen braucht mindestens 4,5 : 1.",
+      "Do Bewertung über Rand und Fläche zeigen (2 px Rand in Wachstum-Grün, Ton-Rot oder Ocker, dazu die getönte Fläche) – Farbe nie als einziges Zeichen: immer auch Text („Richtig!“, „Leider falsch.“).",
       "Do Breite und Dichte an der Aufgabe ausrichten: 640 px beim Lernen, 1100 px beim Verwalten.",
-      "Do jedes Element mit Fokusring, Tastaturbedienung und aria-Beschriftung ausstatten; Fremdsprachentext mit lang auszeichnen; Bewegung bei prefers-reduced-motion abschalten.",
-      "Do Breiten und Farben per CSSOM setzen (element.style.width), nicht per style-Attribut – die Content-Security-Policy erlaubt keine Inline-Styles.",
+      "Do jedes Element – auch Links und Zusammenfassungen – mit Fokusring, Tastaturbedienung und `aria`-Beschriftung ausstatten und den Fokus nach dem Neuzeichnen einer Ansicht (z. B. Satzbau) an eine sinnvolle Stelle setzen; Fremdsprachentext mit `lang` auszeichnen; Bewegung bei `prefers-reduced-motion` abschalten.",
+      "Do Breiten und Farben per CSSOM setzen (`element.style.width`), nicht per `style`-Attribut – die Content-Security-Policy erlaubt keine Inline-Styles.",
+      "Do neue Symbole als Linien-SVG über `icon()` in `ui.js` anlegen (`currentColor`, `aria-hidden`).",
+      "Do neue Dateien in `public/` (auch Schriften) in die Liste des Service Workers eintragen.",
       "Do kurze, direkte deutsche Sätze schreiben und gendergerecht mit Doppelpunkt („Schüler:innen“)."
     ],
     "donts": [
-      "Don't Gamification einführen: keine Punkte, Serien, Abzeichen, Konfetti, Ranglisten, Zeitdruck.",
-      "Don't einen zweiten Akzent neben Tintenblau einführen; Grün, Rot, Bernstein bleiben der Bewertung vorbehalten.",
-      "Don't stärkere Schatten, Verläufe, Glas-Effekte oder farbige Seitenstreifen an Karten nutzen, um etwas wichtiger zu machen.",
-      "Don't Schriften, Icons, Skripte oder Bilder von fremden Servern laden (Datenschutz-Zusage, CSP default-src 'self').",
-      "Don't Emojis als Hauptsymbole für Bewertung einsetzen; sie sind Zusatz zu Text (🔊, 📖, 🔔, ✓/✗ an Knöpfen).",
+      "Don't Gamification einführen: keine Punkte, Serien, Abzeichen, Konfetti, Ranglisten, Zeitdruck (das Produkt verzichtet darauf bewusst; Tempo-Runden sind ausgeschlossen).",
+      "Don't einen zweiten Akzent neben Terrakotta einführen; Grün, Ton-Rot, Ocker bleiben der Bewertung vorbehalten, Moos dem Gewicht.",
+      "Don't Terrakotta für Fehler oder Warnungen verwenden – es ist zu nah an Ton-Rot.",
+      "Don't Rahmen um Karten, stärkere Schatten, Verläufe, Glas-Effekte oder farbige Seitenstreifen nutzen, um etwas wichtiger zu machen.",
+      "Don't Schriften, Icons, Skripte oder Bilder von fremden Servern laden (Datenschutz-Zusage, CSP `default-src 'self'`).",
+      "Don't Emojis als Symbole einsetzen; Zeichen und Pfeile bleiben Text (`font-variant-emoji: text`), Symbole sind SVG.",
       "Don't Fehler nur rot färben: falsche Stellen werden markiert und erklärt, nicht bestraft."
     ]
   }

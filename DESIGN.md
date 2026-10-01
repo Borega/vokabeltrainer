@@ -1,60 +1,67 @@
 ---
 name: Vokabeltrainer
-description: Ein schlanker Vokabel- und Grammatiktrainer für Schulen – ruhige Karten auf hellem oder dunklem Heftpapier, ein Tintenblau als einziger Akzent.
+description: Ein schlanker Vokabel- und Grammatiktrainer für Schulen – weiche Karten auf warmem Sand, ein Oliv aus dem Schullogo als Grundton, ein Terrakotta als einziger Akzent.
 colors:
-  tintenblau: "#2f6fde"
-  auf-tintenblau: "#ffffff"
-  heftpapier: "#f4f6fa"
-  kartenweiss: "#ffffff"
-  tinte: "#1c2330"
-  bleistiftgrau: "#5f6b7d"
-  linienblau: "#d9dfe8"
-  markierblau: "#e8eefb"
-  haken-gruen: "#17703b"
-  haken-flaeche: "#e3f5ea"
-  rotstift-rot: "#c23b3b"
-  rotstift-flaeche: "#fbe7e7"
-  marker-bernstein: "#9a6200"
-  tintenblau-dunkel: "#5b8ff0"
-  auf-tintenblau-dunkel: "#0b1220"
-  heftpapier-dunkel: "#11151c"
-  karte-dunkel: "#1a2029"
-  tinte-dunkel: "#e7ebf2"
-  bleistift-dunkel: "#9aa5b6"
-  linie-dunkel: "#2d3645"
-  markierblau-dunkel: "#243149"
-  haken-gruen-dunkel: "#4cc27c"
-  haken-flaeche-dunkel: "#173024"
-  rotstift-rot-dunkel: "#f07a7a"
-  rotstift-flaeche-dunkel: "#3a1d1f"
-  marker-bernstein-dunkel: "#e0a84a"
+  terrakotta: "#9c4a27"
+  auf-terrakotta: "#fbf8f1"
+  sand: "#efeadf"
+  leinen: "#fbf8f1"
+  waldtinte: "#2a3322"
+  salbeigrau: "#5a6350"
+  sandlinie: "#dcd5c5"
+  salbei: "#e4ebbd"
+  moos: "#55671f"
+  auf-moos: "#fbf8f1"
+  moos-hell: "#e4ebbd"
+  wachstum-gruen: "#3f6b2c"
+  wachstum-flaeche: "#e1ecc6"
+  ton-rot: "#9e3b3b"
+  ton-rot-flaeche: "#f2dcdc"
+  ocker: "#8a5a14"
+  terrakotta-dunkel: "#e39a74"
+  auf-terrakotta-dunkel: "#1c140f"
+  sand-dunkel: "#171b12"
+  leinen-dunkel: "#21271a"
+  waldtinte-dunkel: "#eceedc"
+  salbeigrau-dunkel: "#adb59b"
+  sandlinie-dunkel: "#394029"
+  salbei-dunkel: "#2f3822"
+  moos-dunkel: "#cddb92"
+  moos-flaeche-dunkel: "#4a5c1b"
+  wachstum-gruen-dunkel: "#a3d28a"
+  wachstum-flaeche-dunkel: "#25371c"
+  ton-rot-dunkel: "#eb9090"
+  ton-rot-flaeche-dunkel: "#3e2323"
+  ocker-dunkel: "#e2b25a"
 typography:
   display:
-    fontFamily: "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
-    fontSize: "clamp(1.4rem, 5vw, 2.2rem)"
+    fontFamily: "Fraunces, Georgia, \"Times New Roman\", serif"
+    fontSize: "clamp(1.6rem, 5vw, 2.5rem)"
     fontWeight: 600
-    lineHeight: 1.5
+    lineHeight: 1.2
+    letterSpacing: "-0.01em"
   headline:
-    fontFamily: "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
-    fontSize: "1.6rem"
-    fontWeight: 700
-    lineHeight: 1.5
+    fontFamily: "Fraunces, Georgia, \"Times New Roman\", serif"
+    fontSize: "2rem"
+    fontWeight: 600
+    lineHeight: 1.2
+    letterSpacing: "-0.01em"
   title:
-    fontFamily: "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
-    fontSize: "1.15rem"
+    fontFamily: "Fraunces, Georgia, \"Times New Roman\", serif"
+    fontSize: "1.4rem"
+    fontWeight: 600
+    lineHeight: 1.25
+  body:
+    fontFamily: "\"Nunito Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
+    fontSize: "17px"
+    fontWeight: 400
+    lineHeight: 1.55
+  label:
+    fontFamily: "\"Nunito Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
+    fontSize: "0.8rem"
     fontWeight: 700
     lineHeight: 1.5
-  body:
-    fontFamily: "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
-    fontSize: "16px"
-    fontWeight: 400
-    lineHeight: 1.5
-  label:
-    fontFamily: "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
-    fontSize: "0.8rem"
-    fontWeight: 400
-    lineHeight: 1.5
-    letterSpacing: "0.06em"
+    letterSpacing: "0.08em"
   code:
     fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
     fontSize: "0.9rem"
@@ -62,263 +69,276 @@ typography:
     lineHeight: 1.5
 rounded:
   xs: "4px"
-  sm: "6px"
-  md: "8px"
-  lg: "10px"
-  xl: "12px"
-  card: "16px"
+  sm: "14px"
+  md: "18px"
+  lg: "24px"
+  xl: "28px"
+  card: "32px"
   pill: "999px"
 spacing:
   xs: "0.25rem"
   sm: "0.5rem"
   md: "1rem"
   lg: "1.5rem"
-  panel: "1.25rem"
+  panel: "1.75rem"
 components:
   button:
-    backgroundColor: "{colors.kartenweiss}"
-    textColor: "{colors.tinte}"
+    backgroundColor: "transparent"
+    textColor: "{colors.moos}"
     typography: "{typography.body}"
-    rounded: "{rounded.md}"
-    padding: "0.5rem 1rem"
+    rounded: "{rounded.pill}"
+    padding: "0.5rem 1.2rem"
     height: "40px"
   button-hover:
-    backgroundColor: "{colors.kartenweiss}"
-    textColor: "{colors.tinte}"
+    textColor: "{colors.terrakotta}"
   button-primary:
-    backgroundColor: "{colors.tintenblau}"
-    textColor: "{colors.auf-tintenblau}"
-    rounded: "{rounded.md}"
-    padding: "0.5rem 1rem"
+    backgroundColor: "{colors.terrakotta}"
+    textColor: "{colors.auf-terrakotta}"
+    rounded: "{rounded.pill}"
+    padding: "0.5rem 1.2rem"
     height: "40px"
   button-big:
-    backgroundColor: "{colors.tintenblau}"
-    textColor: "{colors.auf-tintenblau}"
-    rounded: "{rounded.md}"
+    backgroundColor: "{colors.terrakotta}"
+    textColor: "{colors.auf-terrakotta}"
+    rounded: "{rounded.pill}"
     padding: "0.75rem 1.5rem"
     height: "48px"
   button-small:
-    backgroundColor: "{colors.kartenweiss}"
-    textColor: "{colors.tinte}"
-    rounded: "{rounded.md}"
+    backgroundColor: "transparent"
+    textColor: "{colors.moos}"
+    rounded: "{rounded.pill}"
     padding: "0.25rem 0.6rem"
     height: "32px"
   button-right:
-    backgroundColor: "{colors.haken-flaeche}"
-    textColor: "{colors.haken-gruen}"
-    rounded: "{rounded.md}"
-  button-wrong:
-    backgroundColor: "{colors.rotstift-flaeche}"
-    textColor: "{colors.rotstift-rot}"
-    rounded: "{rounded.md}"
-  chip:
-    backgroundColor: "{colors.markierblau}"
-    textColor: "{colors.tinte}"
+    backgroundColor: "{colors.wachstum-flaeche}"
+    textColor: "{colors.wachstum-gruen}"
     rounded: "{rounded.pill}"
-    padding: "0.1rem 0.55rem"
+  button-wrong:
+    backgroundColor: "{colors.ton-rot-flaeche}"
+    textColor: "{colors.ton-rot}"
+    rounded: "{rounded.pill}"
+  chip:
+    backgroundColor: "{colors.salbei}"
+    textColor: "{colors.moos}"
+    rounded: "{rounded.pill}"
+    padding: "0.15rem 0.7rem"
   card:
-    backgroundColor: "{colors.kartenweiss}"
-    textColor: "{colors.tinte}"
-    rounded: "{rounded.xl}"
-    padding: "1rem"
-  panel:
-    backgroundColor: "{colors.kartenweiss}"
-    textColor: "{colors.tinte}"
-    rounded: "{rounded.xl}"
-    padding: "{spacing.panel}"
-  exercise:
-    backgroundColor: "{colors.kartenweiss}"
-    textColor: "{colors.tinte}"
-    rounded: "{rounded.card}"
-    padding: "1.5rem"
-  input:
-    backgroundColor: "{colors.kartenweiss}"
-    textColor: "{colors.tinte}"
-    rounded: "{rounded.md}"
-    padding: "0.5rem 0.65rem"
-  choice-button:
-    backgroundColor: "{colors.kartenweiss}"
-    textColor: "{colors.tinte}"
+    backgroundColor: "{colors.leinen}"
+    textColor: "{colors.waldtinte}"
     rounded: "{rounded.lg}"
-    padding: "0.7rem 1rem"
+    padding: "1.5rem"
+  panel:
+    backgroundColor: "{colors.leinen}"
+    textColor: "{colors.waldtinte}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.panel}"
+  hero:
+    backgroundColor: "{colors.moos}"
+    textColor: "{colors.auf-moos}"
+    rounded: "{rounded.xl}"
+    padding: "2rem"
+  exercise:
+    backgroundColor: "{colors.leinen}"
+    textColor: "{colors.waldtinte}"
+    rounded: "{rounded.card}"
+    padding: "2rem"
+  input:
+    backgroundColor: "{colors.leinen}"
+    textColor: "{colors.waldtinte}"
+    rounded: "{rounded.sm}"
+    padding: "0.55rem 0.8rem"
+  choice-button:
+    backgroundColor: "{colors.leinen}"
+    textColor: "{colors.waldtinte}"
+    rounded: "{rounded.md}"
+    padding: "0.85rem 1rem"
     height: "56px"
   choice-button-right:
-    backgroundColor: "{colors.haken-flaeche}"
-    textColor: "{colors.haken-gruen}"
+    backgroundColor: "{colors.wachstum-flaeche}"
+    textColor: "{colors.wachstum-gruen}"
   choice-button-wrong:
-    backgroundColor: "{colors.rotstift-flaeche}"
-    textColor: "{colors.rotstift-rot}"
+    backgroundColor: "{colors.ton-rot-flaeche}"
+    textColor: "{colors.ton-rot}"
   segmented-active:
-    backgroundColor: "{colors.tintenblau}"
-    textColor: "{colors.auf-tintenblau}"
+    backgroundColor: "{colors.terrakotta}"
+    textColor: "{colors.auf-terrakotta}"
     rounded: "{rounded.pill}"
-    padding: "0.5rem 0.9rem"
+    padding: "0.55rem 1.1rem"
   gap-input:
-    backgroundColor: "{colors.markierblau}"
-    textColor: "{colors.tinte}"
-    rounded: "{rounded.xs}"
-    padding: "0.2rem 0.4rem"
+    backgroundColor: "{colors.salbei}"
+    textColor: "{colors.waldtinte}"
+    rounded: "{rounded.sm}"
+    padding: "0.25rem 0.5rem"
 ---
 
 # Design System: Vokabeltrainer
 
 ## Overview
 
-**Creative North Star: "Das gepflegte Schulheft"**
+**Creative North Star: „Der Lerngarten“**
 
-Die Oberfläche ist ein ordentlich geführtes Heft: heller Grund wie Heftpapier, weiße Karten mit dünner Linie, ein einziges tintenblaues Schreibgerät für alles, was Aufmerksamkeit verdient. Regeln, Beispiele und Übungen folgen einander in klarer Reihenfolge; nichts springt, nichts blinkt. Bewertet wird wie mit dem Lehrerstift – ein Haken in Grün, eine Korrektur in Rot, ein Marker in Bernstein –, nie wie in einem Spiel. Das Produkt verzichtet bewusst auf Punkte, Serien, Konfetti, Ranglisten und Zeitdruck; das System tut es ebenso.
+Die Oberfläche ist ein ruhiger, warmer Ort zum Üben: Sandfarbener Grund wie ungebleichtes Papier, weiche Leinen-Karten ohne Rahmen, ein tiefes Oliv für das, was heute zählt, und ein einziges Terrakotta für jede Handlung. Überschriften und Lernwörter stehen in einer warmen Serifenschrift, der übrige Text in einer freundlichen, klaren Grotesk. Das wirkt eher wie ein gut gestaltetes Schulbuch als wie eine Software-Oberfläche. Bewertet wird sachlich – ein sattes Grün für richtig, ein Ton-Rot für falsch, ein Ocker für Hinweise –, nie wie in einem Spiel. Das Produkt verzichtet bewusst auf Punkte, Serien, Konfetti, Ranglisten und Zeitdruck; das System tut es ebenso.
 
-Die Oberfläche richtet sich an Kinder und Jugendliche ebenso wie an Lehrkräfte, die zwischen zwei Stunden Listen pflegen. Deshalb ist der Ton ruhig, sachlich und ermutigend: kurze deutsche Sätze („Richtig!“, „Fast!“, „Weiter üben!“), große Druckflächen auf dem iPad, der Stoff steht im Mittelpunkt, nicht das Werkzeug. Dichte entsteht nur dort, wo Lehrkräfte sie brauchen (Editor, Auswertung); die Lernansicht bleibt eine einzige Karte pro Aufgabe. Schriften kommen vom Gerät, nichts wird von fremden Servern geladen.
+Die Oberfläche richtet sich an Kinder und Jugendliche ebenso wie an Lehrkräfte, die zwischen zwei Stunden Listen pflegen. Der Ton bleibt ruhig, sachlich und ermutigend: kurze deutsche Sätze („Richtig!“, „Fast!“, „Weiter üben!“), große Druckflächen auf dem iPad, der Stoff steht im Mittelpunkt. Dichte entsteht nur dort, wo Lehrkräfte sie brauchen (Editor, Auswertung); die Lernansicht bleibt eine einzige Karte pro Aufgabe. Alle Schriften liegen auf dem eigenen Server (`/fonts`), nichts wird von Fremdservern geladen.
 
 **Key Characteristics:**
-- Ein Akzent (Tintenblau), Bewertung über Farbe und Rand statt über Schatten.
-- Helles und dunkles Heftpapier sind gleichwertig; beide folgen dem Gerät, per Knopf überschreibbar.
-- Weiße Karten mit 1-px-Linie und Haarschatten, großzügige Rundung (12–16 px), Auswahl-Schalter und Chips vollrund.
+- Ein Akzent (Terrakotta) für Handlung; Oliv als Grundton für Flächen mit Gewicht; Bewertung über Farbe, Fläche und Text.
+- Warmer Sand und dunkler Wald sind gleichwertig; beide folgen dem Gerät, per Knopf überschreibbar.
+- Karten ohne Rahmen, mit weichem Schatten und großer Rundung (24–32 px); Knöpfe, Schalter und Chips vollrund.
+- Serif (Fraunces) für Überschriften, Lernwörter, Sätze und Marke; Grotesk (Nunito Sans) für Text und Bedienung.
 - Eine Spalte, schmal (640 px) beim Lernen, breit (1100 px) beim Verwalten.
-- System-Schrift, eine Schrift in drei Größen-Rollen; Fremdsprachen bekommen `lang`.
+- Symbole sind schlichte Linien-Icons (SVG, `currentColor`), keine Emojis.
 - Bewegung nur als Rückmeldung (Fortschrittsbalken, Karte umdrehen) und abschaltbar.
 
 ## Colors
 
-Zurückhaltende Palette aus kühlem Heftpapier, weißen Karten und einem einzigen Blau; Grün, Rot und Bernstein tauchen nur als Bewertung auf. Jede Farbe gibt es in zwei Fassungen (hell/dunkel) mit gleicher Rolle; die dunklen Werte stehen in der Kopfzeile mit dem Zusatz „-dunkel“.
+Warme, erdige Palette: Sand, Leinen und Moos tragen die Fläche, Terrakotta die Handlung; Grün, Ton-Rot und Ocker tauchen nur als Bewertung auf. Jede Farbe gibt es in zwei Fassungen (hell/dunkel) mit gleicher Rolle; die dunklen Werte tragen den Zusatz „-dunkel“.
 
 ### Primary
-- **Tintenblau** (#2f6fde hell, #5b8ff0 dunkel): der einzige Akzent. Haupt-Knopf, Logo-Kachel, Links, Fortschritt der Lernleiter, ausgewählter Schalter, Fokusring (45 % Deckkraft), hervorgehobene Formen im Satz (`.form`), Lücken-Unterstrich. Text darauf: Weiß (#ffffff) bzw. fast Schwarz (#0b1220) im Dunkeln.
+- **Terrakotta** (#9c4a27 hell, #e39a74 dunkel): der einzige Akzent. Haupt-Knopf, Logo-Punkt, Links, ausgewählter Schalter, Fokusring (45 % Deckkraft). Text darauf: Leinen (#fbf8f1) bzw. fast Schwarz (#1c140f) im Dunkeln.
 
 ### Secondary
-- **Haken-Grün** (#17703b hell, #4cc27c dunkel) mit **Haken-Fläche** (#e3f5ea / #173024): richtig beantwortet, sicher gelernt (Fortschrittsbalken), „Neue Regel“-Hinweis, freigegebene Liste.
-- **Rotstift-Rot** (#c23b3b hell, #f07a7a dunkel) mit **Rotstift-Fläche** (#fbe7e7 / #3a1d1f): falsch, Fehlerstelle im Satz, Löschen, Pflichtfehler im Editor.
-- **Marker-Bernstein** (#9a6200 hell, #e0a84a dunkel), als 18 %-Tönung hinterlegt: Hinweis, „heute fällig“, Offline-Anzeige, „Fast!“, Wiederholung.
+- **Moos** (#55671f hell; im Dunkeln als Fläche #4a5c1b, als Text #cddb92): Grundton für Gewicht. „Heute fällig“-Fläche, Merksatz einer Regel, Knopf-Rand und -Text, Marke, Chip-Text. Text auf Oliv-Flächen: Leinen bzw. #f3f5e2.
+- **Wachstum-Grün** (#3f6b2c hell, #a3d28a dunkel) mit **Wachstum-Fläche** (#e1ecc6 / #25371c): richtig beantwortet, sicher gelernt, „Neue Regel“-Hinweis, freigegebene Liste.
+- **Ton-Rot** (#9e3b3b hell, #eb9090 dunkel) mit **Ton-Rot-Fläche** (#f2dcdc / #3e2323): falsch, Fehlerstelle im Satz, Löschen, Pflichtfehler im Editor.
+- **Ocker** (#8a5a14 hell, #e2b25a dunkel), als 18 %-Tönung hinterlegt: Hinweis, Offline-Anzeige, „Fast!“, Wiederholung.
 
 ### Neutral
-- **Heftpapier** (#f4f6fa hell, #11151c dunkel): Seitengrund.
-- **Kartenweiß** (#ffffff hell, #1a2029 dunkel): Karten, Panels, Eingabefelder, Schalter.
-- **Tinte** (#1c2330 hell, #e7ebf2 dunkel): Fließtext und Überschriften.
-- **Bleistiftgrau** (#5f6b7d hell, #9aa5b6 dunkel): Nebentext, Beschriftungen, Tabellenköpfe.
-- **Linienblau** (#d9dfe8 hell, #2d3645 dunkel): Ränder, Trennlinien, leere Fortschrittsbalken.
-- **Markierblau** (#e8eefb hell, #243149 dunkel): Chips, Merksatz-Fläche, Lücken-Hintergrund, Tastenkürzel-Kacheln.
+- **Sand** (#efeadf hell, #171b12 dunkel): Seitengrund.
+- **Leinen** (#fbf8f1 hell, #21271a dunkel): Karten, Panels, Eingabefelder.
+- **Waldtinte** (#2a3322 hell, #eceedc dunkel): Fließtext und Überschriften.
+- **Salbeigrau** (#5a6350 hell, #adb59b dunkel): Nebentext, Beschriftungen, Tabellenköpfe (mindestens 4,5 : 1).
+- **Sandlinie** (#dcd5c5 hell, #394029 dunkel): Feldränder, Trennlinien.
+- **Salbei** (#e4ebbd hell, #2f3822 dunkel): Chips, Lücken-Hintergrund, gesuchte Form im Satz, Tastenkürzel-Kacheln.
 
 ### Named Rules
-**The One Ink Rule.** Tintenblau ist der einzige Akzent und trägt nur Handlung und Fokus: Knopf, Link, Auswahl, Fortschritt. Es erscheint auf höchstens einem Zehntel einer Seite; Grün, Rot und Bernstein gehören ausschließlich der Bewertung.
+**The One Clay Rule.** Terrakotta ist der einzige Akzent und trägt nur Handlung und Fokus: Knopf, Link, Auswahl. Es erscheint auf höchstens einem Zehntel einer Seite; Grün, Ton-Rot und Ocker gehören ausschließlich der Bewertung, Moos dem Gewicht.
 
-**The Red Pencil Rule.** Rotstift-Rot markiert, was falsch ist – nie Dekoration und nie Warnung vor etwas Harmlosem. Wo etwas nur bald fällig oder nützlich ist, gilt Marker-Bernstein.
+**The Clay-Is-Not-Error Rule.** Terrakotta und Ton-Rot liegen farblich nah beieinander. Deshalb markiert Ton-Rot nur, was falsch ist – immer mit Text und Fläche – und Terrakotta nie einen Fehler.
 
-**The Tint-Not-Shade Rule.** Zustände entstehen aus derselben Farbe als Fläche (Haken-Fläche, Rotstift-Fläche, 18 %-Bernstein), nicht aus dunkleren Abstufungen oder Verläufen.
+**The Tint-Not-Shade Rule.** Zustände entstehen aus derselben Farbe als Fläche (Wachstum-Fläche, Ton-Rot-Fläche, 18 %-Ocker), nicht aus dunkleren Abstufungen oder Verläufen.
 
 ## Typography
 
-**Display Font:** System-Schrift (`system-ui`, `-apple-system`, „Segoe UI“, Roboto, sans-serif)
-**Body Font:** dieselbe System-Schrift
+**Display Font:** Fraunces (variabel, 600) – Überschriften, Lernwörter, Sätze in Übungen, Marke, gesuchte Form im Satz
+**Body Font:** Nunito Sans (variabel) – Text, Knöpfe, Felder, Tabellen
 **Label/Mono Font:** `ui-monospace`, SFMono-Regular, Menlo, Consolas – nur für Tipp-Muster („t _ g _“), den KI-Prompt und die Aufgaben-Syntax im Grammatik-Editor
 
-**Character:** Eine einzige Gerätestimme, die auf jedem Schul-iPad, Chromebook und Handy vertraut aussieht und keine Schrift von einem fremden Server braucht. Hierarchie entsteht aus Größe und Gewicht, nicht aus zweiter Schrift.
+**Character:** Eine warme Serifenschrift gibt dem Lernstoff Gewicht und Ruhe, die Grotesk hält die Bedienung klar. Beide Schriften (SIL Open Font License) liegen unter `public/fonts/` mit ihren Lizenztexten, sind im Service Worker vorgehalten und laufen offline; `font-display: swap` verhindert leere Texte beim Laden. `font-variant-emoji: text` verhindert, dass Pfeile als Emoji erscheinen.
 
 ### Hierarchy
-- **Display** (600, `clamp(1.4rem, 5vw, 2.2rem)`, 1.5): das abgefragte Wort auf der Lernkarte; bricht an jeder Stelle um.
-- **Headline** (700, 1.6rem, 1.5; 1.35rem unter 640 px): Seitentitel („Meine Listen“, Listentitel, Ergebnis).
-- **Title** (700, 1.15rem / 1.05rem, 1.5): Abschnitte und Kartentitel.
-- **Body** (400, 16 px, 1.5): Fließtext, Eingaben (Eingabefeld beim Antworten 1.2rem), Sätze in Übungen (`clamp(1.15rem, 3.5vw, 1.5rem)`).
-- **Label** (400, 0.8rem, Laufweite 0.06em, Großbuchstaben): Sprachkennzeichnung über dem Wort („ENGLISCH“); Nebentext und Tabellenköpfe 0.875rem bzw. 0.85rem in Bleistiftgrau.
+- **Display** (Fraunces 600, `clamp(1.6rem, 5vw, 2.5rem)`, 1.2): das abgefragte Wort auf der Lernkarte; bricht an jeder Stelle um.
+- **Headline** (Fraunces 600, 2rem, 1.2; kleiner unter 640 px): Seitentitel („Meine Listen“, Listentitel, Ergebnis).
+- **Title** (Fraunces 600, 1.4rem / 1.15rem, 1.25): Abschnitte und Kartentitel.
+- **Body** (Nunito Sans 400, 17 px, 1.55): Fließtext, Eingaben (Antwortfeld beim Lernen 1.2rem), Sätze in Übungen (`clamp(1.15rem, 3.5vw, 1.5rem)`).
+- **Label** (Nunito Sans 700, 0.8rem, Laufweite 0.08em, Großbuchstaben): Sprachkennzeichnung über dem Wort („ENGLISCH“); Nebentext und Tabellenköpfe 0.875rem bzw. 0.85rem in Salbeigrau.
 
 ### Zwischenstufen
 Kleine, wiederkehrende Abstufungen innerhalb der Rollen – sie sind Teil des Systems und keine Ausreißer:
-- **1.1rem:** Marke, Tipp-Muster, Hören-Knopf, Lösungszeile.
+- **1.4rem:** Marke in der Kopfzeile.
+- **1.1rem:** Tipp-Muster, Lösungszeile.
 - **1.05rem:** großer Knopf, Auswahl-Antwort, Diff-Zeile, Satzteil, Darstellungs-Knopf.
 - **0.95rem:** Notiz, Beispielsatz, Aufgabenanweisung, Beispiele der Regelkarte.
 - **1.3rem** Punktzahl, **1.5rem** Kennzahl-Wert, **0.85rem** Syntax-Code im Editor.
-- **Icon-Zeichen** (🔊, ✕, Darstellung): 1.15–1.3rem, folgen der Symbolgröße, nicht der Textrolle.
+- **Icon** (SVG, `.icon-svg`): 1.15em, folgt der Textgröße; Linienstärke 1.75.
 - **Diagramm-Beschriftung** (SVG): 10 px und 11 px.
 
 ### Named Rules
-**The One Voice Rule.** Eine Schrift für alles. Monospace nur, wo Zeichen gezählt oder Syntax gelesen wird; keine Webfonts, keine Icon-Fonts.
+**The Two Voices Rule.** Genau zwei Schriften: Serif für Stoff und Überschrift, Grotesk für alles Bedienbare. Monospace nur, wo Zeichen gezählt oder Syntax gelesen wird; keine Fremdserver, keine Icon-Fonts.
 
-**The Mark-The-Form Rule.** Die gesuchte Form im Satz ist fett und tintenblau (`.form`); der Rest des Satzes bleibt ruhig. So lernt das Auge, worauf es ankommt.
+**The Mark-The-Form Rule.** Die gesuchte Form im Satz ist fett, moosgrün und auf Salbei hinterlegt (`.form`, wie mit einem Textmarker); der Rest des Satzes bleibt ruhig. So lernt das Auge, worauf es ankommt.
 
 ## Layout
 
-Eine Spalte auf Heftpapier, zentriert. Verwaltungsseiten (Startseite, Editor, Auswertung) laufen bis 1100 px Breite; Lernen, Einstellungen vor der Runde und Ergebnis sind auf 640 px begrenzt, damit die Aufgabe im Blick bleibt. Die Startseite ordnet Karten in einem Raster (Mindestbreite 290 px, Abstand 1 rem); Formulare nutzen zwei gleich breite Spalten, die unter 640 px zu einer werden. Abstände folgen einem Rhythmus aus 0.25 / 0.5 / 0.75 / 1 / 1.25 / 1.5 rem; Panels haben 1.25 rem Innenabstand, Karten 1 rem, Übungskarten 1.5 rem.
+Eine Spalte auf Sand, zentriert. Verwaltungsseiten (Startseite, Editor, Auswertung) laufen bis 1100 px Breite; Lernen, Einstellungen vor der Runde und Ergebnis sind auf 640 px begrenzt, damit die Aufgabe im Blick bleibt. Die Startseite ordnet Karten in einem Raster (Mindestbreite 310 px, Abstand 1.25 rem); Formulare nutzen zwei gleich breite Spalten, die unter 640 px zu einer werden. Abstände folgen einem Rhythmus aus 0.25 / 0.5 / 0.75 / 1 / 1.25 / 1.5 / 2 rem; Panels haben 1.75 rem Innenabstand, Karten 1.5 rem, Übungskarten und Hero 2 rem.
 
-Die Kopfzeile (Logo, Status, Darstellung, Name, Abmelden) klebt oben; die Speichern-Leiste im Editor klebt unten, die Werkzeugleiste des Editors direkt unter der Kopfzeile. Unter 640 px werden Tabellen-Nebenspalten ausgeblendet, Auswahlraster einspaltig, Karteikarten niedriger (230 px). Touch-Ziele: Haupt-Knöpfe 40–48 px hoch, Auswahl-Antworten 56 px, Satzteile und Vorlese-Knopf mindestens 44 px. Auf Touch-Geräten (`pointer: coarse`) wachsen auch kleine Knöpfe und Sonderzeichen-Tasten auf 44 px; am Rechner bleiben sie mit 32 bzw. 40 px dicht.
+Die Kopfzeile (Logo-Punkt und Marke, Status, Darstellung, Name, Abmelden) klebt oben, ohne Linie, in einem leicht durchscheinenden Sand; die Speichern-Leiste im Editor klebt unten, die Werkzeugleiste des Editors direkt unter der Kopfzeile. Unter 640 px werden Tabellen-Nebenspalten ausgeblendet, Auswahlraster einspaltig, Karteikarten niedriger (230 px). Touch-Ziele: Haupt-Knöpfe 40–48 px hoch, Auswahl-Antworten 56 px, Satzteile und Vorlese-Knopf mindestens 44 px. Auf Touch-Geräten (`pointer: coarse`) wachsen auch kleine Knöpfe und Sonderzeichen-Tasten auf 44 px; am Rechner bleiben sie mit 32 bzw. 40 px dicht.
 
 ## Elevation & Depth
 
-Flach mit Haarschatten. Karten und Panels liegen durch eine 1-px-Linie und einen kaum sichtbaren Schatten auf dem Heftpapier; Hervorhebung läuft über Farbe und Rand, nicht über Höhe. Im Dunkeln entfällt der weiche Teil des Schattens (nur 1 px, 40 % Schwarz). Einzige echte Höhe: die Kopfzeile (klebt mit Linie darunter), die Speichern-Leiste und die Toast-Meldung.
+Weich und flach. Karten und Panels haben keinen Rand; sie heben sich durch die hellere Leinen-Farbe und einen sehr weichen, zweistufigen Schatten vom Sand ab. Hervorhebung läuft über Farbe und Fläche (das Oliv-Hero), nicht über Höhe. Im Dunkeln entfällt der weiche Teil des Schattens (nur 1 px, 40 % Schwarz). Einzige echte Höhe: die Kopfzeile (blur), die Speichern-Leiste und die Toast-Meldung.
 
 ### Shadow Vocabulary
-- **Haarschatten hell** (`box-shadow: 0 1px 3px rgb(20 30 50 / 8%), 0 4px 16px rgb(20 30 50 / 6%)`): Karten, Panels, Übungskarten, Toast.
-- **Haarschatten dunkel** (`box-shadow: 0 1px 3px rgb(0 0 0 / 40%)`): dieselben Flächen im dunklen Modus.
+- **Weicher Schatten hell** (`box-shadow: 0 1px 2px rgb(48 56 28 / 6%), 0 10px 28px rgb(48 56 28 / 6%)`): Karten, Panels, Übungskarten, Toast.
+- **Schatten dunkel** (`box-shadow: 0 1px 2px rgb(0 0 0 / 40%)`): dieselben Flächen im dunklen Modus.
 - **Fokusring** (`outline: 3px solid color-mix(in srgb, var(--primary) 45%, transparent); outline-offset: 2px`): jedes bedienbare Element bei Tastatur-Fokus.
 
 ### Named Rules
-**The Border-Before-Shadow Rule.** Eine Fläche hebt sich zuerst durch ihre Linie ab, erst dann durch den Haarschatten. Kein Element bekommt einen stärkeren Schatten, um „wichtiger“ zu wirken.
+**The Soft-Not-Heavy Rule.** Eine Fläche hebt sich durch Farbe und den einen weichen Schatten ab. Kein Element bekommt einen stärkeren Schatten, einen Rahmen oder einen Verlauf, um „wichtiger“ zu wirken – Gewicht entsteht durch die Oliv-Fläche.
 
-**The Answer-Colors-The-Card Rule.** Nach einer Antwort färbt sich der Rand der Übungskarte grün, rot oder bernsteinfarben (2 px); Eingabe- und Antwortfelder nehmen die zugehörige Fläche an. Das ist die gesamte Belohnungs- und Fehlermechanik.
+**The Answer-Colors-The-Card Rule.** Nach einer Antwort färbt sich der Rand der Übungskarte (2 px, vorher transparent) grün, rot oder ockerfarben; Eingabe- und Antwortfelder nehmen die zugehörige Fläche an. Das ist die gesamte Belohnungs- und Fehlermechanik.
 
 ## Shapes
 
-Weiche, aber ruhige Rundung, die mit der Bedeutung wächst: kleinste Details 4 px (Fokus-Umriss der Sortier-Köpfe, obere Ecken der Lücke im Satz), kleine Steuerelemente 6–8 px (Knöpfe, Felder, Sonderzeichen-Tasten, Logo-Kachel), Auswahl-Antworten und Optionsfelder 10 px, Karten und Panels 12 px, Übungs- und Karteikarten 16 px, Chips, Segment-Schalter und Fortschrittsbalken vollrund (999 px). Rahmen sind durchgehend 1 px in Linienblau; nur die Antwort-Zustände und der gestrichelte Platzhalter im Satzbau-Feld nutzen 2 px. Die Karteikarte dreht sich in 3D um die senkrechte Achse (0.45 s); bei reduzierter Bewegung entfällt die Drehanimation.
+Große, weiche Rundung, die mit der Bedeutung wächst: kleinste Details 4 px (Fokus-Umriss der Sortier-Köpfe), Felder, Lücken und Sonderzeichen-Tasten 12–14 px, Auswahl-Antworten und Regel-Panels 18 px, Karten und Panels 24 px, Hero 28 px, Übungs- und Karteikarten 32 px; Knöpfe, Chips, Segment-Schalter, Logo-Punkt und Fortschrittsbalken vollrund (999 px). Feldränder sind 1.5 px in Sandlinie; die Antwort-Zustände nutzen 2 px, ebenso der gestrichelte Platzhalter im Satzbau-Feld. Die Karteikarte dreht sich in 3D um die senkrechte Achse (0.45 s); bei reduzierter Bewegung entfällt die Drehanimation.
 
 ## Components
 
 ### Buttons
-- **Shape:** sanft gerundet (8 px), Mindesthöhe 40 px; `big` 48 px, `small` 32 px.
-- **Default:** Kartenweiß mit 1-px-Linie und Tinte als Text; beim Hover färbt sich nur die Linie tintenblau.
-- **Primary:** Tintenblau gefüllt, weißer Text; Hover hellt um 8 % auf (`brightness(1.08)`).
-- **Ghost / Danger:** Ghost transparent; Danger behält den Rand und färbt Text (und beim Hover den Rand) in Rotstift-Rot.
-- **Bewertung:** Richtig/Falsch/Leicht sind getönte Flächen in Grün, Rot bzw. Markierblau mit Rand in der Textfarbe.
+- **Shape:** vollrunde Pille, Mindesthöhe 40 px; `big` 48 px, `small` 32 px.
+- **Default:** transparent mit 1.5-px-Rand und Text in Moos, fett; beim Hover färben sich Rand und Text terrakotta.
+- **Primary:** Terrakotta gefüllt, Leinen-Text; Hover hellt um 8 % auf (`brightness(1.08)`).
+- **Ghost / Danger:** Ghost transparent; Danger färbt Text und Rand in Ton-Rot.
+- **Bewertung:** Richtig/Falsch/Leicht sind getönte Flächen in Grün, Ton-Rot bzw. Salbei mit Rand in der Textfarbe.
 - **Focus / Disabled:** Fokusring wie oben; deaktiviert mit 60 % Deckkraft.
 
 ### Chips
-- **Style:** vollrund, Markierblau-Fläche, Text in Tinte, 0.8rem; Sonderformen: Bernstein (fällig/offline), Grün (freigegeben/neu), gestrichelt (nicht gesetzt), Tintenblau-Tönung (Grammatik).
+- **Style:** vollrund, Salbei-Fläche, Text in Moos, fett, 0.8rem; Sonderformen: Ocker (fällig/offline), Grün (freigegeben/neu), gestrichelt (nicht gesetzt).
 - **State:** reine Kennzeichnung, nie bedienbar.
 
 ### Cards / Containers
-- **Corner Style:** 12 px (Listenkarten, Panels), 16 px (Übungs- und Karteikarten).
-- **Background:** Kartenweiß bzw. Karte-dunkel; Hinweisflächen in Markierblau oder Seitengrund.
-- **Shadow Strategy:** Haarschatten, siehe Elevation.
-- **Border:** 1 px Linienblau; Zustände 2 px in Bewertungsfarbe.
-- **Internal Padding:** 1 rem (Karte), 1.25 rem (Panel), 1.5 rem (Übungskarte).
+- **Corner Style:** 24 px (Listenkarten, Panels), 28 px (Hero), 32 px (Übungs- und Karteikarten).
+- **Background:** Leinen; Hinweisflächen in Salbei oder Sand.
+- **Shadow Strategy:** weicher Schatten, siehe Elevation.
+- **Border:** keiner; Zustände 2 px in Bewertungsfarbe.
+- **Internal Padding:** 1.5 rem (Karte), 1.75 rem (Panel), 2 rem (Übungskarte, Hero).
+
+### Hero „Heute fällig“
+Oliv-Fläche (28 px Rundung) mit Überschrift in Fraunces (1.9rem) und einem Terrakotta-Knopf; Nebentext in Oliv-Hell. Es gibt höchstens ein Hero pro Seite.
 
 ### Inputs / Fields
-- **Style:** 1-px-Linie, Kartenweiß, 8 px Rundung, Schrift erbt; Antwortfeld beim Lernen größer (1.2rem, Innenabstand .7rem .9rem).
-- **Focus:** Fokusring in Tintenblau.
-- **Error / Disabled:** Falsch färbt das Feld in Rotstift-Fläche; nach der Antwort ist das Feld schreibgeschützt und grün oder rot getönt.
-- **Lücke im Satz** (`gap-input`): unterstrichenes Inline-Feld in Markierblau, Breite nach der Länge der Lösung, Zustandsfarbe am Unterstrich.
+- **Style:** 1.5-px-Linie in Sandlinie, Leinen, 14 px Rundung, Schrift erbt; Antwortfeld beim Lernen größer (1.2rem).
+- **Focus:** Fokusring in Terrakotta.
+- **Error / Disabled:** Falsch färbt das Feld in Ton-Rot-Fläche; nach der Antwort ist das Feld schreibgeschützt und grün oder rot getönt.
+- **Lücke im Satz** (`gap-input`): Inline-Feld in Salbei mit 12 px Rundung und Serif-Schrift, Breite nach der Länge der Lösung; Zustand über Rand (2 px) und Fläche.
 
 ### Navigation
-- **Style:** Kopfzeile mit Logo-Kachel „Aa“ (32 px, Tintenblau, 8 px Rundung) und Name links, rechts Offline-/Warte-Anzeige, Darstellungs-Knopf (☀/🌙/🌓) und Person mit Abmelden. Kein Menü; jede Seite hat oben rechts einen „Zurück“-Knopf.
+- **Style:** Kopfzeile mit Terrakotta-Punkt (14 px) und Marke in Fraunces links, rechts Offline-/Warte-Anzeige, Darstellungs-Knopf (SVG-Sonne/-Mond/-Halbkreis) und Person mit Abmelden. Kein Menü; jede Seite hat oben rechts einen „Zurück“-Knopf.
 - **Mobile:** Name der Person bricht um, der Rollen-Chip entfällt.
 
 ### Auswahl-Schalter (Segmented)
-Vollrunde Knöpfe in einer Zeile, aktiv: Tintenblau gefüllt. Für Modus, Richtung, Anzahl, Ton, Reihenfolge; `role="radiogroup"`.
+Vollrunde Knöpfe in einer Zeile, aktiv: Terrakotta gefüllt. Für Modus, Richtung, Anzahl, Ton, Reihenfolge; `role="radiogroup"`.
 
 ### Auswahl-Antwort (Choice)
-Große Kachel (56 px, 10 px Rundung) mit Tastenkürzel-Kachel links (1–4, Markierblau). Nach der Antwort: richtige Kachel grün getönt und fett, falsche rot getönt, übrige auf 65 % gedimmt.
+Große Kachel (56 px, 18 px Rundung) mit Tastenkürzel-Kachel links (1–4, Salbei). Nach der Antwort: richtige Kachel grün getönt und fett, falsche rot getönt, übrige auf 65 % gedimmt.
 
 ### Übungskarte
-Die Aufgabe ist immer eine Karte (16 px Rundung, 2-px-Rand, 1.5 rem Innenabstand) mit Sprachlabel, dem Wort oder Satz groß, Antwortfeld, Sonderzeichen-Leiste und Rückmeldung darunter. Bei Grammatik kommt oben eine Zeile mit Aufgabentyp-Chip, Regeltitel und „📖 Regel“; Fehlerstellen sind rot wellig unterstrichen (`word-wrong`), korrigierte Stellen grün und fett (`word-fix`).
+Die Aufgabe ist immer eine Karte (32 px Rundung, 2-px-Rand transparent, 2 rem Innenabstand) mit Sprachlabel, dem Wort oder Satz groß in Fraunces, Antwortfeld, Sonderzeichen-Leiste und Rückmeldung darunter. Bei Grammatik kommt oben eine Zeile mit Aufgabentyp-Chip, Regeltitel und „Regel“ mit Buch-Symbol; Fehlerstellen sind rot wellig unterstrichen (`word-wrong`), korrigierte Stellen grün und fett (`word-fix`). Der Merksatz einer Regel steht in einer Oliv-Fläche.
 
 ### Auswertung
-Kennzahl-Kacheln (Linie, 10 px), Diagramme als Linie und Säulen in Tintenblau ohne Füllverlauf, sortierbare Tabellen mit Fortschrittsbalken in Haken-Grün und Stufen-Chips (neu → gefestigt) in zunehmend dichter Tintenblau-Tönung.
+Kennzahl-Kacheln, Diagramme als Linie und Säulen in Moos ohne Füllverlauf, sortierbare Tabellen mit Fortschrittsbalken in Wachstum-Grün und Stufen-Chips (neu → gefestigt) in zunehmend dichter Salbei-Tönung.
 
 ### Editor (Lehrkräfte)
-Dichte Formulare in Panels; Werkzeugleiste klebt unter der Kopfzeile; Grammatik-Regeln sind aufklappbare Panels mit Aufgaben-Textfeld in Monospace, Live-Vorschau und zeilengenauen Fehlern in Rotstift-Rot.
+Dichte Formulare in Panels; Werkzeugleiste klebt unter der Kopfzeile; Grammatik-Regeln sind aufklappbare Panels mit Aufgaben-Textfeld in Monospace, Live-Vorschau und zeilengenauen Fehlern in Ton-Rot.
 
 ## Do's and Don'ts
 
 ### Do:
-- **Do** Farben und Maße über die Variablen (`--primary`, `--surface`, `--border`, `--right`, `--wrong`, `--warn`, `--chip`, `--radius`, `--shadow`) setzen, damit hell und dunkel identisch funktionieren; beide Blöcke bleiben gleich.
+- **Do** Farben und Maße über die Variablen (`--primary`, `--surface`, `--border`, `--right`, `--wrong`, `--warn`, `--chip`, `--moss`, `--hero`, `--radius`, `--shadow`) setzen, damit hell und dunkel identisch funktionieren; beide Blöcke bleiben gleich.
 - **Do** Zustandsfarben nur auf die Kopfzeile der Rückmeldung („Richtig!“, „Leider falsch.“) legen, nie auf Hinweise oder den Merksatz; Text auf Zustandsflächen braucht mindestens 4,5 : 1.
-- **Do** Bewertung über Rand und Fläche zeigen (2 px Rand in Haken-Grün, Rotstift-Rot oder Bernstein, dazu die getönte Fläche) – Farbe nie als einziges Zeichen: immer auch Text („Richtig!“, „Leider falsch.“) und Symbol.
+- **Do** Bewertung über Rand und Fläche zeigen (2 px Rand in Wachstum-Grün, Ton-Rot oder Ocker, dazu die getönte Fläche) – Farbe nie als einziges Zeichen: immer auch Text („Richtig!“, „Leider falsch.“).
 - **Do** Breite und Dichte an der Aufgabe ausrichten: 640 px beim Lernen, 1100 px beim Verwalten.
 - **Do** jedes Element – auch Links und Zusammenfassungen – mit Fokusring, Tastaturbedienung und `aria`-Beschriftung ausstatten und den Fokus nach dem Neuzeichnen einer Ansicht (z. B. Satzbau) an eine sinnvolle Stelle setzen; Fremdsprachentext mit `lang` auszeichnen; Bewegung bei `prefers-reduced-motion` abschalten.
 - **Do** Breiten und Farben per CSSOM setzen (`element.style.width`), nicht per `style`-Attribut – die Content-Security-Policy erlaubt keine Inline-Styles.
+- **Do** neue Symbole als Linien-SVG über `icon()` in `ui.js` anlegen (`currentColor`, `aria-hidden`).
+- **Do** neue Dateien in `public/` (auch Schriften) in die Liste des Service Workers eintragen.
 - **Do** kurze, direkte deutsche Sätze schreiben und gendergerecht mit Doppelpunkt („Schüler:innen“).
 
 ### Don't:
 - **Don't** Gamification einführen: keine Punkte, Serien, Abzeichen, Konfetti, Ranglisten, Zeitdruck (das Produkt verzichtet darauf bewusst; Tempo-Runden sind ausgeschlossen).
-- **Don't** einen zweiten Akzent neben Tintenblau einführen; Grün, Rot, Bernstein bleiben der Bewertung vorbehalten.
-- **Don't** stärkere Schatten, Verläufe, Glas-Effekte oder farbige Seitenstreifen an Karten nutzen, um etwas wichtiger zu machen.
+- **Don't** einen zweiten Akzent neben Terrakotta einführen; Grün, Ton-Rot, Ocker bleiben der Bewertung vorbehalten, Moos dem Gewicht.
+- **Don't** Terrakotta für Fehler oder Warnungen verwenden – es ist zu nah an Ton-Rot.
+- **Don't** Rahmen um Karten, stärkere Schatten, Verläufe, Glas-Effekte oder farbige Seitenstreifen nutzen, um etwas wichtiger zu machen.
 - **Don't** Schriften, Icons, Skripte oder Bilder von fremden Servern laden (Datenschutz-Zusage, CSP `default-src 'self'`).
-- **Don't** Emojis als Hauptsymbole für Bewertung einsetzen; sie sind Zusatz zu Text (🔊, 📖, 🔔, ✓/✗ an Knöpfen).
+- **Don't** Emojis als Symbole einsetzen; Zeichen und Pfeile bleiben Text (`font-variant-emoji: text`), Symbole sind SVG.
 - **Don't** Fehler nur rot färben: falsche Stellen werden markiert und erklärt, nicht bestraft.
