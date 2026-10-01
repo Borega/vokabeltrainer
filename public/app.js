@@ -15,7 +15,7 @@ import * as store from './store.js';
 import * as FSRS from './vendor/ts-fsrs.js';
 import { exportGroupsCsv, groupPanels, historyPanel, levelChip, pct, sortableTable, statTiles } from './stats-ui.js';
 import {
-  endOfToday, field, fill, formatDate, formatDue, groupPicker, h, languageSelect, pref, progressBar, segmented, shuffle, toast, view,
+  endOfToday, field, fill, formatDate, formatDue, groupPicker, h, icon, languageSelect, pref, progressBar, segmented, shuffle, toast, view,
 } from './ui.js';
 
 // Dieselbe Planung wie auf dem Server – so geht Lernen auch ohne Internet weiter
@@ -132,20 +132,20 @@ const MODE_HINTS = {
 // Darstellung: wie das Gerät, hell oder dunkel. Die Wahl wird im Browser gemerkt;
 // theme.js setzt sie beim nächsten Laden schon vor dem ersten Zeichnen.
 const THEMES = [
-  ['auto', '🌓', 'wie Gerät'],
-  ['light', '☀️', 'hell'],
-  ['dark', '🌙', 'dunkel'],
+  ['auto', 'auto', 'wie Gerät'],
+  ['light', 'sun', 'hell'],
+  ['dark', 'moon', 'dunkel'],
 ];
 
 function themeToggle(button) {
   let current = THEMES.findIndex(([name]) => name === pref('theme'));
   if (current < 0) current = 0;
   const apply = () => {
-    const [name, icon, label] = THEMES[current];
+    const [name, symbol, label] = THEMES[current];
     const [, , nextLabel] = THEMES[(current + 1) % THEMES.length];
     if (name === 'auto') delete document.documentElement.dataset.theme;
     else document.documentElement.dataset.theme = name;
-    button.textContent = icon;
+    fill(button, icon(symbol));
     button.title = `Darstellung: ${label} – klicken für ${nextLabel}`;
     button.setAttribute('aria-label', button.title);
   };
@@ -206,7 +206,7 @@ async function renderNet() {
   } else if (me && needsLogin && waiting) {
     content = h('a', { class: 'chip offline', href: '/auth/login' }, `Neu anmelden – ${answers}`);
   } else if (me && waiting) {
-    content = h('span', { class: 'chip', title: 'Wird übertragen …' }, `⟳ ${answers}`);
+    content = h('span', { class: 'chip', title: 'Wird übertragen …' }, answers);
   }
   fill(netBox, content);
   netBox.hidden = !content;
@@ -403,7 +403,7 @@ function listCard(list, { own }) {
     h('p', { class: 'muted small' }, meta.join(' · ')),
     own && list.copied_from ? h('p', { class: 'muted small' }, `Kopie von: ${list.copied_from}`) : null,
     own && list.shared ? h('div', { class: 'chips' }, h('span', { class: 'chip shared' }, 'Für Kolleg:innen freigegeben')) : null,
-    list.progress.due ? h('div', { class: 'chips' }, h('span', { class: 'chip due' }, `🔔 ${list.progress.due} heute fällig`)) : null,
+    list.progress.due ? h('div', { class: 'chips' }, h('span', { class: 'chip due' }, `${list.progress.due} heute fällig`)) : null,
     own && list.groups?.length
       ? h('div', { class: 'chips' }, list.groups.map((g) => h('span', { class: 'chip' }, g.name)))
       : own ? h('p', { class: 'warn small' }, 'Noch keiner Gruppe zugewiesen') : null,
@@ -462,7 +462,7 @@ function renderHomeLists({ own, assigned }, { offline = false, note = null } = {
   if (dueWords + dueRules) {
     const what = [dueWords && `${dueWords} ${dueWords === 1 ? 'Wort' : 'Wörter'}`, dueRules && `${dueRules} ${dueRules === 1 ? 'Regel' : 'Regeln'}`].filter(Boolean).join(' und ');
     sections.push(h('section', { class: 'panel due-banner' },
-      h('h2', {}, `🔔 Heute fällig: ${what}`),
+      h('h2', {}, `Heute fällig: ${what}`),
       h('p', { class: 'small muted' }, 'Jetzt wiederholen, bevor du sie vergisst – das dauert nur ein paar Minuten.'),
       h('div', { class: 'actions' }, dueLists.map((l) => h('a', { class: 'btn', href: `#/learn/${l.id}` }, `${l.title} (${l.progress.due})`))),
     ));
@@ -700,13 +700,13 @@ async function renderEditor(id, loaded = null) {
   takeReplace.onclick = () => take(true);
   takeAppend.onclick = () => take(false);
   const importPanel = h('details', { class: 'import-panel', ontoggle: () => syncPrompt() },
-    h('summary', {}, '✨ Mit KI erstellen oder Text einfügen'),
+    h('summary', {}, 'Mit KI erstellen oder Text einfügen'),
     h('div', { class: 'import-steps' },
       h('div', {},
         h('h3', {}, '1. Prompt für die KI'),
         h('div', { class: 'row2' }, field('Thema', topic), field('Anzahl Wörter', amount)),
         promptBox,
-        h('div', { class: 'actions' }, h('button', { type: 'button', class: 'btn', onclick: copyPrompt }, '📋 Prompt kopieren')),
+        h('div', { class: 'actions' }, h('button', { type: 'button', class: 'btn', onclick: copyPrompt }, 'Prompt kopieren')),
         h('p', { class: 'small muted' }, 'Sprachen und Jahrgang kommen aus den Angaben oben. Den Prompt in die KI eurer Schule einfügen – er enthält keine personenbezogenen Daten.')),
       h('div', {},
         h('h3', {}, '2. Antwort einfügen'),
@@ -1048,7 +1048,7 @@ async function renderLearn(id) {
             segmented('Ton', [['off', 'Aus'], ['on', 'An']], sound ? 'on' : 'off', (v) => { sound = v === 'on'; pref('sound', v); setupView(); }),
             h('p', { class: 'small muted' }, sound
               ? 'Wörter werden vorgelesen, dazu kommen Hörübungen – am besten mit Kopfhörern.'
-              : 'Mit Ton werden Wörter vorgelesen und es gibt Hörübungen. Über 🔊 kannst du Wörter jederzeit anhören.'),
+              : 'Mit Ton werden Wörter vorgelesen und es gibt Hörübungen. Über den Lautsprecher-Knopf kannst du Wörter jederzeit anhören.'),
           ]
         : null,
       h('h2', {}, 'Wie viele Wörter?'),
@@ -1122,7 +1122,7 @@ async function renderLearn(id) {
     return h('button', {
       type: 'button', class: 'icon speak', title: 'Anhören', 'aria-label': `Anhören: ${text}`,
       onclick: (e) => { e.stopPropagation(); speak(speechText(text), speech[side]); },
-    }, '🔊');
+    }, icon('volume'));
   }
   function autoSpeak(word) {
     if (sound && foreign) speak(speechText(word[foreign]), speech[foreign]);
@@ -1182,7 +1182,7 @@ async function renderLearn(id) {
       if (!card) return finish();
       card.exercise ??= chooseExercise(card);
       const header = h('div', { class: 'round-head' },
-        h('button', { class: 'btn ghost small', onclick: () => { if (confirm('Runde abbrechen?')) { cleanupKeys(); stopSpeaking(); setupView(); } } }, '✕ Beenden'),
+        h('button', { class: 'btn ghost small', onclick: () => { if (confirm('Runde abbrechen?')) { cleanupKeys(); stopSpeaking(); setupView(); } } }, 'Beenden'),
         progressBar(done, total, 'Fortschritt der Runde'),
         h('span', { class: 'small muted' }, `${Math.min(done + 1, total)} / ${total}`),
       );
@@ -1233,9 +1233,9 @@ async function renderLearn(id) {
       const flipCard = h('button', { class: 'flipcard', 'aria-label': `${prompt} – Karte umdrehen`, onclick: () => flip() }, inner);
       const speakRow = h('div', { class: 'actions center speak-row' }, speakBtn(from, prompt));
       const buttons = h('div', { class: 'actions center rate', hidden: true },
-        h('button', { class: 'btn wrong big', onclick: () => rate('again') }, '✗ Nicht gewusst'),
-        h('button', { class: 'btn right big', onclick: () => rate('good') }, '✓ Gewusst'),
-        card.retry ? null : h('button', { class: 'btn easy big', onclick: () => rate('easy') }, '★ Leicht'),
+        h('button', { class: 'btn wrong big', onclick: () => rate('again') }, 'Nicht gewusst'),
+        h('button', { class: 'btn right big', onclick: () => rate('good') }, 'Gewusst'),
+        card.retry ? null : h('button', { class: 'btn easy big', onclick: () => rate('easy') }, 'Leicht'),
       );
       // Laut aussprechen hilft beim Behalten (production effect)
       const hint = h('p', { class: 'small muted center' }, 'Sag die Antwort laut – dann tippe auf die Karte oder drücke die Leertaste.');
@@ -1341,7 +1341,7 @@ async function renderLearn(id) {
         const reveal = h('button', { type: 'button', class: 'btn ghost small', onclick: () => { heard.hidden = false; reveal.remove(); input.focus(); } }, 'Wort anzeigen');
         promptEl = h('div', { class: 'prompt' },
           h('span', { class: 'lang' }, `Hören · ${langLabel(list, from)}`),
-          h('button', { type: 'button', class: 'btn big listen', onclick: () => { play(); input.focus(); } }, '🔊 Nochmal anhören'),
+          h('button', { type: 'button', class: 'btn big listen', onclick: () => { play(); input.focus(); } }, [icon('volume'), ' Nochmal anhören']),
           heard, reveal);
         setTimeout(play, 150);
       } else {
@@ -1373,12 +1373,12 @@ async function renderLearn(id) {
       const target = hintTarget(solution);
       const limit = maxHints(target);
       const pattern = h('span', { class: 'hint-pattern', 'aria-live': 'polite' });
-      const hintBtn = h('button', { type: 'button', class: 'btn ghost small', onclick: () => giveHint() }, '💡 Tipp');
+      const hintBtn = h('button', { type: 'button', class: 'btn ghost small', onclick: () => giveHint() }, 'Tipp');
       function giveHint() {
         if (state !== 'ask' || hints >= limit) return;
         hints++;
         pattern.textContent = hintPattern(target, hints);
-        hintBtn.textContent = hints >= limit ? '💡 Kein Tipp mehr' : '💡 Noch ein Tipp';
+        hintBtn.textContent = hints >= limit ? 'Kein Tipp mehr' : 'Noch ein Tipp';
         hintBtn.disabled = hints >= limit;
         input.focus();
       }

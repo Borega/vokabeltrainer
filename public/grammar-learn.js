@@ -18,7 +18,7 @@ import { answerRule, mergeRuleProgress, newId } from './offline.js';
 import { SAFE_LEVEL } from './schedule.js';
 import { canSpeak, speak, stopSpeaking, voicesReady } from './speech.js';
 import { levelChip } from './stats-ui.js';
-import { endOfToday, fill, formatDue, h, pref, progressBar, segmented, toast, view } from './ui.js';
+import { endOfToday, fill, formatDue, h, icon, pref, progressBar, segmented, toast, view } from './ui.js';
 
 const INSTRUCTIONS = {
   choice: 'Wähle die richtige Form.',
@@ -148,7 +148,7 @@ export async function renderGrammarLearn(ctx, list) {
       usable.map((r) => h('label', { class: 'check rule-option' },
         h('input', { type: 'checkbox', checked: selected.has(r.id), onchange: (e) => { e.target.checked ? selected.add(r.id) : selected.delete(r.id); setupView(); } }),
         h('span', {}, r.title), levelChip(progress.get(r.id)),
-        h('button', { type: 'button', class: 'btn ghost small', onclick: (e) => { e.preventDefault(); showRulePage(r); } }, '📖 Regel'))));
+        h('button', { type: 'button', class: 'btn ghost small', onclick: (e) => { e.preventDefault(); showRulePage(r); } }, [icon('book'), ' Regel']))));
 
     view(h('section', { class: 'panel learn-setup' },
       h('div', { class: 'section-head' }, h('h1', {}, list.title), h('a', { class: 'btn ghost', href: '#/' }, 'Zurück')),
@@ -171,7 +171,7 @@ export async function renderGrammarLearn(ctx, list) {
         ? [
             h('h2', {}, 'Ton'),
             segmented('Ton', [['off', 'Aus'], ['on', 'An']], sound ? 'on' : 'off', (v) => { sound = v === 'on'; pref('sound', v); setupView(); }),
-            h('p', { class: 'small muted' }, sound ? 'Der richtige Satz wird nach jeder Antwort vorgelesen.' : 'Über 🔊 kannst du die Sätze jederzeit anhören.'),
+            h('p', { class: 'small muted' }, sound ? 'Der richtige Satz wird nach jeder Antwort vorgelesen.' : 'Über den Lautsprecher-Knopf kannst du die Sätze jederzeit anhören.'),
           ]
         : null,
       nothingToDo
@@ -329,7 +329,7 @@ export async function renderGrammarLearn(ctx, list) {
 
     function header() {
       return h('div', { class: 'round-head' },
-        h('button', { class: 'btn ghost small', onclick: () => { if (confirm('Runde abbrechen?')) { leaveRound?.(); ctx.cleanupKeys(); stopSpeaking(); setupView(); } } }, '✕ Beenden'),
+        h('button', { class: 'btn ghost small', onclick: () => { if (confirm('Runde abbrechen?')) { leaveRound?.(); ctx.cleanupKeys(); stopSpeaking(); setupView(); } } }, 'Beenden'),
         progressBar(done, total, 'Fortschritt der Runde'),
         h('span', { class: 'small muted' }, `${Math.min(done + 1, total)} / ${total}`));
     }
@@ -367,7 +367,7 @@ export async function renderGrammarLearn(ctx, list) {
       const speakBtn = () => (speakable ? h('button', {
         type: 'button', class: 'icon speak', title: 'Anhören', 'aria-label': 'Satz anhören',
         onclick: () => speak(solutionText(item), lang),
-      }, '🔊') : null);
+      }, icon('volume')) : null);
 
       function togglePanel() {
         if (!panel.hidden) { panel.hidden = true; return; }
@@ -376,7 +376,7 @@ export async function renderGrammarLearn(ctx, list) {
           phase === 'ask' ? h('p', { class: 'small muted' }, 'Nachlesen vor der Antwort zählt als Hilfe: Die Aufgabe gilt dann als „mit Mühe gewusst“.') : null);
         panel.hidden = false;
       }
-      const ruleBtn = h('button', { type: 'button', class: 'btn ghost small', onclick: togglePanel }, '📖 Regel');
+      const ruleBtn = h('button', { type: 'button', class: 'btn ghost small', onclick: togglePanel }, [icon('book'), ' Regel']);
 
       // Hinweis nach einer falschen Antwort: Hinweis der Lehrkraft zu genau dieser Antwort, sonst der Merksatz
       const hint = (answers) => {
@@ -420,7 +420,7 @@ export async function renderGrammarLearn(ctx, list) {
           h('div', { class: 'solution-line' }, ui.solution(correct ? result : null, !correct), speakBtn()),
           correct || almost ? null : hint(result.wrong),
           !correct ? overrideBtn : null,
-          !correct && !almost ? h('button', { type: 'button', class: 'btn ghost small', onclick: togglePanel }, '📖 Regel ansehen') : null,
+          !correct && !almost ? h('button', { type: 'button', class: 'btn ghost small', onclick: togglePanel }, [icon('book'), ' Regel ansehen']) : null,
         );
         submit.textContent = 'Weiter';
         submit.hidden = false;
@@ -711,7 +711,7 @@ export async function renderGrammarLearn(ctx, list) {
                 const rule = ruleById.get(task.ruleId);
                 const entry = rule.items.find((e) => e.id === task.itemId);
                 return h('li', {}, h('span', { class: 'sentence-ex', lang: tag }, solutionText(entry.item)), ' ',
-                  h('button', { class: 'btn ghost small', onclick: () => showRulePage(rule) }, `📖 ${rule.title}`));
+                  h('button', { class: 'btn ghost small', onclick: () => showRulePage(rule) }, [icon('book'), ` ${rule.title}`]));
               })))
           : null,
         remaining,
