@@ -805,7 +805,8 @@ export function apiRouter(db, config) {
           const last = previous?.last_review ? Date.parse(previous.last_review) : 0;
           const ts = new Date(Math.max(t, last)).toISOString();
           const next = review(previous, grade, new Date(ts));
-          if (streakLists?.has(list.id) && grade !== 'again') {
+          // Nur richtige Antworten zählen: „fast“ (hard, aber nicht richtig) ist für die App falsch
+          if (streakLists?.has(list.id) && correct && grade !== 'again') {
             if (previous?.last_review && Date.parse(ts) - Date.parse(previous.last_review) >= LONG_RECALL_DAYS * DAY) events.longRecall = true;
             const lastLog = q.lastReview.get(user.id, wordId, direction);
             if (lastLog?.grade === 'again' && localDay(Date.parse(lastLog.at), timezone) < day) events.errorFixed = true;

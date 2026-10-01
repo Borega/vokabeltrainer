@@ -1196,6 +1196,16 @@ test('Abzeichen: falsch und am selben Tag richtig ist kein besiegter Fehler; ohn
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM badges_earned WHERE user_id = (SELECT id FROM users WHERE name = ?)').get('Schüler Abz4').n, 0);
 });
 
+test('Abzeichen: eine als falsch gezählte Antwort („fast“) vergibt weder Langzeit noch besiegten Fehler', async () => {
+  const { words, answer, send } = await streakSetup('Abz7', 'Klasse A7', 3);
+  const now = () => new Date().toISOString();
+  // Wort 0: vor 40 Tagen gelernt. Wort 1: vor 2 Tagen falsch. Jetzt beide „fast“ (hard, aber nicht richtig).
+  await send([answer(words[0], noon(40), 'good'), answer(words[1], noon(2))]);
+  const almost = (w) => ({ ...answer(w, now(), 'hard'), correct: false });
+  const res = await send([almost(words[0]), almost(words[1])]);
+  assert.deepEqual(res.body.badges, [], 'fast zählt als falsch');
+});
+
 test('Abzeichen: 7 Lerntage', async () => {
   const { student, words, answer, send } = await streakSetup('Abz5', 'Klasse A5', 2);
   // 7 Lerntage: an jedem Tag war das Wort fällig und wurde beantwortet
