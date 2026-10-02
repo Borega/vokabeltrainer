@@ -93,6 +93,22 @@ test('Klammern, die zur Formel gehören, sind nicht optional', () => {
   assert.equal(checkAnswer('go', '(to) go', lenient), 'correct');
 });
 
+test('Formeln: Rechenzeichen, Zahlen und Hochzahlen hinter der Klammer', () => {
+  for (const [input, solution] of [['/ c', '(a - b) / c'], ['Ca2', 'Ca(OH)2'], ['x4', '(x)⁴'], ['x', '(x) / 2'], ['b', '(a) * b']]) {
+    assert.notEqual(checkAnswer(input, solution, lenient), 'correct', `${input} ≠ ${solution}`);
+  }
+  for (const solution of ['(a - b) / c', 'Ca(OH)2', '(x)⁴', '(x) / 2']) assert.equal(checkAnswer(solution, solution, lenient), 'correct', solution);
+});
+
+test('Formelfächer: Klammern sind nie optional (literalParens)', () => {
+  const formula = { ...lenient, literalParens: true };
+  assert.deepEqual(variants('(to) go', { literalParens: true }), ['(to) go']);
+  assert.equal(checkAnswer('go', '(to) go', formula), 'wrong');
+  assert.equal(checkAnswer('(to) go', '(to) go', formula), 'correct');
+  assert.equal(checkAnswer('f(x) = 2x', 'f(x) = 2x', formula), 'correct');
+  assert.notEqual(checkAnswer('f x = 2x', 'f(x) = 2x', formula), 'correct');
+});
+
 test('Viele optionale Teile: jede Auswahl bis zu acht Klammern', () => {
   const solution = '(a) b (c) d (e) f (g) h (i)';
   assert.equal(checkAnswer('b d f h', solution, lenient), 'correct');

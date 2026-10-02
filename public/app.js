@@ -8,7 +8,7 @@ import { canSpeak, speak, stopSpeaking, voicesReady } from './speech.js';
 import { renderGrammarEditor } from './grammar-editor.js';
 import { renderGrammarLearn } from './grammar-learn.js';
 import { renderGrammarStats, renderGrammarStudent } from './grammar-stats.js';
-import { DEFAULT_SUBJECT, GRADES, KINDS, SORTS, SUBJECTS, filterLists, gradeLabel, languagesOf, sortLists, subjectLabel } from './listfilter.js';
+import { DEFAULT_SUBJECT, FORMULA_SUBJECTS, GRADES, KINDS, SORTS, SUBJECTS, filterLists, gradeLabel, languagesOf, sortLists, subjectLabel } from './listfilter.js';
 import { answer, mergeProgress, mergeRuleProgress, newId, ruleKey, summarize } from './offline.js';
 import { createScheduler } from './schedule.js';
 import * as store from './store.js';
@@ -1202,7 +1202,7 @@ async function renderLearn(id) {
     let right = 0;
     const wrongWords = [];
 
-    const options = { caseSensitive: list.case_sensitive, accentSensitive: list.accent_sensitive };
+    const options = { caseSensitive: list.case_sensitive, accentSensitive: list.accent_sensitive, literalParens: FORMULA_SUBJECTS.includes(list.subject) };
 
     // Nur die erste Antwort zählt für die Planung. Nicht (sicher) gewusste Wörter kommen
     // nach 3–5 Karten erneut, bis sie einmal richtig sind (höchstens dreimal).

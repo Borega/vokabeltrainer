@@ -60,16 +60,19 @@ export function endingForms(text) {
 // Die vollständige Form steht vorn (daran orientieren sich die Tipps). Ab MAX_OPTIONAL Klammern (2^8 = 256 Formen)
 // gelten nur noch alle oder keine – so viele optionale Teile in einer Lösung sind kein sinnvoller Eintrag.
 const MAX_OPTIONAL = 8;
-// Klammern, die zur Formel gehören und nichts Weglassbares sind: mit Rechenzeichen darin "(a + b)" oder direkt vor
-// einer Hochzahl "(x)^2". Alle anderen Klammern sind optionale Zusätze ("(to)", "(irr)", "(sth.)").
-const GROUPING = /[+*×÷=^<>±√−]/;
-function optionalGroups(base) {
+// Klammern, die zur Formel gehören und nichts Weglassbares sind: mit Rechenzeichen darin "(a - b)", vor einem
+// Rechenzeichen "(x) / 2", vor einer Hochzahl oder Zahl "(x)^2", "(x)⁴", "Ca(OH)2". Alle anderen Klammern sind optionale
+// Zusätze ("(to)", "(irr)", "(sth.)"). In Formelfächern (options.literalParens) ist gar nichts optional.
+const GROUPING_INSIDE = /[+*×÷=^<>±√−]|\s[-/]\s/;
+const GROUPING_AFTER = /^(?:[\^\d¹²³⁰-⁹₀-₉]|\s*[+*×÷−^=<>]|\s+[-/]\s)/;
+function optionalGroups(base, literal = false) {
+  if (literal) return [];
   return [...base.matchAll(/\([^()]*\)/g)]
-    .filter((m) => !GROUPING.test(m[0]) && !/^[\^²³]/.test(base.slice(m.index + m[0].length)));
+    .filter((m) => !GROUPING_INSIDE.test(m[0]) && !GROUPING_AFTER.test(base.slice(m.index + m[0].length)));
 }
 
-function optionalForms(base) {
-  const groups = optionalGroups(base);
+function optionalForms(base, literal) {
+  const groups = optionalGroups(base, literal);
   if (!groups.length) return [base];
   const pick = (keep) => {
     let out = '';
@@ -103,12 +106,12 @@ function withoutTo(s) {
 }
 
 // Alle akzeptierten Schreibweisen einer Lösung.
-export function variants(solution) {
+export function variants(solution, { literalParens = false } = {}) {
   const out = new Set();
   for (const alt of solution.split(/[;|]/)) {
     const base = alt.trim();
     if (!base) continue;
-    for (const f of optionalForms(base).map((x) => x.replace(/\s+/g, ' ').trim())) {
+    for (const f of optionalForms(base, literalParens).map((x) => x.replace(/\s+/g, ' ').trim())) {
       out.add(f);
       out.add(withoutTo(f));
       for (const e of endingForms(f)) out.add(e);
@@ -121,7 +124,7 @@ export function variants(solution) {
 
 // Wer die Klammern einer Lösung mitschreibt ("go (to school)"), meint dieselben Wörter: Dann fallen die Klammerzeichen
 // weg. Hat die Lösung keine Klammern, zählt die Eingabe, wie sie ist ("2 * (3 + 4)" ist nicht "2 * 3 + 4").
-const inputForms = (input, solution) => (solution.split(/[;|]/).some((alt) => optionalGroups(alt).length)
+const inputForms = (input, solution, literal) => (solution.split(/[;|]/).some((alt) => optionalGroups(alt, literal).length)
   ? [input, input.replace(/[()]/g, ' ')]
   : [input]);
 
@@ -143,8 +146,8 @@ export function levenshtein(a, b) {
 // Warum „fast“? 'accents' (nur Akzente falsch), 'case' (nur Groß-/Kleinschreibung) oder null (Tippfehler)
 export function almostReason(input, solution, options = {}) {
   const matches = (o) => {
-    const expected = variants(solution).map((v) => normalize(v, o));
-    return inputForms(input, solution).some((f) => expected.includes(normalize(f, o)));
+    const expected = variants(solution, options).map((v) => normalize(v, o));
+    return inputForms(input, solution, options.literalParens).some((f) => expected.includes(normalize(f, o)));
   };
   if (options.accentSensitive !== false && matches({ ...options, accentSensitive: false })) return 'accents';
   if (options.caseSensitive && matches({ ...options, caseSensitive: false })) return 'case';
@@ -153,19 +156,19 @@ export function almostReason(input, solution, options = {}) {
 
 // Ergebnis: 'correct' | 'almost' (kleiner Tippfehler, zählt als falsch) | 'wrong'
 export function checkAnswer(input, solution, options = {}) {
-  const results = inputForms(input, solution).map((f) => checkForm(f, solution, options));
+  const results = inputForms(input, solution, options.literalParens).map((f) => checkForm(f, solution, options));
   return ['correct', 'almost'].find((r) => results.includes(r)) ?? 'wrong';
 }
 
 function checkForm(input, solution, options) {
   const given = normalize(input, options);
   if (!given) return 'wrong';
-  const expected = variants(solution).map((v) => normalize(v, options));
+  const expected = variants(solution, options).map((v) => normalize(v, options));
   if (expected.includes(given)) return 'correct';
   // Nur Groß-/Kleinschreibung oder Akzente falsch? Dann „fast“.
   const loose = { caseSensitive: false, accentSensitive: false };
   const givenLoose = normalize(input, loose);
-  const expectedLoose = variants(solution).map((v) => normalize(v, loose));
+  const expectedLoose = variants(solution, options).map((v) => normalize(v, loose));
   for (const e of expectedLoose) {
     const allowed = e.length <= 6 ? 1 : 2;
     if (levenshtein(givenLoose, e) <= allowed) return 'almost';

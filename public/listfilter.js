@@ -20,6 +20,8 @@ export const SUBJECTS = {
   mathematik: 'Mathematik',
   sonstiges: 'Sonstiges',
 };
+// In diesen Fächern gehören Klammern zur Formel: Beim Eintippen ist nichts in Klammern optional (siehe check.js).
+export const FORMULA_SUBJECTS = ['mathematik', 'physik', 'chemie'];
 export const subjectLabel = (subject) => SUBJECTS[subject] ?? SUBJECTS[DEFAULT_SUBJECT];
 
 const key = (s) => (s ?? '').trim().toLocaleLowerCase('de');
