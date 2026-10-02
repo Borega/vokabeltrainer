@@ -1413,7 +1413,7 @@ async function renderLearn(id) {
       // Tipps: erster Buchstabe jedes Worts, dann jeweils einer mehr (Finley et al. 2011).
       // Mit Tipp gelöst zählt als „mit Mühe gewusst“.
       let hints = 0;
-      const target = hintTarget(solution);
+      const target = hintTarget(solution, options);
       const limit = maxHints(target);
       const pattern = h('span', { class: 'hint-pattern', 'aria-live': 'polite' });
       const hintBtn = h('button', { type: 'button', class: 'btn ghost small', onclick: () => giveHint() }, 'Tipp');

@@ -120,8 +120,9 @@ export function choiceOptions(words, word, side, { count = 4, random = Math.rand
 const LETTER = /[\p{L}\p{N}]/u;
 
 // Die Lösung, an der sich die Tipps orientieren: die erste Variante („big; large“ → „big“).
-export function hintTarget(solution) {
-  return variants(solution)[0] ?? solution.trim();
+// options wie bei der Prüfung (literalParens in Formelfächern), damit Tipp und Prüfung dieselbe Form meinen.
+export function hintTarget(solution, options = {}) {
+  return variants(solution, options)[0] ?? solution.trim();
 }
 
 // Lösungsmuster mit den ersten n Buchstaben jedes Worts: hintPattern('to go', 1) → 't _   g _'

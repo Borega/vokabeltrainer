@@ -105,28 +105,37 @@ function withoutTo(s) {
   return s.slice(m[0].length - m[1].length);
 }
 
-// Alle akzeptierten Schreibweisen einer Lösung.
-export function variants(solution, { literalParens = false } = {}) {
-  const out = new Set();
-  for (const alt of solution.split(/[;|]/)) {
-    const base = alt.trim();
-    if (!base) continue;
-    for (const f of optionalForms(base, literalParens).map((x) => x.replace(/\s+/g, ' ').trim())) {
-      out.add(f);
-      out.add(withoutTo(f));
-      for (const e of endingForms(f)) out.add(e);
-    }
-    // Die Lösung genau so, wie sie dasteht – etwa eine Formel "(a + b)^2"
-    if (base.includes('(')) out.add(base);
+// Schreibweisen einer einzelnen Alternative der Lösung
+function altVariants(base, literalParens) {
+  const out = [];
+  for (const f of optionalForms(base, literalParens).map((x) => x.replace(/\s+/g, ' ').trim())) {
+    out.push(f, withoutTo(f), ...endingForms(f));
   }
-  return [...out].map((v) => v.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  // Die Lösung genau so, wie sie dasteht – etwa eine Formel "(a + b)^2"
+  if (base.includes('(')) out.push(base);
+  return out;
 }
 
-// Wer die Klammern einer Lösung mitschreibt ("go (to school)"), meint dieselben Wörter: Dann fallen die Klammerzeichen
-// weg. Hat die Lösung keine Klammern, zählt die Eingabe, wie sie ist ("2 * (3 + 4)" ist nicht "2 * 3 + 4").
-const inputForms = (input, solution, literal) => (solution.split(/[;|]/).some((alt) => optionalGroups(alt, literal).length)
-  ? [input, input.replace(/[()]/g, ' ')]
-  : [input]);
+const alternatives = (solution) => solution.split(/[;|]/).map((alt) => alt.trim()).filter(Boolean);
+const clean = (list) => [...new Set(list.map((v) => v.replace(/\s+/g, ' ').trim()))].filter(Boolean);
+
+// Alle akzeptierten Schreibweisen einer Lösung.
+export function variants(solution, { literalParens = false } = {}) {
+  return clean(alternatives(solution).flatMap((alt) => altVariants(alt, literalParens)));
+}
+
+// Eingabe und die Schreibweisen, mit denen sie verglichen wird. Wer die Klammern einer Lösung mitschreibt
+// ("go (to school)"), meint dieselben Wörter: Dann fallen die Klammerzeichen weg – aber nur beim Vergleich mit
+// Alternativen, die selbst optionale Klammern haben. Sonst zählt die Eingabe, wie sie ist ("2 * (3 + 4)" ist nicht
+// "2 * 3 + 4", auch nicht neben der Alternative "go (home)").
+function candidates(input, solution, { literalParens = false } = {}) {
+  const found = [{ input, expected: variants(solution, { literalParens }) }];
+  const optional = alternatives(solution).filter((alt) => optionalGroups(alt, literalParens).length);
+  if (optional.length) {
+    found.push({ input: input.replace(/[()]/g, ' '), expected: clean(optional.flatMap((alt) => altVariants(alt, literalParens))) });
+  }
+  return found;
+}
 
 export function levenshtein(a, b) {
   if (a === b) return 0;
@@ -145,10 +154,7 @@ export function levenshtein(a, b) {
 
 // Warum „fast“? 'accents' (nur Akzente falsch), 'case' (nur Groß-/Kleinschreibung) oder null (Tippfehler)
 export function almostReason(input, solution, options = {}) {
-  const matches = (o) => {
-    const expected = variants(solution, options).map((v) => normalize(v, o));
-    return inputForms(input, solution, options.literalParens).some((f) => expected.includes(normalize(f, o)));
-  };
+  const matches = (o) => candidates(input, solution, options).some((c) => c.expected.map((v) => normalize(v, o)).includes(normalize(c.input, o)));
   if (options.accentSensitive !== false && matches({ ...options, accentSensitive: false })) return 'accents';
   if (options.caseSensitive && matches({ ...options, caseSensitive: false })) return 'case';
   return null;
@@ -156,19 +162,19 @@ export function almostReason(input, solution, options = {}) {
 
 // Ergebnis: 'correct' | 'almost' (kleiner Tippfehler, zählt als falsch) | 'wrong'
 export function checkAnswer(input, solution, options = {}) {
-  const results = inputForms(input, solution, options.literalParens).map((f) => checkForm(f, solution, options));
+  const results = candidates(input, solution, options).map((c) => checkForm(c.input, c.expected, options));
   return ['correct', 'almost'].find((r) => results.includes(r)) ?? 'wrong';
 }
 
-function checkForm(input, solution, options) {
+function checkForm(input, solutions, options) {
   const given = normalize(input, options);
   if (!given) return 'wrong';
-  const expected = variants(solution, options).map((v) => normalize(v, options));
+  const expected = solutions.map((v) => normalize(v, options));
   if (expected.includes(given)) return 'correct';
   // Nur Groß-/Kleinschreibung oder Akzente falsch? Dann „fast“.
   const loose = { caseSensitive: false, accentSensitive: false };
   const givenLoose = normalize(input, loose);
-  const expectedLoose = variants(solution, options).map((v) => normalize(v, loose));
+  const expectedLoose = solutions.map((v) => normalize(v, loose));
   for (const e of expectedLoose) {
     const allowed = e.length <= 6 ? 1 : 2;
     if (levenshtein(givenLoose, e) <= allowed) return 'almost';

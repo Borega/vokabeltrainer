@@ -109,6 +109,13 @@ test('Formelfächer: Klammern sind nie optional (literalParens)', () => {
   assert.notEqual(checkAnswer('f x = 2x', 'f(x) = 2x', formula), 'correct');
 });
 
+test('Klammern der Eingabe fallen nur bei Alternativen mit optionalen Klammern weg', () => {
+  assert.notEqual(checkAnswer('2 * (3 + 4)', 'go (home); 2 * 3 + 4', lenient), 'correct');
+  assert.equal(checkAnswer('go (home)', 'go (home); 2 * 3 + 4', lenient), 'correct');
+  assert.equal(checkAnswer('2 * 3 + 4', 'go (home); 2 * 3 + 4', lenient), 'correct');
+  assert.equal(almostReason('2 * (3 + 4)', 'go (home); 2 * 3 + 4', { accentSensitive: false }), null);
+});
+
 test('Viele optionale Teile: jede Auswahl bis zu acht Klammern', () => {
   const solution = '(a) b (c) d (e) f (g) h (i)';
   assert.equal(checkAnswer('b d f h', solution, lenient), 'correct');
