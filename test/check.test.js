@@ -19,7 +19,7 @@ test('Alternativen mit ; und |', () => {
 });
 
 test('Teile in Klammern sind optional', () => {
-  assert.deepEqual(variants('(to) go').sort(), ['go', 'to go']);
+  assert.deepEqual(variants('(to) go').sort(), ['(to) go', 'go', 'to go']);
   assert.equal(checkAnswer('go', '(to) go', lenient), 'correct');
   assert.equal(checkAnswer('to go', '(to) go', lenient), 'correct');
 });
@@ -62,6 +62,29 @@ test('„to“ vor Artikel oder Possessivpronomen ist eine Richtung, kein Verb',
   assert.equal(checkAnswer('my right', 'to my right', strict), 'wrong');
   assert.equal(checkAnswer('to the left', 'to the left', strict), 'correct');
   assert.equal(checkAnswer('to', 'to', strict), 'correct');
+});
+
+test('„to“ vor Pronomen, Zielen und Eigennamen bleibt Pflicht', () => {
+  for (const solution of ['to you', 'to school', 'to bed', 'to Berlin', 'to them']) {
+    const rest = solution.slice(3);
+    assert.equal(checkAnswer(rest, solution, lenient), 'wrong', solution);
+    assert.equal(checkAnswer(solution, solution, lenient), 'correct', solution);
+  }
+  assert.equal(checkAnswer('o', 'to o', strict), 'correct', 'schneidet genau das „to“ ab');
+});
+
+test('Klammern in der Eingabe fallen nur weg, wenn die Lösung selbst Klammern hat', () => {
+  assert.notEqual(checkAnswer('2 * (3 + 4)', '2 * 3 + 4', lenient), 'correct');
+  assert.equal(checkAnswer('2 * 3 + 4', '2 * 3 + 4', lenient), 'correct');
+  assert.equal(checkAnswer('(a + b)^2', '(a + b)^2', lenient), 'correct', 'die Lösung genau so, wie sie dasteht');
+  assert.equal(checkAnswer('go (to)', 'go', lenient), 'wrong');
+});
+
+test('Viele optionale Teile: jede Auswahl bis zu acht Klammern', () => {
+  const solution = '(a) b (c) d (e) f (g) h (i)';
+  assert.equal(checkAnswer('b d f h', solution, lenient), 'correct');
+  assert.equal(checkAnswer('a b d f g h', solution, lenient), 'correct', 'gemischte Auswahl bei fünf Klammern');
+  assert.equal(checkAnswer('a b c d e f g h i', solution, lenient), 'correct');
 });
 
 test('Groß-/Kleinschreibung je nach Einstellung', () => {

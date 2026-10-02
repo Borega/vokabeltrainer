@@ -57,8 +57,9 @@ export function endingForms(text) {
 }
 
 // Jede Auswahl der optionalen Teile in Klammern: "(to) buy (sth.)" → to buy sth., to buy, buy sth., buy.
-// Die vollständige Form steht vorn (daran orientieren sich die Tipps). Ab MAX_OPTIONAL Klammern nur alle oder keine.
-const MAX_OPTIONAL = 4;
+// Die vollständige Form steht vorn (daran orientieren sich die Tipps). Ab MAX_OPTIONAL Klammern (2^8 = 256 Formen)
+// gelten nur noch alle oder keine – so viele optionale Teile in einer Lösung sind kein sinnvoller Eintrag.
+const MAX_OPTIONAL = 8;
 function optionalForms(base) {
   const groups = base.match(/\([^()]*\)/g) ?? [];
   if (!groups.length) return [base];
@@ -70,10 +71,21 @@ function optionalForms(base) {
   return forms;
 }
 
-// Englische Verben stehen im Wörterbuch mit "to": "to go". Ohne "to" ist es auch richtig – außer bei
-// Richtungsangaben wie "to the left", "to my right".
-const INFINITIVE_TO = /^to\s+(?!(?:the|a|an|my|your|his|her|its|our|their|this|that|these|those|me|him|us|them)\b)(?=\S)/i;
-const withoutTo = (s) => s.replace(INFINITIVE_TO, '');
+// Englische Verben stehen im Wörterbuch mit "to": "to go". Ohne "to" ist es auch richtig – außer bei Richtungs- und
+// Zielangaben, in denen "to" zur Antwort gehört: Artikel und Possessiva ("to the left"), Pronomen ("to you"),
+// häufige Ziele ("to school", "to bed") und Eigennamen ("to Berlin", an der Großschreibung erkannt). Das ist eine
+// Faustregel: Einem Eintrag sieht man nicht an, ob er ein Verb ist.
+const NOT_INFINITIVE = new Set(`the a an my your his her its our their this that these those some any every each no
+  me you him us them it myself yourself himself herself itself ourselves themselves one another
+  school bed town home church class university college court prison hospital market city country station airport`
+  .split(/\s+/));
+function withoutTo(s) {
+  const m = s.match(/^to\s+(\S+)/i);
+  if (!m) return s;
+  const word = m[1].replace(/[^\p{L}\p{N}'-]+$/u, '');
+  if (NOT_INFINITIVE.has(word.toLowerCase()) || /^\p{Lu}/u.test(word)) return s;
+  return s.slice(m[0].length - m[1].length);
+}
 
 // Alle akzeptierten Schreibweisen einer Lösung.
 export function variants(solution) {
@@ -86,12 +98,15 @@ export function variants(solution) {
       out.add(withoutTo(f));
       for (const e of endingForms(f)) out.add(e);
     }
+    // Die Lösung genau so, wie sie dasteht – etwa eine Formel "(a + b)^2"
+    if (base.includes('(')) out.add(base);
   }
   return [...out].map((v) => v.replace(/\s+/g, ' ').trim()).filter(Boolean);
 }
 
-// Wer die Klammern der Lösung mitschreibt ("go (to school)"), meint dieselben Wörter: Klammerzeichen fallen weg.
-const unbracket = (s) => s.replace(/[()]/g, ' ');
+// Wer die Klammern einer Lösung mitschreibt ("go (to school)"), meint dieselben Wörter: Dann fallen die Klammerzeichen
+// weg. Hat die Lösung keine Klammern, zählt die Eingabe, wie sie ist ("2 * (3 + 4)" ist nicht "2 * 3 + 4").
+const inputForms = (input, solution) => (solution.includes('(') ? [input, input.replace(/[()]/g, ' ')] : [input]);
 
 export function levenshtein(a, b) {
   if (a === b) return 0;
@@ -110,7 +125,10 @@ export function levenshtein(a, b) {
 
 // Warum „fast“? 'accents' (nur Akzente falsch), 'case' (nur Groß-/Kleinschreibung) oder null (Tippfehler)
 export function almostReason(input, solution, options = {}) {
-  const matches = (o) => variants(solution).map((v) => normalize(v, o)).includes(normalize(unbracket(input), o));
+  const matches = (o) => {
+    const expected = variants(solution).map((v) => normalize(v, o));
+    return inputForms(input, solution).some((f) => expected.includes(normalize(f, o)));
+  };
   if (options.accentSensitive !== false && matches({ ...options, accentSensitive: false })) return 'accents';
   if (options.caseSensitive && matches({ ...options, caseSensitive: false })) return 'case';
   return null;
@@ -118,7 +136,11 @@ export function almostReason(input, solution, options = {}) {
 
 // Ergebnis: 'correct' | 'almost' (kleiner Tippfehler, zählt als falsch) | 'wrong'
 export function checkAnswer(input, solution, options = {}) {
-  input = unbracket(input);
+  const results = inputForms(input, solution).map((f) => checkForm(f, solution, options));
+  return ['correct', 'almost'].find((r) => results.includes(r)) ?? 'wrong';
+}
+
+function checkForm(input, solution, options) {
   const given = normalize(input, options);
   if (!given) return 'wrong';
   const expected = variants(solution).map((v) => normalize(v, options));

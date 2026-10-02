@@ -53,9 +53,10 @@ function parseGrade(rawGrade) {
   return grade;
 }
 
-// Fach einer Liste; fehlt die Angabe (ältere Clients), bleibt es bei Sprachen
+// Fach einer Liste; null, wenn die Angabe fehlt (ältere Clients): Eine neue Liste bekommt dann den Standard der
+// Datenbank (Sprachen), beim Speichern einer bestehenden bleibt ihr Fach, wie es ist.
 function parseSubject(raw) {
-  if (raw == null || raw === '') return DEFAULT_SUBJECT;
+  if (raw == null || raw === '') return null;
   if (typeof raw !== 'string' || !Object.hasOwn(SUBJECTS, raw)) throw new HttpError(400, 'Ungültiges Fach.');
   return raw;
 }
@@ -624,7 +625,7 @@ export function apiRouter(db, config) {
     const ts = now();
     db.prepare(
       `UPDATE lists SET title = ?, lang_a = ?, lang_b = ?, learn_side = ?, mode = ?, case_sensitive = ?, accent_sensitive = ?,
-         direction = ?, allow_switch = ?, allow_mode_switch = ?, grade = ?, subject = ?, shared = ?, updated_at = ? WHERE id = ?`,
+         direction = ?, allow_switch = ?, allow_mode_switch = ?, grade = ?, subject = COALESCE(?, subject), shared = ?, updated_at = ? WHERE id = ?`,
     ).run(data.title, data.lang_a, data.lang_b, data.learn_side, data.mode, data.case_sensitive, data.accent_sensitive,
       data.direction, data.allow_switch, data.allow_mode_switch, data.grade, data.subject, data.shared, ts, listId);
 

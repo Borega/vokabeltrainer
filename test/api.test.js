@@ -454,6 +454,9 @@ test('Fach: Standard Sprachen, nur bekannte Fächer, wird mitkopiert', async () 
   assert.equal((await teacher('GET', `/lists/${bio.body.id}`)).body.subject, 'biologie');
   assert.equal((await teacher('PUT', `/lists/${bio.body.id}`, { ...listBody, title: 'Zelle', subject: 'geschichte', shared: true })).status, 200);
   assert.equal((await teacher('GET', `/lists/${bio.body.id}`)).body.subject, 'geschichte');
+  const { subject: _omitted, ...withoutSubject } = listBody;
+  assert.equal((await teacher('PUT', `/lists/${bio.body.id}`, { ...withoutSubject, title: 'Zelle', shared: true })).status, 200);
+  assert.equal((await teacher('GET', `/lists/${bio.body.id}`)).body.subject, 'geschichte', 'ältere Clients ohne Fach ändern es nicht');
   const copy = await colleague('POST', `/lists/${bio.body.id}/copy`, {});
   assert.equal((await colleague('GET', `/lists/${copy.body.id}`)).body.subject, 'geschichte');
   assert.ok((await colleague('GET', '/shared')).body.some((l) => l.id === bio.body.id && l.subject === 'geschichte'));
