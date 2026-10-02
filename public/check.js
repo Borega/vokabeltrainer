@@ -60,11 +60,26 @@ export function endingForms(text) {
 // Die vollständige Form steht vorn (daran orientieren sich die Tipps). Ab MAX_OPTIONAL Klammern (2^8 = 256 Formen)
 // gelten nur noch alle oder keine – so viele optionale Teile in einer Lösung sind kein sinnvoller Eintrag.
 const MAX_OPTIONAL = 8;
+// Klammern, die zur Formel gehören und nichts Weglassbares sind: mit Rechenzeichen darin "(a + b)" oder direkt vor
+// einer Hochzahl "(x)^2". Alle anderen Klammern sind optionale Zusätze ("(to)", "(irr)", "(sth.)").
+const GROUPING = /[+*×÷=^<>±√−]/;
+function optionalGroups(base) {
+  return [...base.matchAll(/\([^()]*\)/g)]
+    .filter((m) => !GROUPING.test(m[0]) && !/^[\^²³]/.test(base.slice(m.index + m[0].length)));
+}
+
 function optionalForms(base) {
-  const groups = base.match(/\([^()]*\)/g) ?? [];
+  const groups = optionalGroups(base);
   if (!groups.length) return [base];
-  const parts = base.split(/\([^()]*\)/);
-  const pick = (keep) => parts.reduce((s, part, i) => s + part + (i < groups.length && keep(i) ? groups[i].slice(1, -1) : ''), '');
+  const pick = (keep) => {
+    let out = '';
+    let last = 0;
+    groups.forEach((m, i) => {
+      out += base.slice(last, m.index) + (keep(i) ? m[0].slice(1, -1) : '');
+      last = m.index + m[0].length;
+    });
+    return out + base.slice(last);
+  };
   if (groups.length > MAX_OPTIONAL) return [pick(() => true), pick(() => false)];
   const forms = [];
   for (let mask = 2 ** groups.length - 1; mask >= 0; mask--) forms.push(pick((i) => (mask >> i) & 1));
@@ -106,7 +121,9 @@ export function variants(solution) {
 
 // Wer die Klammern einer Lösung mitschreibt ("go (to school)"), meint dieselben Wörter: Dann fallen die Klammerzeichen
 // weg. Hat die Lösung keine Klammern, zählt die Eingabe, wie sie ist ("2 * (3 + 4)" ist nicht "2 * 3 + 4").
-const inputForms = (input, solution) => (solution.includes('(') ? [input, input.replace(/[()]/g, ' ')] : [input]);
+const inputForms = (input, solution) => (solution.split(/[;|]/).some((alt) => optionalGroups(alt).length)
+  ? [input, input.replace(/[()]/g, ' ')]
+  : [input]);
 
 export function levenshtein(a, b) {
   if (a === b) return 0;

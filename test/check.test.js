@@ -80,6 +80,19 @@ test('Klammern in der Eingabe fallen nur weg, wenn die Lösung selbst Klammern h
   assert.equal(checkAnswer('go (to)', 'go', lenient), 'wrong');
 });
 
+test('Klammern, die zur Formel gehören, sind nicht optional', () => {
+  assert.deepEqual(variants('(a + b)^2'), ['(a + b)^2']);
+  assert.equal(checkAnswer('(a + b)^2', '(a + b)^2', lenient), 'correct');
+  assert.notEqual(checkAnswer('a + b^2', '(a + b)^2', lenient), 'correct');
+  assert.equal(checkAnswer('^2', '(a + b)^2', lenient), 'wrong');
+  assert.deepEqual(variants('(x)^2').sort(), ['(x)^2']);
+  assert.equal(checkAnswer('x^2', '(x)^2', lenient), 'wrong');
+  // Optionale Zusätze daneben bleiben optional
+  assert.equal(checkAnswer('(a * b) + c', '(a * b) + c (Summe)', lenient), 'correct');
+  assert.equal(checkAnswer('(a * b) + c Summe', '(a * b) + c (Summe)', lenient), 'correct');
+  assert.equal(checkAnswer('go', '(to) go', lenient), 'correct');
+});
+
 test('Viele optionale Teile: jede Auswahl bis zu acht Klammern', () => {
   const solution = '(a) b (c) d (e) f (g) h (i)';
   assert.equal(checkAnswer('b d f h', solution, lenient), 'correct');

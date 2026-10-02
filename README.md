@@ -113,7 +113,8 @@ Latein und Altgriechisch werden nicht vorgelesen.
   zählt jede Auswahl (bis zu acht Klammern pro Lösung). Wer die Klammern samt Inhalt mitschreibt, hat ebenfalls recht
 - Englische Verben gelten auch ohne `to`: `to go` akzeptiert `go`. Das ist eine Faustregel: Vor Artikeln und
   Pronomen (`to the left`, `to you`), häufigen Zielen (`to school`, `to bed`) und Eigennamen (`to Berlin`) bleibt `to`
-  Pflicht. Die Klammern einer Lösung werden nur ignoriert, wenn die Lösung selbst Klammern hat.
+  Pflicht. Die Klammern einer Lösung werden nur ignoriert, wenn die Lösung selbst optionale Klammern hat.
+  Klammern, die zur Formel gehören (mit Rechenzeichen darin oder vor einer Hochzahl: `(a + b)^2`), sind nie optional.
 - Endungen der weiblichen Form: `bueno/a`, `trabajador, -a`, `heureux, -euse` akzeptieren die Grundform und die
   abgeleitete Form (`buena`, `trabajadora`, `heureuse`). Für ganz verschiedene Formen `;` nehmen: `rojo; roja`
 - Leerzeichen und `.` `!` `?` `…` am Ende zählen nicht, die spanischen `¿` `¡` nirgends
