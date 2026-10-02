@@ -109,6 +109,9 @@ test('Sonderzeichen aus den Wörtern der Liste, ohne Zeichen der deutschen Tasta
   ];
   assert.deepEqual(specialChars(words, 'a'), ['ç', 'é', 'ñ', 'œ', 'É', '¿']);
   assert.deepEqual(specialChars(words, 'b'), [], 'ä, ö, ü, ß hat die deutsche Tastatur');
+  const de = [{ a: 'Mädchen', b: 'girl' }, { a: 'Straße', b: 'street' }, { a: 'Übung', b: 'exercise' }, { a: 'Löwe', b: 'lion' }];
+  assert.deepEqual(specialChars(de, 'a'), []);
+  assert.deepEqual(specialChars(de, 'a', { german: true }), ['ä', 'ö', 'ß', 'Ü'], 'bei deutschen Antworten gehören ä, ö, ü, ß in die Leiste');
 });
 
 test('Vorlesen: Französisch aus Frankreich, Spanisch aus Spanien', () => {

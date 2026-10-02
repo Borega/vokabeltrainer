@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { aiPrompt, csvToWords, detectDelimiter, parseCsv, textToWords, wordsToCsv } from '../public/csv.js';
+import { aiPrompt, csvToWords, decodeText, detectDelimiter, parseCsv, textToWords, wordsToCsv } from '../public/csv.js';
 
 test('erkennt Semikolon (Excel, deutsch)', () => {
   assert.equal(detectDelimiter('dog;Hund\ncat;Katze'), ';');
@@ -136,4 +136,14 @@ test('Kopfzeile mit allen Sprachen aus dem Editor', () => {
 test('Listen aus Sätzen bleiben vollständig', () => {
   const text = 'How are you today.,Wie geht es dir heute.\nI like it a lot.,Es gefällt mir sehr.\nSee you soon then.,Bis bald dann.';
   assert.equal(textToWords(text).words.length, 3);
+});
+
+test('Dateitext: UTF-8 bleibt, Windows-1252 (Excel) wird mit Umlauten gelesen', () => {
+  const text = 'Mädchen;girl\nStraße;street\n';
+  assert.equal(decodeText(new TextEncoder().encode(text)), text);
+  assert.equal(decodeText(new TextEncoder().encode(`﻿${text}`)), text, 'ein BOM fällt weg');
+  // Windows-1252 hat ä = E4 und ß = DF, wie Latin-1
+  const latin = Uint8Array.from([...text].map((ch) => ch.charCodeAt(0)));
+  assert.equal(decodeText(latin), text);
+  assert.deepEqual(textToWords(decodeText(latin)).words.map((w) => w.a), ['Mädchen', 'Straße']);
 });

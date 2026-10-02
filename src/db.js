@@ -267,6 +267,9 @@ export const MIGRATIONS = [
      earned_at  TEXT NOT NULL,
      PRIMARY KEY (user_id, badge)
    );`,
+  // 14: Fach einer Liste (Schlüssel aus SUBJECTS in public/listfilter.js), zum Filtern der geteilten Listen.
+  //     Bestehende Listen sind Sprachlisten.
+  `ALTER TABLE lists ADD COLUMN subject TEXT NOT NULL DEFAULT 'sprachen';`,
 ];
 
 function migrate(db) {

@@ -441,6 +441,24 @@ test('Jahrgangsstufe: Pflicht beim Speichern, in geteilten Listen und Kopien', a
   assert.equal((await teacher('PUT', `/lists/${id}`, { ...listBody, grade: null })).status, 400);
 });
 
+test('Fach: Standard Sprachen, nur bekannte Fächer, wird mitkopiert', async () => {
+  const teacher = await login('Frau Fach', { teacher: true, groups: 'Klasse 7a' });
+  const colleague = await login('Herr Fach', { teacher: true, groups: 'Klasse 8a' });
+  const { body: { id } } = await teacher('POST', '/lists', { ...listBody, title: 'Ohne Fach', shared: true });
+  assert.equal((await teacher('GET', `/lists/${id}`)).body.subject, 'sprachen', 'ohne Angabe: Sprachen');
+  for (const subject of ['astrologie', 7, true, {}, ['biologie']]) {
+    assert.equal((await teacher('POST', '/lists', { ...listBody, subject })).status, 400, `subject ${JSON.stringify(subject)}`);
+  }
+  const bio = await teacher('POST', '/lists', { ...listBody, title: 'Zelle', subject: 'biologie', shared: true });
+  assert.equal(bio.status, 201);
+  assert.equal((await teacher('GET', `/lists/${bio.body.id}`)).body.subject, 'biologie');
+  assert.equal((await teacher('PUT', `/lists/${bio.body.id}`, { ...listBody, title: 'Zelle', subject: 'geschichte', shared: true })).status, 200);
+  assert.equal((await teacher('GET', `/lists/${bio.body.id}`)).body.subject, 'geschichte');
+  const copy = await colleague('POST', `/lists/${bio.body.id}/copy`, {});
+  assert.equal((await colleague('GET', `/lists/${copy.body.id}`)).body.subject, 'geschichte');
+  assert.ok((await colleague('GET', '/shared')).body.some((l) => l.id === bio.body.id && l.subject === 'geschichte'));
+});
+
 test('Noten: grade hat Vorrang, "fast" (hard) zählt als falsch, aber als erinnert', async () => {
   const teacher = await login('Frau Noten', { teacher: true, groups: 'Klasse 8b' });
   const student = await login('Schüler N', { groups: 'Klasse 8b' });
@@ -873,7 +891,7 @@ test('Grammatik-Auswertung: Gruppen, schwierige Regeln, häufige Fehler ohne Nam
   assert.equal((await teacher('POST', `/lists/${vocab}/feedback`, { item_id: 1, answer: 'x', text: 'y' })).status, 400);
 });
 
-test('Migration 9 bis 11: Stand 8 → aktuell, Vokabellisten bleiben unverändert', async () => {
+test('Migration 9 bis 14: Stand 8 → aktuell, Vokabellisten bleiben unverändert', async () => {
   const { MIGRATIONS, openDb } = await import('../src/db.js');
   const { mkdtempSync, rmSync } = await import('node:fs');
   const { tmpdir } = await import('node:os');
@@ -890,6 +908,7 @@ test('Migration 9 bis 11: Stand 8 → aktuell, Vokabellisten bleiben unveränder
       ALTER TABLE lists DROP COLUMN learn_side;
       DROP INDEX lists_template;
       ALTER TABLE lists DROP COLUMN template;
+      ALTER TABLE lists DROP COLUMN subject;
       INSERT INTO lists (id, title, mode, created_at, updated_at) VALUES (3, 'Alt', 'type', 't', 't');
       INSERT INTO words (list_id, pos, a, b) VALUES (3, 0, 'dog', 'Hund');
       PRAGMA user_version = 8;`);
@@ -898,6 +917,7 @@ test('Migration 9 bis 11: Stand 8 → aktuell, Vokabellisten bleiben unveränder
     assert.equal(migrated.prepare('PRAGMA user_version').get().user_version, MIGRATIONS.length);
     assert.deepEqual({ ...migrated.prepare('SELECT kind, title, mode, learn_side FROM lists WHERE id = 3').get() },
       { kind: 'vocab', title: 'Alt', mode: 'type', learn_side: '' }, 'ältere Listen: gelernte Seite wird geschätzt');
+    assert.equal(migrated.prepare('SELECT subject FROM lists WHERE id = 3').get().subject, 'sprachen', 'ältere Listen sind Sprachlisten');
     assert.throws(() => migrated.prepare("UPDATE lists SET learn_side = 'c' WHERE id = 3").run(), 'nur a, b oder leer');
     assert.equal(migrated.prepare('SELECT COUNT(*) AS n FROM words WHERE list_id = 3').get().n, 1);
     assert.throws(() => migrated.prepare("UPDATE lists SET kind = 'quatsch' WHERE id = 3").run(), 'nur vocab oder grammar');

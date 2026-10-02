@@ -1,5 +1,5 @@
 import { almostReason, checkAnswer } from './check.js';
-import { aiPrompt, textToWords, wordsToCsv } from './csv.js';
+import { aiPrompt, readTextFile, textToWords, wordsToCsv } from './csv.js';
 import {
   afterIntro, choiceOptions, clozeFor, editorChars, gapProblem, gradeFor, hintPattern, hintTarget, isGermanLabel, langTag, learnSide, markGap,
   maxHints, pickExercise, sameLanguage, specialChars, speechLang, speechText,
@@ -8,7 +8,7 @@ import { canSpeak, speak, stopSpeaking, voicesReady } from './speech.js';
 import { renderGrammarEditor } from './grammar-editor.js';
 import { renderGrammarLearn } from './grammar-learn.js';
 import { renderGrammarStats, renderGrammarStudent } from './grammar-stats.js';
-import { GRADES, KINDS, SORTS, filterLists, gradeLabel, languagesOf, sortLists } from './listfilter.js';
+import { DEFAULT_SUBJECT, GRADES, KINDS, SORTS, SUBJECTS, filterLists, gradeLabel, languagesOf, sortLists, subjectLabel } from './listfilter.js';
 import { answer, mergeProgress, mergeRuleProgress, newId, ruleKey, summarize } from './offline.js';
 import { createScheduler } from './schedule.js';
 import * as store from './store.js';
@@ -393,6 +393,7 @@ const sizeParts = (list) => (isGrammar(list)
 function listCard(list, { own }) {
   const total = isGrammar(list) ? list.rule_count : list.word_count;
   const meta = [
+    list.subject && list.subject !== DEFAULT_SUBJECT ? subjectLabel(list.subject) : null,
     list.grade ? gradeLabel(list.grade) : null,
     ...sizeParts(list),
     isGrammar(list) ? null : modeLabel(list.mode),
@@ -560,6 +561,7 @@ async function renderEditor(id, loaded = null) {
   const grade = h('select', { required: true },
     h('option', { value: '', selected: !list.grade }, 'Bitte wählen …'),
     GRADES.map((g) => h('option', { value: String(g), selected: list.grade === g }, `Jahrgang ${g}`)));
+  const subject = h('select', {}, Object.entries(SUBJECTS).map(([value, text]) => h('option', { value, selected: value === (list.subject || DEFAULT_SUBJECT) }, text)));
   const langB = languageSelect(list.lang_b, langTag);
   // Welche Seite gelernt wird (die Fremdsprache, bei DaZ Deutsch). Ohne eigene Wahl folgt sie den Sprachen.
   const learnSel = h('select', {}, h('option', { value: 'a' }), h('option', { value: 'b' }));
@@ -681,7 +683,7 @@ async function renderEditor(id, loaded = null) {
     const file = fileInput.files[0];
     fileInput.value = '';
     if (!file) return;
-    const parsed = textToWords(await file.text());
+    const parsed = textToWords(await readTextFile(file));
     if (!parsed.words.length) return toast('In der Datei wurden keine Wörter gefunden.', 'error');
     importWords(parsed, { replace: askReplace(parsed.words.length), name: file.name.replace(/\.[^.]+$/, '') });
   };
@@ -838,6 +840,7 @@ async function renderEditor(id, loaded = null) {
       lang_b: langB.value,
       learn_side: sameLanguage(currentLangs()) ? 'a' : learnSel.value,
       grade: Number(grade.value) || null,
+      subject: subject.value,
       mode: selectedMode(),
       case_sensitive: caseSens.checked,
       accent_sensitive: accentSens.checked,
@@ -876,8 +879,9 @@ async function renderEditor(id, loaded = null) {
     h('div', { class: 'panel' },
       field('Titel', title),
       h('div', { class: 'row2' }, field('Sprache / Seite A', langA), field('Sprache / Seite B', langB)),
-      h('p', { class: 'small muted' }, 'Deutschunterricht: auf beiden Seiten Deutsch – Seite A ist dann der Begriff, Seite B die Bedeutung.'),
-      h('div', { class: 'row2' }, learnField, field('Jahrgangsstufe', grade, 'Für welchen Jahrgang ist die Liste? Hilft Kolleg:innen beim Finden geteilter Listen.')),
+      h('p', { class: 'small muted' }, 'Deutschunterricht und andere Fächer (Biologie, Geschichte …): auf beiden Seiten Deutsch – Seite A ist dann der Begriff, Seite B die Bedeutung.'),
+      h('div', { class: 'row2' }, field('Fach', subject, 'Hilft Kolleg:innen beim Finden geteilter Listen.'), field('Jahrgangsstufe', grade, 'Für welchen Jahrgang ist die Liste?')),
+      learnField,
     ),
     h('div', { class: 'panel' },
       h('h2', {}, 'Abfrage'),
@@ -983,7 +987,10 @@ async function renderLearn(id) {
   // lang-Attribute: eigene Kennung, auch für Sprachen ohne Stimme (Latein → la)
   const tags = { a: langTag(list.lang_a), b: langTag(list.lang_b) };
   // Sonderzeichen je Antwortseite (é, ñ, ¿ …), einmal pro Liste berechnet
-  const charsFor = { a: specialChars(list.words, 'a'), b: specialChars(list.words, 'b') };
+  const charsFor = {
+    a: specialChars(list.words, 'a', { german: isGermanLabel(list.lang_a) }),
+    b: specialChars(list.words, 'b', { german: isGermanLabel(list.lang_b) }),
+  };
   const speakable = (side) => canSpeak(speech[side]);
   // Seite, deren Aussprache geübt wird: die gelernte Sprache (bei DaZ also Deutsch)
   const foreign = speakable(learned) ? learned : null;
@@ -1384,7 +1391,7 @@ async function renderLearn(id) {
         promptEl = promptBlock(from, prompt);
       }
 
-      const input = h('input', { class: 'answer', lang: tags[to], autocomplete: 'off', autocapitalize: 'off', spellcheck: false, 'aria-label': `Übersetzung (${langLabel(list, to)})`, placeholder: langLabel(list, to) });
+      const input = h('input', { class: 'answer', lang: tags[to], autocomplete: 'off', autocapitalize: 'off', autocorrect: 'off', spellcheck: 'false', 'aria-label': `Übersetzung (${langLabel(list, to)})`, placeholder: langLabel(list, to) });
       // Leiste mit den Sonderzeichen der Sprache (ñ, ç, œ, ¿ …) – auf deutschen Tastaturen fehlen sie.
       // pointerdown verhindern: Das Eingabefeld behält den Fokus, die Bildschirmtastatur bleibt offen.
       const chars = charsFor[to];
@@ -1624,6 +1631,7 @@ async function renderShared() {
 
   const langSelect = select('Sprache', 'lang', [['', 'Alle Sprachen'], ...languages.map((l) => [l.value, l.label])],
     saved('lang', languages.map((l) => l.value)));
+  const subjectSelect = select('Fach', 'subject', [['', 'Alle Fächer'], ...Object.entries(SUBJECTS)], saved('subject', Object.keys(SUBJECTS)));
   const gradeValues = GRADES.map(String);
   const gradeSelect = select('Jahrgang', 'grade', [['', 'Alle Jahrgänge'], ...GRADES.map((g) => [String(g), `Jahrgang ${g}`]), ['none', 'ohne Angabe']],
     saved('grade', [...gradeValues, 'none']));
@@ -1640,6 +1648,7 @@ async function renderShared() {
       h('span', { class: 'langs' }, langsLine(list))),
     h('div', { class: 'chips' }, isGrammar(list) ? h('span', { class: 'chip grammar' }, 'Grammatik') : null,
       list.template ? h('span', { class: 'chip' }, 'Vorlage') : null,
+      list.subject && list.subject !== DEFAULT_SUBJECT ? h('span', { class: 'chip' }, subjectLabel(list.subject)) : null,
       h('span', { class: `chip${list.grade ? '' : ' muted'}` }, gradeLabel(list.grade))),
     h('p', { class: 'muted small' }, [...sizeParts(list), isGrammar(list) ? null : modeLabel(list.mode),
       list.template ? 'mitgeliefert' : list.owner_name && `von ${list.owner_name}`, `geändert ${formatDate(list.updated_at)}`].filter(Boolean).join(' · ')),
@@ -1647,7 +1656,7 @@ async function renderShared() {
       h('button', { class: 'btn primary', onclick: () => copyList(list) }, 'Kopieren'),
       h('a', { class: 'btn', href: `#/learn/${list.id}` }, 'Ansehen & ausprobieren')));
   function render() {
-    const hits = sortLists(filterLists(lists, { q: search.value, lang: value(langSelect), grade: value(gradeSelect), kind: value(kindSelect) }), value(sortSelect));
+    const hits = sortLists(filterLists(lists, { q: search.value, lang: value(langSelect), grade: value(gradeSelect), kind: value(kindSelect), subject: value(subjectSelect) }), value(sortSelect));
     count.textContent = `${hits.length} von ${lists.length} ${lists.length === 1 ? 'Liste' : 'Listen'}`;
     fill(grid, hits.length ? hits.map(card) : h('p', { class: 'empty' }, lists.length ? 'Keine passende Liste gefunden.' : 'Noch hat niemand eine Liste freigegeben.'));
   }
@@ -1656,7 +1665,7 @@ async function renderShared() {
   view(
     h('div', { class: 'section-head' }, h('h1', {}, 'Geteilte Listen'), h('a', { class: 'btn ghost', href: '#/' }, 'Zurück')),
     h('p', { class: 'small muted' }, 'Listen, die Kolleg:innen freigegeben haben. Kopierte Listen gehören dir und können frei bearbeitet werden.'),
-    h('div', { class: 'filters' }, kindSelect, langSelect, gradeSelect, sortSelect),
+    h('div', { class: 'filters' }, kindSelect, subjectSelect, langSelect, gradeSelect, sortSelect),
     h('div', { class: 'search-row' }, search, count),
     grid,
   );

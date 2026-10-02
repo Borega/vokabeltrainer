@@ -2,7 +2,9 @@
 //
 // Regeln:
 //  - Alternativen in der Lösung mit ";" oder "|" trennen: "big; large"
-//  - Teile in Klammern sind optional: "(to) go" akzeptiert "go" und "to go"
+//  - Teile in Klammern sind optional: "(to) go" akzeptiert "go" und "to go"; wer sie samt Klammern mitschreibt,
+//    hat auch recht. Bei mehreren Klammern gilt jede Auswahl: "(to) buy (sth.)" → buy, to buy sth. …
+//  - Englische Verben gelten auch ohne "to": "to go" akzeptiert "go" (nicht aber "to the left" → "the left")
 //  - Endungen für die weibliche Form: "bueno/a", "trabajador, -a", "heureux, -euse" akzeptieren
 //    die Grundform und die abgeleitete Form (buena, trabajadora, heureuse)
 //  - Leerzeichen und Satzzeichen am Ende (. ! ? …) zählen nie, die spanischen ¿ und ¡ nirgends
@@ -54,22 +56,42 @@ export function endingForms(text) {
   return m ? [m[1], withEnding(m[1], m[2])] : [];
 }
 
+// Jede Auswahl der optionalen Teile in Klammern: "(to) buy (sth.)" → to buy sth., to buy, buy sth., buy.
+// Die vollständige Form steht vorn (daran orientieren sich die Tipps). Ab MAX_OPTIONAL Klammern nur alle oder keine.
+const MAX_OPTIONAL = 4;
+function optionalForms(base) {
+  const groups = base.match(/\([^()]*\)/g) ?? [];
+  if (!groups.length) return [base];
+  const parts = base.split(/\([^()]*\)/);
+  const pick = (keep) => parts.reduce((s, part, i) => s + part + (i < groups.length && keep(i) ? groups[i].slice(1, -1) : ''), '');
+  if (groups.length > MAX_OPTIONAL) return [pick(() => true), pick(() => false)];
+  const forms = [];
+  for (let mask = 2 ** groups.length - 1; mask >= 0; mask--) forms.push(pick((i) => (mask >> i) & 1));
+  return forms;
+}
+
+// Englische Verben stehen im Wörterbuch mit "to": "to go". Ohne "to" ist es auch richtig – außer bei
+// Richtungsangaben wie "to the left", "to my right".
+const INFINITIVE_TO = /^to\s+(?!(?:the|a|an|my|your|his|her|its|our|their|this|that|these|those|me|him|us|them)\b)(?=\S)/i;
+const withoutTo = (s) => s.replace(INFINITIVE_TO, '');
+
 // Alle akzeptierten Schreibweisen einer Lösung.
 export function variants(solution) {
   const out = new Set();
   for (const alt of solution.split(/[;|]/)) {
     const base = alt.trim();
     if (!base) continue;
-    const forms = /\(.*?\)/.test(base)
-      ? [base.replace(/[()]/g, ''), base.replace(/\s*\([^)]*\)\s*/g, ' ')]
-      : [base];
-    for (const f of forms) {
+    for (const f of optionalForms(base).map((x) => x.replace(/\s+/g, ' ').trim())) {
       out.add(f);
-      for (const e of endingForms(f.trim())) out.add(e);
+      out.add(withoutTo(f));
+      for (const e of endingForms(f)) out.add(e);
     }
   }
   return [...out].map((v) => v.replace(/\s+/g, ' ').trim()).filter(Boolean);
 }
+
+// Wer die Klammern der Lösung mitschreibt ("go (to school)"), meint dieselben Wörter: Klammerzeichen fallen weg.
+const unbracket = (s) => s.replace(/[()]/g, ' ');
 
 export function levenshtein(a, b) {
   if (a === b) return 0;
@@ -88,7 +110,7 @@ export function levenshtein(a, b) {
 
 // Warum „fast“? 'accents' (nur Akzente falsch), 'case' (nur Groß-/Kleinschreibung) oder null (Tippfehler)
 export function almostReason(input, solution, options = {}) {
-  const matches = (o) => variants(solution).map((v) => normalize(v, o)).includes(normalize(input, o));
+  const matches = (o) => variants(solution).map((v) => normalize(v, o)).includes(normalize(unbracket(input), o));
   if (options.accentSensitive !== false && matches({ ...options, accentSensitive: false })) return 'accents';
   if (options.caseSensitive && matches({ ...options, caseSensitive: false })) return 'case';
   return null;
@@ -96,6 +118,7 @@ export function almostReason(input, solution, options = {}) {
 
 // Ergebnis: 'correct' | 'almost' (kleiner Tippfehler, zählt als falsch) | 'wrong'
 export function checkAnswer(input, solution, options = {}) {
+  input = unbracket(input);
   const given = normalize(input, options);
   if (!given) return 'wrong';
   const expected = variants(solution).map((v) => normalize(v, options));

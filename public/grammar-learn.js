@@ -8,7 +8,7 @@
 //  - falsche Antwort: erst Fehlerstelle und Hinweis, zweiter Versuch; dann Lösung und Merksatz
 //  - Regel vor der Antwort nachlesen zählt als Hilfe (Abrufen soll Vorrang vor Nachlesen haben)
 
-import { langTag, specialChars, speechLang } from './exercises.js';
+import { isGermanLabel, langTag, specialChars, speechLang } from './exercises.js';
 import {
   asKind, buildRound, capabilities, checkGaps, checkOrder, checkSentence, choiceOrder, closestSolution, diffWords, dueRuleCount, expand,
   feedbackFor, gradeFor, orderMarks, parseItem, pickExamples, pickItems, pickKind, roundGrade, segments, shuffledChunks, solutionText,
@@ -60,7 +60,7 @@ export async function renderGrammarLearn(ctx, list) {
   const seen = {};
   for (const r of list.rules) for (const it of r.items) if (it.seen) seen[it.id] = it.seen;
   const progress = new Map(list.progress.map((p) => [p.rule_id, p]));
-  const charsFor = specialChars(rules.flatMap((r) => r.items.map((e) => ({ a: solutionText(e.item) }))), 'a');
+  const charsFor = specialChars(rules.flatMap((r) => r.items.map((e) => ({ a: solutionText(e.item) }))), 'a', { german: isGermanLabel(list.lang_a) });
 
   let mode = null; // 'due' (Heute fällig) oder 'free' (Frei üben)
   let leaveRound = null; // übernimmt die Antworten der laufenden Runde (gesetzt in runRound)
@@ -485,7 +485,7 @@ export async function renderGrammarLearn(ctx, list) {
         // Breite nach der Hauptlösung (lange Varianten wie „have not seen“ blähen das Feld nicht auf), höchstens 11 Zeichen
         const width = Math.min(11, Math.max(4, expand(gap.answers[0])[0].length + 1));
         const input = h('input', {
-          class: 'gap-input', size: width, lang: tag, autocomplete: 'off', autocapitalize: 'off', spellcheck: false,
+          class: 'gap-input', size: width, lang: tag, autocomplete: 'off', autocapitalize: 'off', autocorrect: 'off', spellcheck: 'false',
           'aria-label': item.gaps.length > 1 ? `Lücke ${p.gap + 1}` : 'Lücke',
         });
         inputs.push(input);
@@ -642,7 +642,7 @@ export async function renderGrammarLearn(ctx, list) {
     function buildText(item) {
       const error = item.type === 'error';
       const input = h('input', {
-        class: 'answer', lang: tag, value: error ? item.given : '', autocomplete: 'off', autocapitalize: 'off', spellcheck: false,
+        class: 'answer', lang: tag, value: error ? item.given : '', autocomplete: 'off', autocapitalize: 'off', autocorrect: 'off', spellcheck: 'false',
         'aria-label': error ? 'Verbesserter Satz' : 'Dein Satz',
       });
       const shown = h('div', { class: 'diff', 'aria-live': 'polite' });

@@ -24,6 +24,46 @@ test('Teile in Klammern sind optional', () => {
   assert.equal(checkAnswer('to go', '(to) go', lenient), 'correct');
 });
 
+test('Mehrere optionale Teile: jede Auswahl zählt', () => {
+  for (const input of ['to buy sth.', 'to buy', 'buy sth.', 'buy']) {
+    assert.equal(checkAnswer(input, '(to) buy (sth.)', lenient), 'correct', input);
+  }
+  assert.equal(variants('(to) buy (sth.)')[0], 'to buy sth.', 'die vollständige Form steht vorn (Tipps)');
+  assert.equal(checkAnswer('sth.', '(to) buy (sth.)', lenient), 'wrong');
+});
+
+test('Wer die Klammern mitschreibt, hat auch recht', () => {
+  assert.equal(checkAnswer('go (to school)', 'go (to school)', lenient), 'correct');
+  assert.equal(checkAnswer('(to) go', '(to) go', lenient), 'correct');
+  assert.equal(checkAnswer('go(to school)', 'go (to school)', lenient), 'correct');
+  assert.equal(checkAnswer('go', 'go (to school)', lenient), 'correct');
+  assert.equal(checkAnswer('der Hund (m)', 'Hund (m)', lenient), 'wrong');
+  assert.equal(almostReason('Hund (m)', 'Hund (m)', lenient), null);
+});
+
+test('Rückmeldung aus dem Unterricht: „to fight (irr)“ samt Klammern ist richtig', () => {
+  for (const input of ['to fight (irr)', 'to fight irr', 'to fight', 'fight', 'fight (irr)']) {
+    assert.equal(checkAnswer(input, 'to fight (irr)', { caseSensitive: false, accentSensitive: true }), 'correct', input);
+  }
+});
+
+test('Englische Verben gelten auch ohne „to“', () => {
+  assert.equal(checkAnswer('go', 'to go', strict), 'correct');
+  assert.equal(checkAnswer('to go', 'to go', strict), 'correct');
+  assert.equal(checkAnswer('take part in', 'to take part in', strict), 'correct');
+  assert.equal(checkAnswer('go', 'to go; to walk', strict), 'correct');
+  assert.equal(checkAnswer('walk', 'to go; to walk', strict), 'correct');
+  assert.equal(checkAnswer('GO', 'to go', { caseSensitive: false }), 'correct');
+  assert.equal(variants('to go')[0], 'to go', 'die Form mit „to“ bleibt die Hauptlösung (Tipps)');
+});
+
+test('„to“ vor Artikel oder Possessivpronomen ist eine Richtung, kein Verb', () => {
+  assert.equal(checkAnswer('the left', 'to the left', strict), 'wrong');
+  assert.equal(checkAnswer('my right', 'to my right', strict), 'wrong');
+  assert.equal(checkAnswer('to the left', 'to the left', strict), 'correct');
+  assert.equal(checkAnswer('to', 'to', strict), 'correct');
+});
+
 test('Groß-/Kleinschreibung je nach Einstellung', () => {
   assert.equal(checkAnswer('hund', 'Hund', { caseSensitive: false }), 'correct');
   assert.equal(checkAnswer('hund', 'Hund', { caseSensitive: true }), 'almost');

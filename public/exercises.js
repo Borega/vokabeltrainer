@@ -248,11 +248,12 @@ const EASY = /[\p{N}\s.,;:!?'"()\-\/*+&%$§=_<>[\]{}@#~|\\a-zA-ZäöüÄÖÜß]/
 // Sonderzeichen der Antworten einer Liste (Seite side) für die Leiste unter dem Eingabefeld – Buchstaben sowie
 // ¿ und ¡, die in den Wörtern tatsächlich vorkommen (z. B. é, ç, œ für Französisch; á, ñ, ¿ für Spanisch).
 // Satzzeichen am Ende (. ! ? und Auslassungspunkte) braucht es nicht: Die Prüfung ignoriert sie.
-export function specialChars(words, side) {
+// german: Die Antworten sind deutsch – dann gehören ä, ö, ü, ß dazu (Deutsch lernen mit Tastatur einer anderen Sprache).
+export function specialChars(words, side, { german = false } = {}) {
   const found = new Set();
   for (const w of words) {
     for (const ch of (w[side] ?? '').normalize('NFC')) {
-      if (!EASY.test(ch) && /[\p{L}¿¡]/u.test(ch)) found.add(ch);
+      if (/[\p{L}¿¡]/u.test(ch) && (!EASY.test(ch) || (german && /[äöüÄÖÜß]/.test(ch)))) found.add(ch);
     }
   }
   const rank = (ch) => (/[¿¡]/.test(ch) ? 2 : /\p{Lu}/u.test(ch) ? 1 : 0);

@@ -3,6 +3,7 @@ import { now, transaction } from './db.js';
 import { forgetDevice, forgetDeviceToken, issueDeviceToken } from './devices.js';
 import { GRADES, SAFE_LEVEL, levelFor, review } from './scheduler.js';
 import { LIMITS, parseItem, roundGrade, validateRules } from '../public/grammar.js';
+import { DEFAULT_SUBJECT, SUBJECTS } from '../public/listfilter.js';
 import { BADGES, LONG_RECALL_DAYS, collection, newlyEarned, titleOf } from './badges.js';
 import { DAILY_GOAL, computeStreak, endOfDay, localDay, weekOf } from './streak.js';
 
@@ -52,6 +53,13 @@ function parseGrade(rawGrade) {
   return grade;
 }
 
+// Fach einer Liste; fehlt die Angabe (ältere Clients), bleibt es bei Sprachen
+function parseSubject(raw) {
+  if (raw == null || raw === '') return DEFAULT_SUBJECT;
+  if (typeof raw !== 'string' || !Object.hasOwn(SUBJECTS, raw)) throw new HttpError(400, 'Ungültiges Fach.');
+  return raw;
+}
+
 function parseGroups(raw) {
   return Array.isArray(raw)
     ? raw
@@ -94,6 +102,7 @@ function parseListBody(body) {
     lang_a: text(body.lang_a, 50, 'Sprache A'),
     lang_b: text(body.lang_b, 50, 'Sprache B'),
     grade,
+    subject: parseSubject(body.subject),
     case_sensitive: body.case_sensitive ? 1 : 0,
     accent_sensitive: body.accent_sensitive ? 1 : 0,
     shared: body.shared ? 1 : 0,
@@ -149,6 +158,7 @@ function listJson(row) {
     allow_switch: !!row.allow_switch,
     allow_mode_switch: !!row.allow_mode_switch,
     grade: row.grade ?? null,
+    subject: row.subject || DEFAULT_SUBJECT,
     shared: !!row.shared,
     copied_from: row.copied_from || '',
     template: !!row.template,
@@ -614,9 +624,9 @@ export function apiRouter(db, config) {
     const ts = now();
     db.prepare(
       `UPDATE lists SET title = ?, lang_a = ?, lang_b = ?, learn_side = ?, mode = ?, case_sensitive = ?, accent_sensitive = ?,
-         direction = ?, allow_switch = ?, allow_mode_switch = ?, grade = ?, shared = ?, updated_at = ? WHERE id = ?`,
+         direction = ?, allow_switch = ?, allow_mode_switch = ?, grade = ?, subject = ?, shared = ?, updated_at = ? WHERE id = ?`,
     ).run(data.title, data.lang_a, data.lang_b, data.learn_side, data.mode, data.case_sensitive, data.accent_sensitive,
-      data.direction, data.allow_switch, data.allow_mode_switch, data.grade, data.shared, ts, listId);
+      data.direction, data.allow_switch, data.allow_mode_switch, data.grade, data.subject, data.shared, ts, listId);
 
     if (data.kind === 'grammar') writeRules(db, listId, data.rules);
     else writeWords(listId, data.words);
@@ -682,11 +692,11 @@ export function apiRouter(db, config) {
       const { id } = db
         .prepare(
           `INSERT INTO lists (owner_id, kind, title, lang_a, lang_b, learn_side, mode, case_sensitive, accent_sensitive,
-             direction, allow_switch, allow_mode_switch, grade, shared, copied_from, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?) RETURNING id`,
+             direction, allow_switch, allow_mode_switch, grade, subject, shared, copied_from, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?) RETURNING id`,
         )
         .get(req.user.id, list.kind, isOwner ? `${list.title} (Kopie)` : list.title, list.lang_a, list.lang_b, list.learn_side, list.mode,
-          list.case_sensitive, list.accent_sensitive, list.direction, list.allow_switch, list.allow_mode_switch, list.grade,
+          list.case_sensitive, list.accent_sensitive, list.direction, list.allow_switch, list.allow_mode_switch, list.grade, list.subject,
           list.template ? `Vorlage: ${list.title}` : ownerName ? `${list.title} – ${ownerName}` : list.copied_from, ts, ts);
       if (list.kind === 'grammar') {
         for (const rule of q.rules.all(list.id)) {

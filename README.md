@@ -36,9 +36,10 @@ Gruppen (Klassen/Kurse) und die Rolle „Lehrkraft“ werden direkt aus IServ ü
 - Listen **für Kolleg:innen freigeben** (freiwillig, pro Liste): Andere Lehrkräfte finden sie unter
   „Geteilte Listen“, können sie ausprobieren und eine eigene Kopie anlegen, die sie frei bearbeiten und
   ihren Gruppen zuweisen. Das Original bleibt unverändert, Lernstände werden nicht geteilt.
-- Pro Liste die **Jahrgangsstufe** (1–13) angeben – Pflichtfeld; ältere Listen bekommen sie beim nächsten Speichern.
-  Unter „Geteilte Listen“ lässt sich nach **Art** (Vokabeln/Grammatik), **Sprache** und **Jahrgang** filtern und nach
-  Änderungsdatum, Jahrgang oder Titel sortieren; die Auswahl wird im Browser gemerkt.
+- Pro Liste die **Jahrgangsstufe** (1–13) angeben – Pflichtfeld; ältere Listen bekommen sie beim nächsten Speichern –
+  und das **Fach** (Standard: Sprachen, siehe [Andere Fächer](#andere-fächer-biologie-geschichte-)).
+  Unter „Geteilte Listen“ lässt sich nach **Art** (Vokabeln/Grammatik), **Fach**, **Sprache** und **Jahrgang** filtern und
+  nach Änderungsdatum, Jahrgang oder Titel sortieren; die Auswahl wird im Browser gemerkt.
 - **Auswertung** pro Liste und Gruppe:
   - Kennzahlen: Schüler:innen, aktiv in den letzten 7 Tagen, Ø sicher, Ø geübt, heute fällig
   - Verlauf der letzten 8 Wochen: Ø sicher und Abfragen pro Woche (Diagramm und Tabelle)
@@ -108,7 +109,9 @@ Latein und Altgriechisch werden nicht vorgelesen.
 
 **Prüfregeln beim Eintippen**
 - Mehrere richtige Lösungen mit `;` oder `|` trennen: `big; large`
-- Teile in Klammern sind optional: `(to) go` akzeptiert `go` und `to go`
+- Teile in Klammern sind optional: `(to) go` akzeptiert `go` und `to go`; bei mehreren Klammern (`(to) buy (sth.)`)
+  zählt jede Auswahl. Wer die Klammern samt Inhalt mitschreibt, hat ebenfalls recht
+- Englische Verben gelten auch ohne `to`: `to go` akzeptiert `go` (nicht bei Richtungen wie `to the left`)
 - Endungen der weiblichen Form: `bueno/a`, `trabajador, -a`, `heureux, -euse` akzeptieren die Grundform und die
   abgeleitete Form (`buena`, `trabajadora`, `heureuse`). Für ganz verschiedene Formen `;` nehmen: `rojo; roja`
 - Leerzeichen und `.` `!` `?` `…` am Ende zählen nicht, die spanischen `¿` `¡` nirgends
@@ -124,6 +127,25 @@ Latein und Altgriechisch werden nicht vorgelesen.
 - „Akzente beachten“ sollte für Französisch und Spanisch an bleiben; fehlt nur ein Akzent, zeigt die App das an.
 - Aussprache: Französisch aus Frankreich (fr-FR) und Spanisch aus Spanien (es-ES) – nie eine kanadische bzw.
   lateinamerikanische Stimme. Hat ein Gerät keine passende Stimme, gibt es für diese Sprache keinen Ton.
+
+## Andere Fächer (Biologie, Geschichte …)
+
+Der Trainer ist für Sprachen gebaut, trägt aber jeden Stoff, der sich als **Begriff ↔ Bedeutung** abfragen lässt:
+Fachbegriffe und ihre Erklärung, Namen, Jahreszahlen und Ereignisse, Formeln, Definitionen. Lernleiter,
+Wiederholungsplanung, Lernserie und Auswertung funktionieren fachunabhängig.
+
+- Beim Anlegen einer Liste das **Fach** wählen (Sprachen, Biologie, Geschichte, Erdkunde, Politik / Gesellschaft,
+  Religion / Ethik, Chemie, Physik, Mathematik, Sonstiges). Ältere Listen und die Grammatikvorlagen sind „Sprachen“.
+  Unter „Geteilte Listen“ lässt sich nach Fach filtern, in der Kartenansicht steht es als Etikett.
+- Auf **beiden Seiten „Deutsch“** wählen: Seite A ist der **Begriff**, Seite B die **Bedeutung** (siehe „Deutsch:
+  Deutschunterricht und DaZ“). Der KI-Prompt fragt dann nach Begriffen mit kurzer Erklärung.
+- Bei der Bedeutung sind **Kurzantworten** am besten (`Zellkern`, `1618–1648`, `Photosynthese`). Mehrere richtige
+  Schreibweisen mit `;` trennen, Weglassbares in Klammern. Lange Erklärungssätze als Antwort sind fehleranfällig, weil
+  beim Eintippen jede Abweichung zählt; dafür besser die Abfrageart **Auswählen** oder **Karteikarten** wählen.
+- Ein **Beispielsatz** wird zum Lückentext, wenn der Begriff darin vorkommt – das eignet sich gut für Fachtexte.
+- Noch nicht möglich: Bilder (etwa eine beschriftete Zelle oder Karte) und Zeitleisten zum Ordnen. Das braucht eigene
+  Funktionen und ist bisher nicht umgesetzt.
+- Wer das ausprobiert: Rückmeldungen aus Biologie und Geschichte helfen, die nächsten Schritte zu wählen.
 
 ## Listen mit KI erstellen
 
@@ -152,6 +174,9 @@ bitte gegenlesen.
   deutsche Seite als gelernte Sprache.
 - Unter „Geteilte Listen“ filtert **Sprache** nach der gelernten Sprache: „Deutsch“ zeigt Listen für den
   Deutschunterricht, DaZ-Listen und deutsche Grammatik – nicht jede Englisch-↔-Deutsch-Liste.
+- **Umlaute**: Sind die Antworten einer Liste deutsch, zeigt die Sonderzeichen-Leiste ä, ö, ü und ß, soweit sie in den
+  Wörtern vorkommen – für Geräte mit einer Tastatur in einer anderen Sprache. Der Import liest Dateien in UTF-8 und in
+  Windows-1252 (so speichert Excel „CSV (Trennzeichen-getrennt)“), damit Umlaute ankommen.
 - **Deutsche Grammatik**: Grammatikliste mit Sprache „Deutsch“; „Groß-/Kleinschreibung beachten“ ist dann
   voreingestellt. Ein falscher Umlaut oder ß gilt beim Eintippen als falsch, nicht als „Fast!“ – *konnte* statt
   *könnte* ist eine andere Form. In einer Auswahl dürfen sich die Formen nur im Umlaut oder in der Groß- und

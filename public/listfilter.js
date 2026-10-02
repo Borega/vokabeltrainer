@@ -5,6 +5,23 @@ import { learnedLanguages } from './exercises.js';
 export const GRADES = Array.from({ length: 13 }, (_, i) => i + 1);
 export const gradeLabel = (grade) => (grade ? `Jahrgang ${grade}` : 'ohne Jahrgang');
 
+// Fach einer Liste (Schlüssel wird gespeichert). Sprachen sind der Standard und gelten für alle älteren Listen;
+// bei den anderen Fächern ist die Liste meist Deutsch ↔ Deutsch (Begriff ↔ Bedeutung).
+export const DEFAULT_SUBJECT = 'sprachen';
+export const SUBJECTS = {
+  sprachen: 'Sprachen',
+  biologie: 'Biologie',
+  geschichte: 'Geschichte',
+  erdkunde: 'Erdkunde',
+  politik: 'Politik / Gesellschaft',
+  religion: 'Religion / Ethik',
+  chemie: 'Chemie',
+  physik: 'Physik',
+  mathematik: 'Mathematik',
+  sonstiges: 'Sonstiges',
+};
+export const subjectLabel = (subject) => SUBJECTS[subject] ?? SUBJECTS[DEFAULT_SUBJECT];
+
 const key = (s) => (s ?? '').trim().toLocaleLowerCase('de');
 
 // Sprachen der Listen für die Auswahl, häufigste zuerst: [{ value, label }]. value ist die vereinheitlichte
@@ -30,11 +47,12 @@ export function languagesOf(lists) {
 export const KINDS = { vocab: 'Vokabeln', grammar: 'Grammatik' };
 
 // lang: gelernte Sprache, grade: Jahrgang als Zahl/Text, 'none' = ohne Angabe, '' = alle,
-// kind: 'vocab' | 'grammar' | '' (alle)
-export function filterLists(lists, { q = '', lang = '', grade = '', kind = '' } = {}) {
+// kind: 'vocab' | 'grammar' | '' (alle), subject: Schlüssel aus SUBJECTS | '' (alle)
+export function filterLists(lists, { q = '', lang = '', grade = '', kind = '', subject = '' } = {}) {
   const query = key(q);
   return lists.filter((l) =>
     (!kind || (l.kind ?? 'vocab') === kind)
+    && (!subject || (l.subject || DEFAULT_SUBJECT) === subject)
     && (!lang || learnedLanguages(l).some((x) => key(x) === key(lang)))
     && (grade === '' || (grade === 'none' ? !l.grade : l.grade === Number(grade)))
     && (!query || [l.title, l.lang_a, l.lang_b, l.owner_name].some((t) => key(t).includes(query))));
