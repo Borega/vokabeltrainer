@@ -106,33 +106,51 @@ function withoutTo(s) {
 }
 
 // Schreibweisen einer einzelnen Alternative der Lösung
-function altVariants(base, literalParens) {
+function altVariants(base, { literalParens, bareInfinitive }) {
   const out = [];
   for (const f of optionalForms(base, literalParens).map((x) => x.replace(/\s+/g, ' ').trim())) {
-    out.push(f, withoutTo(f), ...endingForms(f));
+    out.push(f, ...(bareInfinitive ? [withoutTo(f)] : []), ...endingForms(f));
   }
   // Die Lösung genau so, wie sie dasteht – etwa eine Formel "(a + b)^2"
   if (base.includes('(')) out.push(base);
   return out;
 }
 
-const alternatives = (solution) => solution.split(/[;|]/).map((alt) => alt.trim()).filter(Boolean);
+// Alternativen trennen ";" und "|" – aber nur außerhalb von Klammern: "(2;3)" und "P(A|B)" bleiben ganz.
+function alternatives(solution) {
+  const out = [];
+  let depth = 0;
+  let current = '';
+  for (const ch of solution) {
+    if (ch === '(') depth++;
+    else if (ch === ')') depth = Math.max(0, depth - 1);
+    if (depth === 0 && (ch === ';' || ch === '|')) {
+      out.push(current);
+      current = '';
+    } else {
+      current += ch;
+    }
+  }
+  out.push(current);
+  return out.map((alt) => alt.trim()).filter(Boolean);
+}
 const clean = (list) => [...new Set(list.map((v) => v.replace(/\s+/g, ' ').trim()))].filter(Boolean);
 
 // Alle akzeptierten Schreibweisen einer Lösung.
-export function variants(solution, { literalParens = false } = {}) {
-  return clean(alternatives(solution).flatMap((alt) => altVariants(alt, literalParens)));
+// options: literalParens (Klammern gehören zur Lösung, Formelfächer), bareInfinitive (englische Antwort: "to go" auch als "go")
+export function variants(solution, { literalParens = false, bareInfinitive = false } = {}) {
+  return clean(alternatives(solution).flatMap((alt) => altVariants(alt, { literalParens, bareInfinitive })));
 }
 
 // Eingabe und die Schreibweisen, mit denen sie verglichen wird. Wer die Klammern einer Lösung mitschreibt
 // ("go (to school)"), meint dieselben Wörter: Dann fallen die Klammerzeichen weg – aber nur beim Vergleich mit
 // Alternativen, die selbst optionale Klammern haben. Sonst zählt die Eingabe, wie sie ist ("2 * (3 + 4)" ist nicht
 // "2 * 3 + 4", auch nicht neben der Alternative "go (home)").
-function candidates(input, solution, { literalParens = false } = {}) {
-  const found = [{ input, expected: variants(solution, { literalParens }) }];
+function candidates(input, solution, { literalParens = false, bareInfinitive = false } = {}) {
+  const found = [{ input, expected: variants(solution, { literalParens, bareInfinitive }) }];
   const optional = alternatives(solution).filter((alt) => optionalGroups(alt, literalParens).length);
   if (optional.length) {
-    found.push({ input: input.replace(/[()]/g, ' '), expected: clean(optional.flatMap((alt) => altVariants(alt, literalParens))) });
+    found.push({ input: input.replace(/[()]/g, ' '), expected: clean(optional.flatMap((alt) => altVariants(alt, { literalParens, bareInfinitive }))) });
   }
   return found;
 }

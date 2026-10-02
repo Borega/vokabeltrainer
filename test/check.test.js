@@ -43,34 +43,52 @@ test('Wer die Klammern mitschreibt, hat auch recht', () => {
 
 test('Rückmeldung aus dem Unterricht: „to fight (irr)“ samt Klammern ist richtig', () => {
   for (const input of ['to fight (irr)', 'to fight irr', 'to fight', 'fight', 'fight (irr)']) {
-    assert.equal(checkAnswer(input, 'to fight (irr)', { caseSensitive: false, accentSensitive: true }), 'correct', input);
+    assert.equal(checkAnswer(input, 'to fight (irr)', { caseSensitive: false, accentSensitive: true, bareInfinitive: true }), 'correct', input);
   }
 });
 
 test('Englische Verben gelten auch ohne „to“', () => {
-  assert.equal(checkAnswer('go', 'to go', strict), 'correct');
-  assert.equal(checkAnswer('to go', 'to go', strict), 'correct');
-  assert.equal(checkAnswer('take part in', 'to take part in', strict), 'correct');
-  assert.equal(checkAnswer('go', 'to go; to walk', strict), 'correct');
-  assert.equal(checkAnswer('walk', 'to go; to walk', strict), 'correct');
-  assert.equal(checkAnswer('GO', 'to go', { caseSensitive: false }), 'correct');
+  assert.equal(checkAnswer('go', 'to go', { ...strict, bareInfinitive: true }), 'correct');
+  assert.equal(checkAnswer('to go', 'to go', { ...strict, bareInfinitive: true }), 'correct');
+  assert.equal(checkAnswer('take part in', 'to take part in', { ...strict, bareInfinitive: true }), 'correct');
+  assert.equal(checkAnswer('go', 'to go; to walk', { ...strict, bareInfinitive: true }), 'correct');
+  assert.equal(checkAnswer('walk', 'to go; to walk', { ...strict, bareInfinitive: true }), 'correct');
+  assert.equal(checkAnswer('GO', 'to go', { caseSensitive: false, bareInfinitive: true }), 'correct');
   assert.equal(variants('to go')[0], 'to go', 'die Form mit „to“ bleibt die Hauptlösung (Tipps)');
 });
 
 test('„to“ vor Artikel oder Possessivpronomen ist eine Richtung, kein Verb', () => {
-  assert.equal(checkAnswer('the left', 'to the left', strict), 'wrong');
-  assert.equal(checkAnswer('my right', 'to my right', strict), 'wrong');
-  assert.equal(checkAnswer('to the left', 'to the left', strict), 'correct');
-  assert.equal(checkAnswer('to', 'to', strict), 'correct');
+  assert.equal(checkAnswer('the left', 'to the left', { ...strict, bareInfinitive: true }), 'wrong');
+  assert.equal(checkAnswer('my right', 'to my right', { ...strict, bareInfinitive: true }), 'wrong');
+  assert.equal(checkAnswer('to the left', 'to the left', { ...strict, bareInfinitive: true }), 'correct');
+  assert.equal(checkAnswer('to', 'to', { ...strict, bareInfinitive: true }), 'correct');
 });
 
 test('„to“ vor Pronomen, Zielen und Eigennamen bleibt Pflicht', () => {
   for (const solution of ['to you', 'to school', 'to bed', 'to Berlin', 'to them']) {
     const rest = solution.slice(3);
-    assert.equal(checkAnswer(rest, solution, lenient), 'wrong', solution);
-    assert.equal(checkAnswer(solution, solution, lenient), 'correct', solution);
+    assert.equal(checkAnswer(rest, solution, { ...lenient, bareInfinitive: true }), 'wrong', solution);
+    assert.equal(checkAnswer(solution, solution, { ...lenient, bareInfinitive: true }), 'correct', solution);
   }
-  assert.equal(checkAnswer('o', 'to o', strict), 'correct', 'schneidet genau das „to“ ab');
+  assert.equal(checkAnswer('o', 'to o', { ...strict, bareInfinitive: true }), 'correct', 'schneidet genau das „to“ ab');
+});
+
+test('„to“ ist nur bei englischen Antworten optional', () => {
+  assert.equal(checkAnswer('dobrze', 'to dobrze', strict), 'wrong', 'Polnisch: „to“ ist ein eigenes Wort');
+  assert.equal(checkAnswer('go', 'to go', strict), 'wrong', 'ohne Angabe der Sprache bleibt „to“ Pflicht');
+  assert.equal(checkAnswer('go', 'to go', { ...strict, bareInfinitive: true }), 'correct');
+  assert.equal(checkAnswer('go', '(to) go', strict), 'correct', 'ausdrücklich optional geht in jeder Sprache');
+});
+
+test('; und | trennen Alternativen nur außerhalb von Klammern', () => {
+  const formula = { ...lenient, literalParens: true };
+  assert.deepEqual(variants('(2;3)', { literalParens: true }), ['(2;3)']);
+  assert.equal(checkAnswer('(2;3)', '(2;3)', formula), 'correct');
+  assert.equal(checkAnswer('P(A|B)', 'P(A|B)', formula), 'correct');
+  assert.equal(checkAnswer('x', 'x; (2;3)', formula), 'correct');
+  assert.equal(checkAnswer('(2;3)', 'x; (2;3)', formula), 'correct');
+  assert.equal(checkAnswer('big', 'big; large', lenient), 'correct');
+  assert.equal(checkAnswer('3)', '(2;3)', formula), 'wrong');
 });
 
 test('Klammern in der Eingabe fallen nur weg, wenn die Lösung selbst Klammern hat', () => {

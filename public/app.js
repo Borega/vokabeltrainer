@@ -1413,6 +1413,8 @@ async function renderLearn(id) {
       // Tipps: erster Buchstabe jedes Worts, dann jeweils einer mehr (Finley et al. 2011).
       // Mit Tipp gelöst zählt als „mit Mühe gewusst“.
       let hints = 0;
+      // „to“ vor englischen Verben ist nur bei englischen Antworten optional
+      const checkOptions = { ...options, bareInfinitive: tags[to]?.startsWith('en') ?? false };
       const target = hintTarget(solution, options);
       const limit = maxHints(target);
       const pattern = h('span', { class: 'hint-pattern', 'aria-live': 'polite' });
@@ -1432,7 +1434,7 @@ async function renderLearn(id) {
         e.preventDefault();
         if (state === 'ask') {
           if (!input.value.trim()) return;
-          result = checkAnswer(input.value, solution, options);
+          result = checkAnswer(input.value, solution, checkOptions);
           state = 'shown';
           input.readOnly = true;
           hintBtn.disabled = true;
@@ -1443,7 +1445,7 @@ async function renderLearn(id) {
           fill(feedback,
             h('strong', {}, ok ? 'Richtig!' : result === 'almost' ? 'Fast!' : 'Leider falsch.'),
             result === 'almost'
-              ? h('span', {}, { accents: ' Achte auf Akzente und Sonderzeichen.', case: ' Achte auf Groß- und Kleinschreibung.' }[almostReason(input.value, solution, options)] ?? ' Kleiner Tippfehler.')
+              ? h('span', {}, { accents: ' Achte auf Akzente und Sonderzeichen.', case: ' Achte auf Groß- und Kleinschreibung.' }[almostReason(input.value, solution, checkOptions)] ?? ' Kleiner Tippfehler.')
               : null,
             ok && !hasVariants(solution) ? null : h('span', {}, ' Lösung: ', h('b', {}, solution)),
             cloze && cloze.gap !== card.word[to] ? h('span', { class: 'muted' }, `· Vokabel: ${card.word[to]}`) : null,
