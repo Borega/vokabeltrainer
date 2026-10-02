@@ -61,6 +61,8 @@ test('Auswählen braucht mindestens einen Ablenker', () => {
 
 test('Tipps: erste Buchstaben jedes Worts, Rest als Lücken', () => {
   assert.equal(hintTarget('(to) go; walk'), 'to go');
+  assert.equal(hintTarget('(x, y)', { literalParens: true }), '(x, y)', 'Formelfächer: Klammern gehören zur Lösung');
+  assert.equal(hintTarget('(x, y)'), 'x, y');
   assert.equal(hintPattern('to go', 1), 't _   g _');
   assert.equal(hintPattern("l'école", 2), "l ' é _ _ _ _");
   assert.equal(maxHints('der Hund'), 3);
@@ -109,6 +111,9 @@ test('Sonderzeichen aus den Wörtern der Liste, ohne Zeichen der deutschen Tasta
   ];
   assert.deepEqual(specialChars(words, 'a'), ['ç', 'é', 'ñ', 'œ', 'É', '¿']);
   assert.deepEqual(specialChars(words, 'b'), [], 'ä, ö, ü, ß hat die deutsche Tastatur');
+  const de = [{ a: 'Mädchen', b: 'girl' }, { a: 'Straße', b: 'street' }, { a: 'Übung', b: 'exercise' }, { a: 'Löwe', b: 'lion' }];
+  assert.deepEqual(specialChars(de, 'a'), []);
+  assert.deepEqual(specialChars(de, 'a', { german: true }), ['ä', 'ö', 'ß', 'Ü'], 'bei deutschen Antworten gehören ä, ö, ü, ß in die Leiste');
 });
 
 test('Vorlesen: Französisch aus Frankreich, Spanisch aus Spanien', () => {

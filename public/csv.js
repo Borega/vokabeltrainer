@@ -6,6 +6,20 @@ import { learnSide, sameLanguage } from './exercises.js';
 
 const HEADER_WORDS = /^(deutsch|englisch|französisch|franzoesisch|latein|spanisch|italienisch|russisch|niederländisch|niederlaendisch|polnisch|türkisch|tuerkisch|altgriechisch|griechisch|chinesisch|arabisch|ukrainisch|persisch|farsi|kurdisch|rumänisch|bulgarisch|albanisch|kroatisch|serbisch|portugiesisch|japanisch|schwedisch|dänisch|norwegisch|german|english|french|spanish|latin|italian|russian|dutch|polish|turkish|greek|chinese|arabic|ukrainian|persian|portuguese|français|francais|español|espanol|wort|begriff|vokabel|übersetzung|uebersetzung|bedeutung|a|b|word|term|translation|definition|notiz|note|hinweis)$/i;
 
+// Dateitext lesen: UTF-8, sonst Windows-1252. Excel speichert „CSV (Trennzeichen-getrennt)“ ohne BOM in
+// Windows-1252 – als UTF-8 gelesen würden aus ä, ö, ü, ß lauter Ersatzzeichen (�).
+export function decodeText(buffer) {
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(buffer);
+  } catch {
+    return new TextDecoder('windows-1252').decode(buffer);
+  }
+}
+
+export async function readTextFile(file) {
+  return decodeText(await file.arrayBuffer());
+}
+
 export function detectDelimiter(text) {
   const lines = text.split(/\r?\n/).filter((l) => l.trim()).slice(0, 20);
   let best = ';';

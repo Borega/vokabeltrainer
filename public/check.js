@@ -2,7 +2,9 @@
 //
 // Regeln:
 //  - Alternativen in der Lösung mit ";" oder "|" trennen: "big; large"
-//  - Teile in Klammern sind optional: "(to) go" akzeptiert "go" und "to go"
+//  - Teile in Klammern sind optional: "(to) go" akzeptiert "go" und "to go"; wer sie samt Klammern mitschreibt,
+//    hat auch recht. Bei mehreren Klammern gilt jede Auswahl: "(to) buy (sth.)" → buy, to buy sth. …
+//  - Englische Verben gelten auch ohne "to": "to go" akzeptiert "go" (nicht aber "to the left" → "the left")
 //  - Endungen für die weibliche Form: "bueno/a", "trabajador, -a", "heureux, -euse" akzeptieren
 //    die Grundform und die abgeleitete Form (buena, trabajadora, heureuse)
 //  - Leerzeichen und Satzzeichen am Ende (. ! ? …) zählen nie, die spanischen ¿ und ¡ nirgends
@@ -54,21 +56,103 @@ export function endingForms(text) {
   return m ? [m[1], withEnding(m[1], m[2])] : [];
 }
 
-// Alle akzeptierten Schreibweisen einer Lösung.
-export function variants(solution) {
-  const out = new Set();
-  for (const alt of solution.split(/[;|]/)) {
-    const base = alt.trim();
-    if (!base) continue;
-    const forms = /\(.*?\)/.test(base)
-      ? [base.replace(/[()]/g, ''), base.replace(/\s*\([^)]*\)\s*/g, ' ')]
-      : [base];
-    for (const f of forms) {
-      out.add(f);
-      for (const e of endingForms(f.trim())) out.add(e);
+// Jede Auswahl der optionalen Teile in Klammern: "(to) buy (sth.)" → to buy sth., to buy, buy sth., buy.
+// Die vollständige Form steht vorn (daran orientieren sich die Tipps). Ab MAX_OPTIONAL Klammern (2^8 = 256 Formen)
+// gelten nur noch alle oder keine – so viele optionale Teile in einer Lösung sind kein sinnvoller Eintrag.
+const MAX_OPTIONAL = 8;
+// Klammern, die zur Formel gehören und nichts Weglassbares sind: mit Rechenzeichen darin "(a - b)", vor einem
+// Rechenzeichen "(x) / 2", vor einer Hochzahl oder Zahl "(x)^2", "(x)⁴", "Ca(OH)2". Alle anderen Klammern sind optionale
+// Zusätze ("(to)", "(irr)", "(sth.)"). In Formelfächern (options.literalParens) ist gar nichts optional.
+const GROUPING_INSIDE = /[+*×÷=^<>±√−]|\s[-/]\s/;
+const GROUPING_AFTER = /^(?:[\^\d¹²³⁰-⁹₀-₉]|\s*[+*×÷−^=<>]|\s+[-/]\s)/;
+function optionalGroups(base, literal = false) {
+  if (literal) return [];
+  return [...base.matchAll(/\([^()]*\)/g)]
+    .filter((m) => !GROUPING_INSIDE.test(m[0]) && !GROUPING_AFTER.test(base.slice(m.index + m[0].length)));
+}
+
+function optionalForms(base, literal) {
+  const groups = optionalGroups(base, literal);
+  if (!groups.length) return [base];
+  const pick = (keep) => {
+    let out = '';
+    let last = 0;
+    groups.forEach((m, i) => {
+      out += base.slice(last, m.index) + (keep(i) ? m[0].slice(1, -1) : '');
+      last = m.index + m[0].length;
+    });
+    return out + base.slice(last);
+  };
+  if (groups.length > MAX_OPTIONAL) return [pick(() => true), pick(() => false)];
+  const forms = [];
+  for (let mask = 2 ** groups.length - 1; mask >= 0; mask--) forms.push(pick((i) => (mask >> i) & 1));
+  return forms;
+}
+
+// Englische Verben stehen im Wörterbuch mit "to": "to go". Ohne "to" ist es auch richtig – außer bei Richtungs- und
+// Zielangaben, in denen "to" zur Antwort gehört: Artikel und Possessiva ("to the left"), Pronomen ("to you"),
+// häufige Ziele ("to school", "to bed") und Eigennamen ("to Berlin", an der Großschreibung erkannt). Das ist eine
+// Faustregel: Einem Eintrag sieht man nicht an, ob er ein Verb ist.
+const NOT_INFINITIVE = new Set(`the a an my your his her its our their this that these those some any every each no
+  me you him us them it myself yourself himself herself itself ourselves themselves one another
+  school bed town home church class university college court prison hospital market city country station airport`
+  .split(/\s+/));
+function withoutTo(s) {
+  const m = s.match(/^to\s+(\S+)/i);
+  if (!m) return s;
+  const word = m[1].replace(/[^\p{L}\p{N}'-]+$/u, '');
+  if (NOT_INFINITIVE.has(word.toLowerCase()) || /^\p{Lu}/u.test(word)) return s;
+  return s.slice(m[0].length - m[1].length);
+}
+
+// Schreibweisen einer einzelnen Alternative der Lösung
+function altVariants(base, { literalParens, bareInfinitive }) {
+  const out = [];
+  for (const f of optionalForms(base, literalParens).map((x) => x.replace(/\s+/g, ' ').trim())) {
+    out.push(f, ...(bareInfinitive ? [withoutTo(f)] : []), ...endingForms(f));
+  }
+  // Die Lösung genau so, wie sie dasteht – etwa eine Formel "(a + b)^2"
+  if (base.includes('(')) out.push(base);
+  return out;
+}
+
+// Alternativen trennen ";" und "|" – aber nur außerhalb von Klammern: "(2;3)" und "P(A|B)" bleiben ganz.
+function alternatives(solution) {
+  const out = [];
+  let depth = 0;
+  let current = '';
+  for (const ch of solution) {
+    if (ch === '(') depth++;
+    else if (ch === ')') depth = Math.max(0, depth - 1);
+    if (depth === 0 && (ch === ';' || ch === '|')) {
+      out.push(current);
+      current = '';
+    } else {
+      current += ch;
     }
   }
-  return [...out].map((v) => v.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  out.push(current);
+  return out.map((alt) => alt.trim()).filter(Boolean);
+}
+const clean = (list) => [...new Set(list.map((v) => v.replace(/\s+/g, ' ').trim()))].filter(Boolean);
+
+// Alle akzeptierten Schreibweisen einer Lösung.
+// options: literalParens (Klammern gehören zur Lösung, Formelfächer), bareInfinitive (englische Antwort: "to go" auch als "go")
+export function variants(solution, { literalParens = false, bareInfinitive = false } = {}) {
+  return clean(alternatives(solution).flatMap((alt) => altVariants(alt, { literalParens, bareInfinitive })));
+}
+
+// Eingabe und die Schreibweisen, mit denen sie verglichen wird. Wer die Klammern einer Lösung mitschreibt
+// ("go (to school)"), meint dieselben Wörter: Dann fallen die Klammerzeichen weg – aber nur beim Vergleich mit
+// Alternativen, die selbst optionale Klammern haben. Sonst zählt die Eingabe, wie sie ist ("2 * (3 + 4)" ist nicht
+// "2 * 3 + 4", auch nicht neben der Alternative "go (home)").
+function candidates(input, solution, { literalParens = false, bareInfinitive = false } = {}) {
+  const found = [{ input, expected: variants(solution, { literalParens, bareInfinitive }) }];
+  const optional = alternatives(solution).filter((alt) => optionalGroups(alt, literalParens).length);
+  if (optional.length) {
+    found.push({ input: input.replace(/[()]/g, ' '), expected: clean(optional.flatMap((alt) => altVariants(alt, { literalParens, bareInfinitive }))) });
+  }
+  return found;
 }
 
 export function levenshtein(a, b) {
@@ -88,7 +172,7 @@ export function levenshtein(a, b) {
 
 // Warum „fast“? 'accents' (nur Akzente falsch), 'case' (nur Groß-/Kleinschreibung) oder null (Tippfehler)
 export function almostReason(input, solution, options = {}) {
-  const matches = (o) => variants(solution).map((v) => normalize(v, o)).includes(normalize(input, o));
+  const matches = (o) => candidates(input, solution, options).some((c) => c.expected.map((v) => normalize(v, o)).includes(normalize(c.input, o)));
   if (options.accentSensitive !== false && matches({ ...options, accentSensitive: false })) return 'accents';
   if (options.caseSensitive && matches({ ...options, caseSensitive: false })) return 'case';
   return null;
@@ -96,14 +180,19 @@ export function almostReason(input, solution, options = {}) {
 
 // Ergebnis: 'correct' | 'almost' (kleiner Tippfehler, zählt als falsch) | 'wrong'
 export function checkAnswer(input, solution, options = {}) {
+  const results = candidates(input, solution, options).map((c) => checkForm(c.input, c.expected, options));
+  return ['correct', 'almost'].find((r) => results.includes(r)) ?? 'wrong';
+}
+
+function checkForm(input, solutions, options) {
   const given = normalize(input, options);
   if (!given) return 'wrong';
-  const expected = variants(solution).map((v) => normalize(v, options));
+  const expected = solutions.map((v) => normalize(v, options));
   if (expected.includes(given)) return 'correct';
   // Nur Groß-/Kleinschreibung oder Akzente falsch? Dann „fast“.
   const loose = { caseSensitive: false, accentSensitive: false };
   const givenLoose = normalize(input, loose);
-  const expectedLoose = variants(solution).map((v) => normalize(v, loose));
+  const expectedLoose = solutions.map((v) => normalize(v, loose));
   for (const e of expectedLoose) {
     const allowed = e.length <= 6 ? 1 : 2;
     if (levenshtein(givenLoose, e) <= allowed) return 'almost';

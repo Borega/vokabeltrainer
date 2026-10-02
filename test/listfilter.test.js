@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { filterLists, gradeLabel, languagesOf, sortLists } from '../public/listfilter.js';
+import { SUBJECTS, filterLists, gradeLabel, languagesOf, sortLists, subjectLabel } from '../public/listfilter.js';
 
 const lists = [
   { title: 'Unit 10', lang_a: 'Englisch', lang_b: 'Deutsch', grade: 7, owner_name: 'Frau A', updated_at: '2026-09-01' },
@@ -74,4 +74,18 @@ test('Deutsch erscheint nur bei Listen, in denen Deutsch gelernt wird', () => {
   assert.deepEqual(languagesOf(ls), [{ value: 'deutsch', label: 'Deutsch' }, { value: 'englisch', label: 'Englisch' }]);
   assert.deepEqual(titles(filterLists(ls, { lang: 'deutsch' })), ['Fremdwörter', 'DaZ Schule', 'Kasus']);
   assert.deepEqual(titles(filterLists(ls, { lang: 'arabisch' })), [], 'die Herkunftssprache wird nicht gelernt');
+});
+
+test('Fach: ältere Listen ohne Angabe sind Sprachen, Filter nach Fach', () => {
+  const mixed = [
+    ...lists,
+    { title: 'Zelle', lang_a: 'Deutsch', lang_b: 'Deutsch', grade: 7, subject: 'biologie', owner_name: 'Herr E', updated_at: '2026-09-02' },
+    { title: 'Mittelalter', lang_a: 'Deutsch', lang_b: 'Deutsch', grade: 8, subject: 'geschichte', owner_name: 'Frau F', updated_at: '2026-09-03' },
+  ];
+  assert.equal(filterLists(mixed, { subject: '' }).length, 6);
+  assert.equal(filterLists(mixed, { subject: 'sprachen' }).length, 4, 'ohne subject = Sprachen');
+  assert.deepEqual(titles(filterLists(mixed, { subject: 'biologie' })), ['Zelle']);
+  assert.deepEqual(titles(filterLists(mixed, { subject: 'geschichte', grade: '8' })), ['Mittelalter']);
+  assert.equal(subjectLabel('biologie'), 'Biologie');
+  assert.equal(subjectLabel(undefined), SUBJECTS.sprachen);
 });

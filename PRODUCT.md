@@ -13,7 +13,7 @@ Zwei gleichwertige Gruppen an Schulen (Jahrgang 1–13), die über IServ bzw. ei
 - **Schüler:innen** üben Vokabeln und Grammatik allein – in der Schule und zu Hause, häufig auf dem Schul-iPad als Home-Bildschirm-App, teils ohne Internet. Sie lernen in kurzen Runden („Heute fällig“, „Frei üben“), oft auf dem Handy oder Tablet, oft mit Kopfhörern.
 - **Lehrkräfte** legen Listen an (Editor, CSV/Text-Import, KI-Prompt, Textsyntax für Grammatik), weisen sie Klassen und Kursen zu, teilen sie mit Kolleg:innen und werten den Lernstand der Gruppen aus (Kennzahlen, Verlauf, häufigste Fehler). Sie arbeiten am Rechner oder Tablet, meist zwischen Unterrichtsstunden.
 
-Die Bedienoberfläche ist deutsch; gelernt werden beliebige Sprachen (Englisch, Französisch, Spanisch, Latein u. a.).
+Die Bedienoberfläche ist deutsch; gelernt werden beliebige Sprachen (Englisch, Französisch, Spanisch, Latein u. a.). Listen tragen ein Fach (Standard: Sprachen); Fachbegriffe aus Biologie, Geschichte u. a. werden als Begriff ↔ Bedeutung auf Deutsch gelernt.
 
 ## Product Purpose
 

@@ -2,6 +2,7 @@
 // Live-Vorschau mit zeilengenauen Fehlermeldungen, Reihenfolge per ↑/↓, Import und Export als Textdatei.
 // Die Syntax und ihre Prüfung stehen in grammar.js (dieselbe Prüfung läuft beim Speichern auf dem Server).
 
+import { readTextFile } from './csv.js';
 import { editorChars, isGermanLabel, langTag } from './exercises.js';
 import {
   LIMITS, TYPE_LABELS, matchItems, parseItem, parseRulesText, rulesToText, splitItems, validateRules,
@@ -258,7 +259,7 @@ export async function renderGrammarEditor(ctx, list) {
     const file = fileInput.files[0];
     fileInput.value = '';
     if (!file) return;
-    const { rules, errors } = parseRulesText(await file.text());
+    const { rules, errors } = parseRulesText(await readTextFile(file));
     if (errors.length) toast(`Zeile ${errors[0].line}: ${errors[0].error}`, 'error');
     if (!rules.length) return errors.length ? null : toast('In der Datei wurden keine Regeln gefunden (## Titel).', 'error');
     // Nur anhängen – so geht nichts verloren; überflüssige Regeln lassen sich löschen

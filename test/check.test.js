@@ -19,9 +19,126 @@ test('Alternativen mit ; und |', () => {
 });
 
 test('Teile in Klammern sind optional', () => {
-  assert.deepEqual(variants('(to) go').sort(), ['go', 'to go']);
+  assert.deepEqual(variants('(to) go').sort(), ['(to) go', 'go', 'to go']);
   assert.equal(checkAnswer('go', '(to) go', lenient), 'correct');
   assert.equal(checkAnswer('to go', '(to) go', lenient), 'correct');
+});
+
+test('Mehrere optionale Teile: jede Auswahl zählt', () => {
+  for (const input of ['to buy sth.', 'to buy', 'buy sth.', 'buy']) {
+    assert.equal(checkAnswer(input, '(to) buy (sth.)', lenient), 'correct', input);
+  }
+  assert.equal(variants('(to) buy (sth.)')[0], 'to buy sth.', 'die vollständige Form steht vorn (Tipps)');
+  assert.equal(checkAnswer('sth.', '(to) buy (sth.)', lenient), 'wrong');
+});
+
+test('Wer die Klammern mitschreibt, hat auch recht', () => {
+  assert.equal(checkAnswer('go (to school)', 'go (to school)', lenient), 'correct');
+  assert.equal(checkAnswer('(to) go', '(to) go', lenient), 'correct');
+  assert.equal(checkAnswer('go(to school)', 'go (to school)', lenient), 'correct');
+  assert.equal(checkAnswer('go', 'go (to school)', lenient), 'correct');
+  assert.equal(checkAnswer('der Hund (m)', 'Hund (m)', lenient), 'wrong');
+  assert.equal(almostReason('Hund (m)', 'Hund (m)', lenient), null);
+});
+
+test('Rückmeldung aus dem Unterricht: „to fight (irr)“ samt Klammern ist richtig', () => {
+  for (const input of ['to fight (irr)', 'to fight irr', 'to fight', 'fight', 'fight (irr)']) {
+    assert.equal(checkAnswer(input, 'to fight (irr)', { caseSensitive: false, accentSensitive: true, bareInfinitive: true }), 'correct', input);
+  }
+});
+
+test('Englische Verben gelten auch ohne „to“', () => {
+  assert.equal(checkAnswer('go', 'to go', { ...strict, bareInfinitive: true }), 'correct');
+  assert.equal(checkAnswer('to go', 'to go', { ...strict, bareInfinitive: true }), 'correct');
+  assert.equal(checkAnswer('take part in', 'to take part in', { ...strict, bareInfinitive: true }), 'correct');
+  assert.equal(checkAnswer('go', 'to go; to walk', { ...strict, bareInfinitive: true }), 'correct');
+  assert.equal(checkAnswer('walk', 'to go; to walk', { ...strict, bareInfinitive: true }), 'correct');
+  assert.equal(checkAnswer('GO', 'to go', { caseSensitive: false, bareInfinitive: true }), 'correct');
+  assert.equal(variants('to go')[0], 'to go', 'die Form mit „to“ bleibt die Hauptlösung (Tipps)');
+});
+
+test('„to“ vor Artikel oder Possessivpronomen ist eine Richtung, kein Verb', () => {
+  assert.equal(checkAnswer('the left', 'to the left', { ...strict, bareInfinitive: true }), 'wrong');
+  assert.equal(checkAnswer('my right', 'to my right', { ...strict, bareInfinitive: true }), 'wrong');
+  assert.equal(checkAnswer('to the left', 'to the left', { ...strict, bareInfinitive: true }), 'correct');
+  assert.equal(checkAnswer('to', 'to', { ...strict, bareInfinitive: true }), 'correct');
+});
+
+test('„to“ vor Pronomen, Zielen und Eigennamen bleibt Pflicht', () => {
+  for (const solution of ['to you', 'to school', 'to bed', 'to Berlin', 'to them']) {
+    const rest = solution.slice(3);
+    assert.equal(checkAnswer(rest, solution, { ...lenient, bareInfinitive: true }), 'wrong', solution);
+    assert.equal(checkAnswer(solution, solution, { ...lenient, bareInfinitive: true }), 'correct', solution);
+  }
+  assert.equal(checkAnswer('o', 'to o', { ...strict, bareInfinitive: true }), 'correct', 'schneidet genau das „to“ ab');
+});
+
+test('„to“ ist nur bei englischen Antworten optional', () => {
+  assert.equal(checkAnswer('dobrze', 'to dobrze', strict), 'wrong', 'Polnisch: „to“ ist ein eigenes Wort');
+  assert.equal(checkAnswer('go', 'to go', strict), 'wrong', 'ohne Angabe der Sprache bleibt „to“ Pflicht');
+  assert.equal(checkAnswer('go', 'to go', { ...strict, bareInfinitive: true }), 'correct');
+  assert.equal(checkAnswer('go', '(to) go', strict), 'correct', 'ausdrücklich optional geht in jeder Sprache');
+});
+
+test('; und | trennen Alternativen nur außerhalb von Klammern', () => {
+  const formula = { ...lenient, literalParens: true };
+  assert.deepEqual(variants('(2;3)', { literalParens: true }), ['(2;3)']);
+  assert.equal(checkAnswer('(2;3)', '(2;3)', formula), 'correct');
+  assert.equal(checkAnswer('P(A|B)', 'P(A|B)', formula), 'correct');
+  assert.equal(checkAnswer('x', 'x; (2;3)', formula), 'correct');
+  assert.equal(checkAnswer('(2;3)', 'x; (2;3)', formula), 'correct');
+  assert.equal(checkAnswer('big', 'big; large', lenient), 'correct');
+  assert.equal(checkAnswer('3)', '(2;3)', formula), 'wrong');
+});
+
+test('Klammern in der Eingabe fallen nur weg, wenn die Lösung selbst Klammern hat', () => {
+  assert.notEqual(checkAnswer('2 * (3 + 4)', '2 * 3 + 4', lenient), 'correct');
+  assert.equal(checkAnswer('2 * 3 + 4', '2 * 3 + 4', lenient), 'correct');
+  assert.equal(checkAnswer('(a + b)^2', '(a + b)^2', lenient), 'correct', 'die Lösung genau so, wie sie dasteht');
+  assert.equal(checkAnswer('go (to)', 'go', lenient), 'wrong');
+});
+
+test('Klammern, die zur Formel gehören, sind nicht optional', () => {
+  assert.deepEqual(variants('(a + b)^2'), ['(a + b)^2']);
+  assert.equal(checkAnswer('(a + b)^2', '(a + b)^2', lenient), 'correct');
+  assert.notEqual(checkAnswer('a + b^2', '(a + b)^2', lenient), 'correct');
+  assert.equal(checkAnswer('^2', '(a + b)^2', lenient), 'wrong');
+  assert.deepEqual(variants('(x)^2').sort(), ['(x)^2']);
+  assert.equal(checkAnswer('x^2', '(x)^2', lenient), 'wrong');
+  // Optionale Zusätze daneben bleiben optional
+  assert.equal(checkAnswer('(a * b) + c', '(a * b) + c (Summe)', lenient), 'correct');
+  assert.equal(checkAnswer('(a * b) + c Summe', '(a * b) + c (Summe)', lenient), 'correct');
+  assert.equal(checkAnswer('go', '(to) go', lenient), 'correct');
+});
+
+test('Formeln: Rechenzeichen, Zahlen und Hochzahlen hinter der Klammer', () => {
+  for (const [input, solution] of [['/ c', '(a - b) / c'], ['Ca2', 'Ca(OH)2'], ['x4', '(x)⁴'], ['x', '(x) / 2'], ['b', '(a) * b']]) {
+    assert.notEqual(checkAnswer(input, solution, lenient), 'correct', `${input} ≠ ${solution}`);
+  }
+  for (const solution of ['(a - b) / c', 'Ca(OH)2', '(x)⁴', '(x) / 2']) assert.equal(checkAnswer(solution, solution, lenient), 'correct', solution);
+});
+
+test('Formelfächer: Klammern sind nie optional (literalParens)', () => {
+  const formula = { ...lenient, literalParens: true };
+  assert.deepEqual(variants('(to) go', { literalParens: true }), ['(to) go']);
+  assert.equal(checkAnswer('go', '(to) go', formula), 'wrong');
+  assert.equal(checkAnswer('(to) go', '(to) go', formula), 'correct');
+  assert.equal(checkAnswer('f(x) = 2x', 'f(x) = 2x', formula), 'correct');
+  assert.notEqual(checkAnswer('f x = 2x', 'f(x) = 2x', formula), 'correct');
+});
+
+test('Klammern der Eingabe fallen nur bei Alternativen mit optionalen Klammern weg', () => {
+  assert.notEqual(checkAnswer('2 * (3 + 4)', 'go (home); 2 * 3 + 4', lenient), 'correct');
+  assert.equal(checkAnswer('go (home)', 'go (home); 2 * 3 + 4', lenient), 'correct');
+  assert.equal(checkAnswer('2 * 3 + 4', 'go (home); 2 * 3 + 4', lenient), 'correct');
+  assert.equal(almostReason('2 * (3 + 4)', 'go (home); 2 * 3 + 4', { accentSensitive: false }), null);
+});
+
+test('Viele optionale Teile: jede Auswahl bis zu acht Klammern', () => {
+  const solution = '(a) b (c) d (e) f (g) h (i)';
+  assert.equal(checkAnswer('b d f h', solution, lenient), 'correct');
+  assert.equal(checkAnswer('a b d f g h', solution, lenient), 'correct', 'gemischte Auswahl bei fünf Klammern');
+  assert.equal(checkAnswer('a b c d e f g h i', solution, lenient), 'correct');
 });
 
 test('Groß-/Kleinschreibung je nach Einstellung', () => {
