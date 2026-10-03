@@ -43,6 +43,8 @@ export const config = {
     voices: (env.TTS_VOICES ?? '').split(',').map((s) => s.trim()).filter(Boolean),
     // So viel Platz darf der Speicher fertiger Audiodateien belegen; danach wird nichts mehr abgelegt.
     cacheMb: Number(env.TTS_CACHE_MB ?? 2000),
+    // Alle Wörter der Listen nachts vorab erzeugen: Stunde (0–23, Zeitzone der Schule); -1 = aus
+    prewarmHour: env.TTS_PREWARM_HOUR ? Number(env.TTS_PREWARM_HOUR) : 3,
   },
   appName: env.APP_NAME ?? 'Vokabeltrainer',
   loginLabel: env.LOGIN_LABEL ?? 'Mit IServ anmelden',

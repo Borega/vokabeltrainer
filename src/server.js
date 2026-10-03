@@ -8,6 +8,7 @@ import { openDb } from './db.js';
 import { purgeDevices } from './devices.js';
 import { purgeSessions, sessionMiddleware } from './session.js';
 import { syncTemplates } from './templates.js';
+import { schedulePrewarm } from './tts-prewarm.js';
 
 export function createApp(db, cfg = config) {
   const app = express();
@@ -97,6 +98,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     for (const e of errors) console.warn(`Grammatik-Vorlage ${e.key} übersprungen: ${e.error}`);
   }
   setInterval(() => cleanup(db), 6 * 60 * 60 * 1000).unref();
+  schedulePrewarm(db, config);
   createApp(db).listen(config.port, () => {
     console.log(`Vokabeltrainer läuft auf Port ${config.port} (${config.baseUrl})`);
     if (config.devLogin) console.warn('ACHTUNG: DEV_LOGIN ist aktiv – nur für die Entwicklung verwenden!');

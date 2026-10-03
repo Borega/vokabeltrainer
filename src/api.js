@@ -6,7 +6,7 @@ import { LIMITS, parseItem, roundGrade, validateRules } from '../public/grammar.
 import { DEFAULT_SUBJECT, SUBJECTS } from '../public/listfilter.js';
 import { BADGES, LONG_RECALL_DAYS, collection, newlyEarned, titleOf } from './badges.js';
 import { DAILY_GOAL, computeStreak, endOfDay, localDay, weekOf } from './streak.js';
-import { ttsHandler } from './tts.js';
+import { ttsFor } from './tts.js';
 
 // Ab dieser Stufe gilt ein Wort als „sicher“ (0 = neu … 5, siehe scheduler.js).
 export const SAFE_BOX = SAFE_LEVEL;
@@ -394,7 +394,7 @@ export function apiRouter(db, config) {
     next();
   });
 
-  router.get('/tts', ttsHandler(config));
+  router.get('/tts', ttsFor(config).handler);
 
   function requireTeacher(req) {
     if (!req.user.isTeacher) throw new HttpError(403, 'Nur für Lehrkräfte.');
