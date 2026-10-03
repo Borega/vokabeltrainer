@@ -35,6 +35,15 @@ export const config = {
   // Zeitzone der Schule: bestimmt, wann ein Lerntag beginnt und endet
   timezone: env.TIMEZONE ?? 'Europe/Berlin',
   frameAncestors: env.FRAME_ANCESTORS ?? "'self'",
+
+  // Eigene Stimmen für die Aussprache (Piper-Dienst, siehe README). Ohne TTS_URL sprechen nur die Stimmen des Browsers.
+  tts: {
+    url: (env.TTS_URL ?? '').replace(/\/+$/, ''),
+    // Piper-Stimmen wie de_DE-thorsten-high (Groß-/Kleinschreibung zählt)
+    voices: (env.TTS_VOICES ?? '').split(',').map((s) => s.trim()).filter(Boolean),
+    // So viel Platz darf der Speicher fertiger Audiodateien belegen; danach wird nichts mehr abgelegt.
+    cacheMb: Number(env.TTS_CACHE_MB ?? 2000),
+  },
   appName: env.APP_NAME ?? 'Vokabeltrainer',
   loginLabel: env.LOGIN_LABEL ?? 'Mit IServ anmelden',
 

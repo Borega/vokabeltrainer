@@ -98,10 +98,11 @@ Schreibweise eines Worts sitzt – vorher lenken Satzaufgaben eher ab (Barcroft 
 Stimmen verbessern das Lernen der Aussprache (Barcroft & Sommers 2005), lautes Aussprechen das
 Behalten (*production effect*, MacLeod et al. 2010).
 
-**Aussprache und Datenschutz:** Vorgelesen wird mit der Sprachausgabe des Browsers. Es werden nur
+**Aussprache und Datenschutz:** Vorgelesen wird bevorzugt mit den **eigenen Stimmen der Schule** (Piper, siehe
+[Bessere Stimmen](#bessere-stimmen-piper)), sonst mit der Sprachausgabe des Browsers. Dort werden nur
 Stimmen verwendet, die auf dem Gerät selbst laufen – Online-Stimmen (z. B. „Google …“ in Chrome), die den
-Text an den Anbieter schicken würden, bleiben außen vor. Hat das Gerät keine passende Stimme, gibt es
-keinen Ton und keine Hörübungen. Die Sprache ergibt sich aus der Sprachbezeichnung der Liste
+Text an den Anbieter schicken würden, bleiben außen vor. Hat weder der Server noch das Gerät eine passende
+Stimme, gibt es keinen Ton und keine Hörübungen. Die Sprache ergibt sich aus der Sprachbezeichnung der Liste
 („Englisch“ → britisches Englisch, „Englisch (amerikanisch)“ → amerikanisches; Französisch und Spanisch immer europäisch, siehe unten).
 Ältere Listen mit frei eingetippter Bezeichnung (z. B. „Englisch (USA)“ oder `en-AU`) behalten sie, bis die Lehrkraft
 im Editor eine Sprache aus der Auswahl wählt.
@@ -129,7 +130,7 @@ Latein und Altgriechisch werden nicht vorgelesen.
   `(le) chien`. Bei Wörtern mit `l'` die Genus-Angabe in die Notiz schreiben (`l'arbre` – Notiz „m“).
 - „Akzente beachten“ sollte für Französisch und Spanisch an bleiben; fehlt nur ein Akzent, zeigt die App das an.
 - Aussprache: Französisch aus Frankreich (fr-FR) und Spanisch aus Spanien (es-ES) – nie eine kanadische bzw.
-  lateinamerikanische Stimme. Hat ein Gerät keine passende Stimme, gibt es für diese Sprache keinen Ton.
+  lateinamerikanische Stimme. Hat weder der Server noch das Gerät eine passende Stimme, gibt es für diese Sprache keinen Ton.
 
 ## Andere Fächer (Biologie, Geschichte …)
 
@@ -556,6 +557,44 @@ vokabeln.meine-schule.de {
 }
 ```
 
+## Bessere Stimmen (Piper)
+
+Die Stimmen der Geräte klingen oft blechern. Deshalb gehört zum Stack ein zweiter Dienst, **Piper**
+([OHF-Voice/piper1-gpl](https://github.com/OHF-Voice/piper1-gpl), neuronale Stimmen, läuft auf der CPU, kein
+Cloud-Dienst). So funktioniert es:
+
+- Beim Abspielen fragt der Browser `/api/tts` der App. Die App holt das Audio einmal von Piper und legt es unter
+  `DATA_DIR/tts` ab (Volume `vokabeltrainer-tts`); jedes weitere Abspielen kommt aus diesem Speicher.
+  Ein Wort wird also nur beim ersten Mal erzeugt, und der Text verlässt die Schule nicht.
+- Ist Piper nicht erreichbar oder das Gerät ohne Internet, spricht die Stimme des Geräts wie bisher.
+- Pro Sprache gibt es mehrere Stimmen, wenn mehrere eingerichtet sind; die App wechselt sie zufällig
+  (Barcroft & Sommers 2005). Französisch und Spanisch bleiben europäisch (`fr_FR`, `es_ES`).
+
+**Einrichten:** Der Portainer-Stack und die `docker-compose.yml` enthalten den Dienst `piper` schon, mit einer
+Standardauswahl für Deutsch, Englisch (GB und US), Französisch, Spanisch, Italienisch, Niederländisch, Russisch,
+Ukrainisch und Polnisch. Beim **ersten Start** lädt Piper die Stimmen (ca. 1 GB, der Server braucht dafür Internet
+zu `huggingface.co`); danach liegen sie im Volume `piper-voices`. Im Betrieb braucht Piper etwa 1–2 GB
+Arbeitsspeicher. Der Dienst hat keine Anmeldung und ist deshalb **nicht** nach außen veröffentlicht (kein `ports`).
+
+**Stimmen ändern:** In `TTS_VOICES` stehen die Stimmen, Komma-getrennt, z. B.
+`de_DE-thorsten-high,en_GB-alba-medium,fr_FR-siwis-medium,es_ES-davefx-medium`. Wer weitere Sprachen oder
+Stimmen will, findet die Namen in [piper-voices](https://huggingface.co/rhasspy/piper-voices) (Qualität `low`, `medium`,
+`high`; mehr Qualität heißt mehr Speicher und Rechenzeit). Die Variable gilt für App und Piper gemeinsam.
+Nach einer Änderung den Stack neu starten.
+
+**Lizenzen der Stimmen:** Jede Stimme hat eine eigene Lizenz (steht in ihrer `MODEL_CARD` im Repository
+`piper-voices`). Die Standardauswahl nutzt nur Stimmen mit CC0, gemeinfrei, Apache 2.0 oder CC BY – bei CC BY
+(`en_GB-alba`, `fr_FR-siwis`, `it_IT-serena`) bitte die Quelle nennen. Vorsicht bei anderen Stimmen: Einige sind nur
+nichtkommerziell oder mit Auflagen (z. B. `en_US-ryan`, `en_US-hfc_*`, `tr_TR-dfki`, `en_US-lessac`). Piper selbst
+steht unter GPL-3.0; es läuft als eigener Container und wird nur über HTTP angesprochen.
+
+**Speicherplatz:** Die Audiodateien (WAV) belegen etwa 45 KB je Sekunde; ein Wort sind meist 1–2 Sekunden.
+`TTS_CACHE_MB` (Standard 2000) begrenzt den Speicher; ist er voll, wird weiter gesprochen, aber nichts mehr abgelegt.
+Der Speicher lässt sich jederzeit löschen (Volume `vokabeltrainer-tts`), er füllt sich von selbst wieder – und gehört
+deshalb nicht in die Datensicherung.
+
+**Abschalten:** `TTS_URL=` leer setzen und den Dienst `piper` aus dem Stack entfernen.
+
 ## Aktualisieren und Datensicherung
 
 **Datenbank-Änderungen laufen automatisch.** Beim Start öffnet der Server die Datenbank, bevor er Anfragen
@@ -647,6 +686,9 @@ Alle Einstellungen stehen kommentiert in [`.env.example`](.env.example).
 | `SESSION_DAYS` | Dauer einer Anmeldung (Sitzungs-Cookie) | `7` |
 | `REMEMBER_DAYS` | „Angemeldet bleiben“: so viele Tage nach der IServ-Anmeldung meldet sich die App selbst wieder an (0 = aus) | `30` |
 | `FRAME_ANCESTORS` | Einbettung per iframe erlauben | `'self'` |
+| `TTS_URL` | Adresse des Piper-Dienstes für die Aussprache (leer: nur Browserstimmen) | `http://piper:5000` im Stack |
+| `TTS_VOICES` | Piper-Stimmen, Komma-getrennt (siehe [Bessere Stimmen](#bessere-stimmen-piper)) | Standardauswahl im Stack |
+| `TTS_CACHE_MB` | Platz für fertige Audiodateien in MB | `2000` |
 
 ## Datenschutz
 
@@ -675,6 +717,9 @@ Das sind Leistungsdaten – bitte den Einsatz mit der/dem Datenschutzbeauftragte
 die Schüler:innen informieren. Konten ohne Anmeldung innerhalb von `RETENTION_DAYS` Tagen werden automatisch
 samt Lernstand gelöscht. Schüler:innen können ihren Lernstand je Liste selbst zurücksetzen.
 Es werden keine externen Dienste, CDNs oder Tracker eingebunden – auch keine KI zum Prüfen oder Erzeugen von Aufgaben.
+Für die Aussprache geht der Text eines Worts nur vom Server der Schule an den Piper-Dienst im selben Stack – keine
+Namen, keine Lerndaten. Nur beim ersten Start lädt der Piper-Container die Stimmen von `huggingface.co`; Schüler:innen
+und ihre Geräte verbinden sich dorthin nicht.
 
 ## Entwicklung
 
@@ -689,7 +734,8 @@ npm test
 
 Aufbau:
 - `src/` – Express-Server: OIDC-Login (`auth.js`), REST-API (`api.js`), SQLite (`db.js`), Sessions (`session.js`);
-  `streak.js` (Lernserie: Serie, Tageszeiten, Woche) und `badges.js` (Abzeichen: Katalog, Schwellen) als reine Funktionen
+  `streak.js` (Lernserie: Serie, Tageszeiten, Woche) und `badges.js` (Abzeichen: Katalog, Schwellen) als reine Funktionen;
+  `tts.js` (Aussprache: Audio von Piper holen und ablegen)
 - `public/` – Oberfläche ohne Build-Schritt (Vanilla JS); `check.js`, `csv.js` und `exercises.js` (Übungsarten,
   Lernleiter, Ablenker, Tipps, Lückentext) werden auch in den Tests genutzt, `speech.js` für die Aussprache.
   Grammatik: `grammar.js` (Aufgaben-Syntax, Prüfung, Hinweise, Rundenplanung, Bewertung – läuft im Browser, auf dem
@@ -698,6 +744,7 @@ Aufbau:
   gemeinsame Bausteine: `ui.js`, `stats-ui.js`.
   Offline: `schedule.js` (FSRS-Planung, auch vom Server genutzt), `offline.js` (Abgleich), `store.js`
   (IndexedDB), `sw.js` (Service Worker), `manifest.webmanifest`
+- `tts/` – Container für Piper (Dockerfile, `entrypoint.sh` lädt die Stimmen beim ersten Start)
 - `test/` – Tests mit `node:test`
 
 ## Lizenz

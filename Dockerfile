@@ -11,7 +11,7 @@ COPY src ./src
 COPY public ./public
 COPY vorlagen ./vorlagen
 
-RUN mkdir -p /data && chown node:node /data
+RUN mkdir -p /data/tts && chown -R node:node /data
 USER node
 VOLUME ["/data"]
 EXPOSE 3000
