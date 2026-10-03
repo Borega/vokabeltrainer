@@ -67,13 +67,22 @@ export function speak(text, lang) {
   const remote = matchVoices(serverVoices, lang);
   if (!remote.length) return speakInBrowser(text, lang);
   stopSpeaking();
-  // Die Adresse direkt als Quelle: So zählt der Klick noch als Nutzeraktion (iPad), und der Browser behält die Datei.
-  audio = new Audio(`/api/tts?${new URLSearchParams({ voice: pick(remote).name, text })}`);
-  const current = audio;
-  // Server nicht erreichbar (z. B. ohne Internet): mit der Stimme des Geräts weiter
-  current.addEventListener('error', () => { if (audio === current) speakInBrowser(text, lang); });
-  current.play().catch(() => {});
+  playRemote(text, lang, pick(remote).name, 1);
   return true;
+}
+
+// Die Adresse direkt als Quelle: So zählt der Klick noch als Nutzeraktion (iPad), und der Browser behält die Datei.
+// Ein Fehler ist oft nur kurz (Piper lädt die Stimme noch, Zeitüberschreitung beim ersten Wort): erst ein zweiter
+// Versuch, dann – z. B. ohne Internet – die Stimme des Geräts.
+function playRemote(text, lang, voice, retries) {
+  const current = new Audio(`/api/tts?${new URLSearchParams({ voice, text })}`);
+  audio = current;
+  current.addEventListener('error', () => {
+    if (audio !== current) return;
+    if (retries > 0) setTimeout(() => { if (audio === current) playRemote(text, lang, voice, retries - 1); }, 500);
+    else speakInBrowser(text, lang);
+  });
+  current.play().catch(() => {});
 }
 
 export function stopSpeaking() {
