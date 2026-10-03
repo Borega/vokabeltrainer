@@ -37,7 +37,7 @@ test('Stimmen des Servers: Sprache aus dem Namen, Region wie bei den Stimmen des
   assert.equal(canSpeak('de-DE'), false);
 });
 
-test('mit Server-Stimme wird die Audiodatei des Servers abgespielt, bei einem Fehler die Stimme des Geräts', () => {
+test('mit Server-Stimme wird die Audiodatei des Servers abgespielt, bei einem Fehler nach einem zweiten Versuch die Stimme des Geräts', async () => {
   const played = [];
   const spoken = [];
   const handlers = {};
@@ -61,6 +61,10 @@ test('mit Server-Stimme wird die Audiodatei des Servers abgespielt, bei einem Fe
   assert.equal(url.searchParams.get('text'), 'das Haus');
   assert.deepEqual(spoken, []);
 
+  handlers.error();
+  assert.deepEqual(spoken, [], 'erster Fehler: noch kein Gerätestimme');
+  await new Promise((r) => setTimeout(r, 600));
+  assert.equal(played.length, 2, 'zweiter Versuch mit der Server-Stimme');
   handlers.error();
   assert.deepEqual(spoken, ['das Haus'], 'Server nicht erreichbar: Stimme des Geräts');
 
