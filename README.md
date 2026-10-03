@@ -566,6 +566,12 @@ Cloud-Dienst). So funktioniert es:
 - Beim Abspielen fragt der Browser `/api/tts` der App. Die App holt das Audio einmal von Piper und legt es unter
   `DATA_DIR/tts` ab (Volume `vokabeltrainer-tts`); jedes weitere Abspielen kommt aus diesem Speicher.
   Ein Wort wird also nur beim ersten Mal erzeugt, und der Text verlässt die Schule nicht.
+- **Vorab erzeugen:** Der Server geht jede Nacht (Standard 3 Uhr, `TTS_PREWARM_HOUR`) und einmal kurz nach dem Start
+  alle Listen durch und erzeugt, was noch fehlt – für jede Stimme der Sprache, nach denselben Regeln wie die
+  Oberfläche (beide Seiten einer Vokabelliste, bei Grammatik der ganze Satz; die deutsche Seite nur, wenn Deutsch
+  gelernt wird). Beim ersten Mal dauert das einige Minuten (Piper erzeugt etwa ein bis zwei Wörter pro Sekunde),
+  danach kommen nur neue Wörter dazu. Kein Cron-Job nötig. Was die Nacht verpasst (neue Liste am Tag), wird beim
+  ersten Abspielen erzeugt. Ist der Speicher voll, hört der Lauf mit einer Meldung im Log auf.
 - Ist Piper nicht erreichbar oder das Gerät ohne Internet, spricht die Stimme des Geräts wie bisher.
 - Pro Sprache gibt es mehrere Stimmen, wenn mehrere eingerichtet sind; die App wechselt sie zufällig
   (Barcroft & Sommers 2005). Französisch und Spanisch bleiben europäisch (`fr_FR`, `es_ES`).
@@ -689,6 +695,7 @@ Alle Einstellungen stehen kommentiert in [`.env.example`](.env.example).
 | `TTS_URL` | Adresse des Piper-Dienstes für die Aussprache (leer: nur Browserstimmen) | `http://piper:5000` im Stack |
 | `TTS_VOICES` | Piper-Stimmen, Komma-getrennt (siehe [Bessere Stimmen](#bessere-stimmen-piper)) | Standardauswahl im Stack |
 | `TTS_CACHE_MB` | Platz für fertige Audiodateien in MB | `2000` |
+| `TTS_PREWARM_HOUR` | Stunde (0–23, Zeitzone der Schule), zu der alle Wörter vorab erzeugt werden; `-1` = aus | `3` |
 
 ## Datenschutz
 

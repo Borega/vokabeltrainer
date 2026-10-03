@@ -1,18 +1,23 @@
 // Aussprache mit eigenen Stimmen: holt das Audio vom Piper-Dienst (TTS_URL) und legt jede Datei einmal unter
-// DATA_DIR/tts ab. Der Text verlässt die Schulinfrastruktur nicht; ein Wort wird nur beim ersten Abspielen erzeugt.
+// DATA_DIR/tts ab. Der Text verlässt die Schulinfrastruktur nicht. Ein Wort wird beim ersten Abspielen erzeugt
+// oder vorab durch die nächtliche Vorbereitung (tts-prewarm.js).
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-const MAX_CHARS = 300;
+export const MAX_CHARS = 300;
 // Länger als 1 = langsamer: zum Lernen der Aussprache etwas gemächlicher als normal (Teil des Cache-Schlüssels)
 const LENGTH_SCALE = 1.1;
 // Neu zu erzeugende Texte pro Person und Minute – Schutz vor Schleifen und böswilligem Füllen des Speichers
 const MISSES_PER_MINUTE = 30;
 
-export function ttsHandler(cfg) {
+const clean = (text) => String(text ?? '').normalize('NFC').trim();
+
+function createTts(cfg) {
   const { url, voices, cacheMb } = cfg.tts ?? {};
-  if (!url) return (req, res) => res.status(404).json({ error: 'Keine Sprachausgabe eingerichtet.' });
+  if (!url) {
+    return { enabled: false, handler: (req, res) => res.status(404).json({ error: 'Keine Sprachausgabe eingerichtet.' }) };
+  }
 
   const dir = resolve(cfg.dataDir, 'tts');
   mkdirSync(dir, { recursive: true });
@@ -46,6 +51,25 @@ export function ttsHandler(cfg) {
     return inflight.get(key);
   };
 
+  // Liefert { file } (liegt im Speicher), { wav } (Speicher voll, nur diesmal) oder { limited } (beforeMiss sagte nein).
+  // created: die Datei wurde gerade erst erzeugt. beforeMiss wird nur aufgerufen, wenn Piper gebraucht wird.
+  async function ensure(voice, rawText, beforeMiss) {
+    const text = clean(rawText);
+    const key = createHash('sha256').update(`${voice}\n${LENGTH_SCALE}\n${text}`).digest('hex');
+    const file = join(dir, `${key}.wav`);
+    if (existsSync(file)) return { file, created: false };
+    if (beforeMiss && !beforeMiss()) return { limited: true };
+    const wav = await synthesize(key, voice, text);
+    if (bytes + wav.length > cacheMb * 1e6) return { wav, full: true };
+    // Erst unter anderem Namen schreiben: Eine halbe Datei darf nie als fertig gelten.
+    const tmp = `${file}.${process.pid}.tmp`;
+    writeFileSync(tmp, wav);
+    const created = !existsSync(file);
+    if (created) bytes += wav.length;
+    renameSync(tmp, file);
+    return { file, created };
+  }
+
   const misses = new Map(); // Person → { start, count }
   const allowed = (userId) => {
     const now = Date.now();
@@ -54,32 +78,35 @@ export function ttsHandler(cfg) {
     return ++m.count <= MISSES_PER_MINUTE;
   };
 
-  return async (req, res) => {
+  async function handler(req, res) {
     const voice = String(req.query.voice ?? '');
-    const text = String(req.query.text ?? '').normalize('NFC').trim();
+    const text = clean(req.query.text);
     if (!voices.includes(voice) || !text || text.length > MAX_CHARS) {
       return res.status(400).json({ error: 'Ungültige Anfrage.' });
     }
-    const key = createHash('sha256').update(`${voice}\n${LENGTH_SCALE}\n${text}`).digest('hex');
-    const file = join(dir, `${key}.wav`);
     res.set('Cache-Control', 'private, max-age=31536000, immutable');
-    if (existsSync(file)) return res.sendFile(file);
-
-    if (!allowed(req.user.id)) return res.status(429).json({ error: 'Zu viele neue Wörter auf einmal.' });
-    let wav;
+    let result;
     try {
-      wav = await synthesize(key, voice, text);
+      result = await ensure(voice, text, () => allowed(req.user.id));
     } catch (err) {
       console.error('Sprachausgabe:', err.message);
       res.removeHeader('Cache-Control');
       return res.status(502).json({ error: 'Sprachausgabe nicht erreichbar.' });
     }
-    if (bytes + wav.length > cacheMb * 1e6) return res.type('audio/wav').send(wav);
-    // Erst unter anderem Namen schreiben: Eine halbe Datei darf nie als fertig gelten.
-    const tmp = `${file}.${process.pid}.tmp`;
-    writeFileSync(tmp, wav);
-    if (!existsSync(file)) bytes += wav.length;
-    renameSync(tmp, file);
-    res.sendFile(file);
-  };
+    if (result.limited) {
+      res.removeHeader('Cache-Control');
+      return res.status(429).json({ error: 'Zu viele neue Wörter auf einmal.' });
+    }
+    if (result.wav) return res.type('audio/wav').send(result.wav);
+    res.sendFile(result.file);
+  }
+
+  return { enabled: true, handler, ensure };
+}
+
+// Eine Instanz je Konfiguration: Route und nächtliche Vorbereitung teilen sich Warteschlange und Speicherstand.
+const instances = new WeakMap();
+export function ttsFor(cfg) {
+  if (!instances.has(cfg)) instances.set(cfg, createTts(cfg));
+  return instances.get(cfg);
 }

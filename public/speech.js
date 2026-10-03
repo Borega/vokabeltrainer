@@ -13,7 +13,7 @@ const norm = (lang) => lang.replace('_', '-').toLowerCase();
 const STRICT = new Set(['fr-fr', 'es-es']);
 
 // Stimmen (Liste von { lang }) für eine Sprache: genau die Region, sonst dieselbe Sprache
-function matching(voices, lang) {
+export function matchVoices(voices, lang) {
   const exact = voices.filter((v) => norm(v.lang) === norm(lang));
   if (exact.length || STRICT.has(norm(lang))) return exact;
   const base = norm(lang).split('-')[0];
@@ -28,11 +28,11 @@ export function setServerVoices(names = []) {
 
 export function voicesFor(lang) {
   if (!synth || !lang) return [];
-  return matching(synth.getVoices().filter((v) => v.localService), lang);
+  return matchVoices(synth.getVoices().filter((v) => v.localService), lang);
 }
 
 export function canSpeak(lang) {
-  return !!lang && (matching(serverVoices, lang).length > 0 || voicesFor(lang).length > 0);
+  return !!lang && (matchVoices(serverVoices, lang).length > 0 || voicesFor(lang).length > 0);
 }
 
 // Manche Browser laden die Stimmen erst nach und nach.
@@ -64,7 +64,7 @@ let audio = null;
 
 export function speak(text, lang) {
   if (!text || !lang) return false;
-  const remote = matching(serverVoices, lang);
+  const remote = matchVoices(serverVoices, lang);
   if (!remote.length) return speakInBrowser(text, lang);
   stopSpeaking();
   // Die Adresse direkt als Quelle: So zählt der Klick noch als Nutzeraktion (iPad), und der Browser behält die Datei.
