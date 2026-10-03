@@ -1,3 +1,6 @@
+# Stimmen für die Aussprache (Piper), siehe deploy/portainer/docker-compose.yml und README („Bessere Stimmen“)
+x-tts-voices: &tts-voices ${TTS_VOICES:-de_DE-thorsten-high,en_GB-alba-medium,en_GB-cori-high,en_US-kristin-medium,en_US-john-medium,fr_FR-siwis-medium,es_ES-davefx-medium,it_IT-serena-medium,nl_NL-pim-medium,ru_RU-denis-medium,uk_UA-tetiana-high,pl_PL-gosia-medium}
+
 services:
   vokabeltrainer:
     image: ghcr.io/borega/vokabeltrainer:latest
@@ -5,12 +8,29 @@ services:
     # build: .
     restart: unless-stopped
     env_file: .env
+    environment:
+      # Ohne Piper: TTS_URL leer setzen und den Dienst unten entfernen
+      TTS_URL: ${TTS_URL-http://piper:5000}
+      TTS_VOICES: *tts-voices
     ports:
       # Nur lokal erreichbar – davor gehört ein Reverse-Proxy mit HTTPS (siehe deploy/nginx).
       - "127.0.0.1:3000:3000"
     volumes:
       # Benanntes Volume: gehört automatisch dem Benutzer im Container (ein Bind-Mount wie ./data wäre root-eigen).
       - vokabeltrainer-data:/data
+      - vokabeltrainer-tts:/data/tts
+
+  piper:
+    image: ghcr.io/borega/vokabeltrainer-tts:latest
+    # Alternativ selbst bauen:
+    # build: ./tts
+    restart: unless-stopped
+    environment:
+      PIPER_VOICES: *tts-voices
+    volumes:
+      - piper-voices:/voices
 
 volumes:
   vokabeltrainer-data:
+  vokabeltrainer-tts:
+  piper-voices:

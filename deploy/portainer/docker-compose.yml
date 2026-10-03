@@ -6,7 +6,11 @@
 #
 # Das Image ist privat, solange das GitHub-Repo privat ist: vorher in Portainer unter
 # Registries → Add registry → "Custom registry" ghcr.io mit GitHub-Benutzername und einem
-# Personal Access Token (Scope: read:packages) anlegen.
+# Personal Access Token (Scope: read:packages) anlegen. Das gilt auch für das Image des Piper-Dienstes.
+
+# Stimmen für die Aussprache (Piper): Die App fragt nur nach diesen, der Piper-Dienst lädt sie beim ersten Start.
+# Namen und Sprachen: https://huggingface.co/rhasspy/piper-voices – mehr im README unter „Bessere Stimmen“.
+x-tts-voices: &tts-voices ${TTS_VOICES:-de_DE-thorsten-high,en_GB-alba-medium,en_GB-cori-high,en_US-kristin-medium,en_US-john-medium,fr_FR-siwis-medium,es_ES-davefx-medium,it_IT-serena-medium,nl_NL-pim-medium,ru_RU-denis-medium,uk_UA-tetiana-high,pl_PL-gosia-medium}
 
 services:
   vokabeltrainer:
@@ -22,6 +26,8 @@ services:
     volumes:
       # Benanntes Volume: gehört automatisch dem Benutzer im Container (Bind-Mounts wären root-eigen).
       - vokabeltrainer-data:/data
+      # Fertige Audiodateien: getrennt von den Daten, damit Sicherungen klein bleiben (jederzeit neu erzeugbar).
+      - vokabeltrainer-tts:/data/tts
     environment:
       BASE_URL: ${BASE_URL:?BASE_URL fehlt}
       OIDC_ISSUER: ${OIDC_ISSUER:?OIDC_ISSUER fehlt}
@@ -43,6 +49,25 @@ services:
       GAMIFICATION: ${GAMIFICATION:-true}
       TIMEZONE: ${TIMEZONE:-Europe/Berlin}
       TRUST_PROXY: "true"
+      # Aussprache mit Piper (Dienst unten). Abschalten: TTS_URL leer setzen und den Dienst entfernen,
+      # dann sprechen nur die Stimmen des Browsers.
+      TTS_URL: ${TTS_URL-http://piper:5000}
+      TTS_VOICES: *tts-voices
+      TTS_CACHE_MB: ${TTS_CACHE_MB:-2000}
+
+  piper:
+    # Sprachausgabe mit neuronalen Stimmen (Piper). Läuft nur im Netz des Stacks: bewusst kein ports-Eintrag,
+    # denn der Dienst hat keine Anmeldung. Der erste Start lädt die Stimmen (ca. 1 GB, braucht Internet);
+    # im Betrieb rechne mit 1–2 GB Arbeitsspeicher.
+    image: ghcr.io/borega/vokabeltrainer-tts:latest
+    container_name: vokabeltrainer-piper
+    restart: unless-stopped
+    environment:
+      PIPER_VOICES: *tts-voices
+    volumes:
+      - piper-voices:/voices
 
 volumes:
   vokabeltrainer-data:
+  vokabeltrainer-tts:
+  piper-voices:

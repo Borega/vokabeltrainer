@@ -44,6 +44,7 @@ export function createApp(db, cfg = config) {
       devLogin: cfg.devLogin,
       oidc: !!cfg.oidc.issuer,
       remember: cfg.rememberDays > 0, // „Angemeldet bleiben“ anbieten?
+      tts: cfg.tts?.url ? cfg.tts.voices : [], // eigene Stimmen für die Aussprache (Piper)
     });
   });
   app.get('/healthz', (req, res) => res.send('ok'));

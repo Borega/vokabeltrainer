@@ -4,7 +4,7 @@ import {
   afterIntro, choiceOptions, clozeFor, editorChars, gapProblem, gradeFor, hintPattern, hintTarget, isGermanLabel, langTag, learnSide, markGap,
   maxHints, pickExercise, sameLanguage, specialChars, speechLang, speechText,
 } from './exercises.js';
-import { canSpeak, speak, stopSpeaking, voicesReady } from './speech.js';
+import { canSpeak, setServerVoices, speak, stopSpeaking, voicesReady } from './speech.js';
 import { renderGrammarEditor } from './grammar-editor.js';
 import { renderGrammarLearn } from './grammar-learn.js';
 import { renderGrammarStats, renderGrammarStudent } from './grammar-stats.js';
@@ -1737,6 +1737,7 @@ window.addEventListener('hashchange', () => {
 async function init() {
   themeToggle(document.getElementById('theme'));
   settings = await fetch('/config.json').then((r) => r.json()).catch(() => ({}));
+  setServerVoices(settings.tts);
   if (settings.appName) {
     document.title = settings.appName;
     document.getElementById('app-name').textContent = settings.appName;
