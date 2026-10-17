@@ -1076,6 +1076,10 @@ test('Lernserie: zählt nur Listen aus Gruppen, in denen sie an ist', async () =
   assert.equal(streak.body.enabled, true, 'Gruppe S5a ist an');
   assert.equal(streak.body.today.remaining, 0);
   assert.equal(a.words.length, 3);
+  // Wochenrückblick nur auf Wunsch (Startseite), nicht bei jeder Übertragung
+  assert.equal(streak.body.review, undefined);
+  const withReview = (await student('GET', '/streak?review=1')).body.review;
+  assert.deepEqual(Object.keys(withReview).sort(), ['days', 'last', 'safeRules', 'safeWords']);
   // Die Lernrunde zeigt das Tagesziel nur bei Listen, die zählen
   assert.ok(streak.body.lists.includes(a.listId));
   assert.ok(!streak.body.lists.includes(listB.body.id));

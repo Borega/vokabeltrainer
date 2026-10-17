@@ -29,6 +29,22 @@ function graceLine({ current, bridged }) {
   return null;
 }
 
+// Wochenrückblick, nur gegen sich selbst. Die letzte Woche steht nur daneben, wenn diese mindestens so gut ist –
+// eine schwächere Woche wird nicht vorgerechnet.
+const count = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+function reviewLine(review) {
+  if (!review) return null;
+  const { days, safeWords, safeRules, last } = review;
+  if (!days && !safeWords && !safeRules) return null;
+  const parts = [count(days, 'Lerntag', 'Lerntage')];
+  if (safeWords) parts.push(`${count(safeWords, 'Wort', 'Wörter')} sicher dazu`);
+  if (safeRules) parts.push(`${count(safeRules, 'Regel', 'Regeln')} sicher dazu`);
+  const better = days >= last.days && safeWords >= last.safeWords && safeRules >= last.safeRules
+    && (days > last.days || safeWords > last.safeWords || safeRules > last.safeRules);
+  const lastParts = [count(last.days, 'Lerntag', 'Lerntage'), last.safeWords ? `${count(last.safeWords, 'Wort', 'Wörter')} sicher dazu` : null].filter(Boolean);
+  return `Diese Woche: ${parts.join(', ')}.${better && last.days ? ` Letzte Woche: ${lastParts.join(', ')}.` : ''}`;
+}
+
 export function streakPanel(streak) {
   const dots = streak.week.map((d, i) => h('li', {
     class: `day${d.done ? ' done' : ''}${d.today ? ' today' : ''}${d.future ? ' future' : ''}`,
@@ -40,6 +56,7 @@ export function streakPanel(streak) {
       h('p', { class: 'small muted' }, todayLine(streak))),
     h('ol', { class: 'week', 'aria-label': 'Diese Woche' }, dots),
     graceLine(streak) ? h('p', { class: 'small muted grace' }, graceLine(streak)) : null,
+    reviewLine(streak.review) ? h('p', { class: 'small week-review' }, reviewLine(streak.review)) : null,
     h('div', { class: 'streak-foot' },
       h('p', { class: 'small muted' },
         `Lerntage insgesamt: ${streak.total}`,

@@ -435,7 +435,7 @@ async function renderHome() {
       // Die Lernserie ist eine Zugabe: Fehlt sie, bleibt die Startseite wie sie ist
       [data, streak] = await Promise.all([
         api('GET', `/lists?due_until=${encodeURIComponent(endOfToday().toISOString())}`),
-        request('GET', '/streak').catch(() => null),
+        request('GET', '/streak?review=1').catch(() => null),
       ]);
     } catch (err) {
       if (!(err instanceof OfflineError)) throw err;

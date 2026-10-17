@@ -6,6 +6,7 @@ import { LIMITS, parseItem, roundGrade, validateRules } from '../public/grammar.
 import { DEFAULT_SUBJECT, SUBJECTS } from '../public/listfilter.js';
 import { BADGES, LONG_RECALL_DAYS, collection, newlyEarned, titleOf } from './badges.js';
 import { DAILY_GOAL, computeStreak, endOfDay, localDay, weekOf } from './streak.js';
+import { weekReview } from './week.js';
 import { ttsFor } from './tts.js';
 
 // Ab dieser Stufe gilt ein Wort als „sicher“ (0 = neu … 5, siehe scheduler.js).
@@ -350,6 +351,15 @@ export function apiRouter(db, config) {
              AND NOT EXISTS (SELECT 1 FROM rules r WHERE r.list_id = l.id AND NOT EXISTS
                (SELECT 1 FROM rule_progress p WHERE p.rule_id = r.id AND p.user_id = :u AND p.box >= ${SAFE_BOX}))))) AS listsMastered`,
     ),
+    // Wochenrückblick: Verlauf der Stabilität, nur aus Listen mit Lernserie (siehe week.js)
+    wordLog: db.prepare(
+      `SELECT word_id AS unit, direction AS part, stability, at FROM review_log
+       WHERE user_id = :u AND word_id IN (SELECT id FROM words WHERE list_id IN (${STREAK_LISTS})) ORDER BY at`,
+    ),
+    ruleLog: db.prepare(
+      `SELECT rule_id AS unit, '' AS part, stability, at FROM grammar_log
+       WHERE user_id = :u AND stability IS NOT NULL AND rule_id IN (SELECT id FROM rules WHERE list_id IN (${STREAK_LISTS})) ORDER BY at`,
+    ),
     earnedBadges: db.prepare('SELECT badge, earned_at FROM badges_earned WHERE user_id = ?'),
     addBadge: db.prepare('INSERT OR IGNORE INTO badges_earned (user_id, badge, earned_at) VALUES (?, ?, ?)'),
     doneDays: db.prepare('SELECT COUNT(*) AS n FROM learning_days WHERE user_id = ? AND done = 1'),
@@ -455,7 +465,7 @@ export function apiRouter(db, config) {
   }
 
   // Für die Startseite: Serie, Lerntage, Tagesziel und die Woche
-  function streakSummary(userId) {
+  function streakSummary(userId, { withReview = false } = {}) {
     if (!streakEnabled(userId)) return { enabled: false };
     const stored = q.learningDays.all(userId);
     const rows = stored.map((r) => ({ day: r.day, done: !!r.done, had_due: !!r.had_due, next_due: r.next_due }));
@@ -470,6 +480,12 @@ export function apiRouter(db, config) {
       badges: { earned: q.earnedBadges.all(userId).length, total: BADGES.length },
       // Listen, deren Antworten fürs Tagesziel zählen (die Lernrunde zeigt das Ziel nur dort)
       lists: q.streakListIds.all({ u: userId }).map((l) => l.id),
+      // nur für die Startseite: Das Nachspielen des Verlaufs muss nicht bei jeder Übertragung sein
+      review: withReview ? weekReview({
+        days: rows.filter((r) => r.done).map((r) => r.day),
+        words: q.wordLog.all({ u: userId }),
+        rules: q.ruleLog.all({ u: userId }),
+      }, today, Date.now(), timezone) : undefined,
     };
   }
 
@@ -522,7 +538,7 @@ export function apiRouter(db, config) {
     groups: req.user.isTeacher ? teacherGroups(req.user.id) : [],
   })));
 
-  router.get('/streak', wrap((req) => streakSummary(req.user.id)));
+  router.get('/streak', wrap((req) => streakSummary(req.user.id, { withReview: req.query.review === '1' })));
 
   // Sammlung: erreichte Abzeichen und der Fortschritt zu den übrigen
   router.get('/badges', wrap((req) => {
