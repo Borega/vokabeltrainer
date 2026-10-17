@@ -913,6 +913,7 @@ test('Migration 9 bis 15: Stand 8 → aktuell, Vokabellisten bleiben unveränder
       DROP INDEX lists_template;
       ALTER TABLE lists DROP COLUMN template;
       ALTER TABLE lists DROP COLUMN subject;
+      ALTER TABLE lists DROP COLUMN goal_date;
       INSERT INTO lists (id, title, mode, created_at, updated_at) VALUES (3, 'Alt', 'type', 't', 't');
       INSERT INTO words (list_id, pos, a, b) VALUES (3, 0, 'dog', 'Hund');
       PRAGMA user_version = 8;`);
@@ -1034,6 +1035,25 @@ test('Lernserie: Obergrenze – 25 Antworten genügen, auch wenn mehr fällig is
   assert.equal(res.body.streak.reached, true, '25 Antworten erfüllen das Ziel, obwohl noch 5 fällig sind');
   assert.deepEqual([res.body.streak.today.remaining, res.body.streak.total], [5, 1]);
   assert.equal((await student('GET', '/streak')).body.today.done, true);
+});
+
+test('Zieldatum einer Liste: speichern, prüfen, nicht kopieren; „schon gewusst“ in der Übersicht', async () => {
+  const { teacher, student, words, answer, send, listId } = await streakSetup('Datum', 'Klasse Datum');
+  const body = { ...listBody, title: 'Serie Datum', groups: [{ id: 'klasse.datum', name: 'Klasse Datum' }], words: words.map((w) => ({ id: w.id, a: w.a, b: w.b })) };
+  assert.equal((await teacher('PUT', `/lists/${listId}`, { ...body, goal_date: '2026-02-30' })).status, 400);
+  assert.equal((await teacher('PUT', `/lists/${listId}`, { ...body, goal_date: 'Freitag' })).status, 400);
+  assert.equal((await teacher('PUT', `/lists/${listId}`, { ...body, goal_date: '2026-10-23' })).status, 200);
+  assert.equal((await student('GET', `/lists/${listId}`)).body.goal_date, '2026-10-23');
+
+  const at = new Date().toISOString();
+  await send([answer(words[0], at, 'good'), answer(words[1], at, 'again')]);
+  const listed = (await student('GET', `/lists?due_until=${encodeURIComponent(at)}`)).body.assigned.find((l) => l.id === listId);
+  assert.deepEqual([listed.goal_date, listed.progress.known, listed.progress.seen], ['2026-10-23', 1, 2]);
+
+  const copy = await teacher('POST', `/lists/${listId}/copy`, {});
+  assert.equal((await teacher('GET', `/lists/${copy.body.id}`)).body.goal_date, null, 'das Datum gehört zur Klasse, nicht zur Kopie');
+  assert.equal((await teacher('PUT', `/lists/${listId}`, { ...body, goal_date: '' })).status, 200);
+  assert.equal((await student('GET', `/lists/${listId}`)).body.goal_date, null);
 });
 
 test('Klassenziel: Summe sicherer Wörter der Gruppe, erst ab fünf Schüler:innen, ohne Namen', async () => {

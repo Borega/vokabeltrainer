@@ -65,6 +65,15 @@ function parseSubject(raw) {
   return raw;
 }
 
+// Zieldatum einer Liste ('JJJJ-MM-TT') oder null
+function parseGoalDate(raw) {
+  if (raw == null || raw === '') return null;
+  const valid = typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw)
+    && new Date(`${raw}T00:00:00Z`).toISOString().startsWith(raw);
+  if (!valid) throw new HttpError(400, 'Ungültiges Zieldatum.');
+  return raw;
+}
+
 function parseGroups(raw) {
   return Array.isArray(raw)
     ? raw
@@ -144,6 +153,7 @@ function parseListBody(body) {
     allow_mode_switch: body.allow_mode_switch === false ? 0 : 1,
     // Ohne Angabe (ältere Clients) bleibt es bei der Schätzung im Browser
     learn_side: ['a', 'b'].includes(body.learn_side) ? body.learn_side : '',
+    goal_date: parseGoalDate(body.goal_date),
     words,
   };
 }
@@ -167,6 +177,7 @@ function listJson(row) {
     shared: !!row.shared,
     copied_from: row.copied_from || '',
     template: !!row.template,
+    goal_date: row.goal_date ?? null,
     updated_at: row.updated_at,
   };
 }
@@ -249,6 +260,7 @@ export function apiRouter(db, config) {
     myProgressSummary: db.prepare(
       `SELECT w.list_id, COUNT(DISTINCT p.word_id) AS seen,
          COUNT(DISTINCT CASE WHEN p.box >= ${SAFE_BOX} THEN p.word_id END) AS safe,
+         COUNT(DISTINCT CASE WHEN p.right > 0 THEN p.word_id END) AS known,
          COUNT(CASE WHEN p.due <= ? THEN 1 END) AS due,
          MAX(p.last_seen) AS last_seen
        FROM progress p JOIN words w ON w.id = p.word_id
@@ -612,7 +624,8 @@ export function apiRouter(db, config) {
         word_count: row.word_count,
         rule_count: row.rule_count,
         item_count: row.item_count,
-        progress: { seen: s?.seen ?? 0, safe: s?.safe ?? 0, due: s?.due ?? 0, last_seen: s?.last_seen ?? null },
+        // known: schon einmal gewusst (für das Zieldatum einer Liste; „sicher“ ist bis zu einem Test oft nicht erreichbar)
+        progress: { seen: s?.seen ?? 0, safe: s?.safe ?? 0, known: s?.known ?? 0, due: s?.due ?? 0, last_seen: s?.last_seen ?? null },
       };
     };
     const own = req.user.isTeacher
@@ -687,9 +700,10 @@ export function apiRouter(db, config) {
     const ts = now();
     db.prepare(
       `UPDATE lists SET title = ?, lang_a = ?, lang_b = ?, learn_side = ?, mode = ?, case_sensitive = ?, accent_sensitive = ?,
-         direction = ?, allow_switch = ?, allow_mode_switch = ?, grade = ?, subject = COALESCE(?, subject), shared = ?, updated_at = ? WHERE id = ?`,
+         direction = ?, allow_switch = ?, allow_mode_switch = ?, grade = ?, subject = COALESCE(?, subject), shared = ?,
+         goal_date = ?, updated_at = ? WHERE id = ?`,
     ).run(data.title, data.lang_a, data.lang_b, data.learn_side, data.mode, data.case_sensitive, data.accent_sensitive,
-      data.direction, data.allow_switch, data.allow_mode_switch, data.grade, data.subject, data.shared, ts, listId);
+      data.direction, data.allow_switch, data.allow_mode_switch, data.grade, data.subject, data.shared, data.goal_date ?? null, ts, listId);
 
     if (data.kind === 'grammar') writeRules(db, listId, data.rules);
     else writeWords(listId, data.words);

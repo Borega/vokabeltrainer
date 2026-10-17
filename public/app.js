@@ -392,6 +392,22 @@ const sizeParts = (list) => (isGrammar(list)
   ? [plural(list.rule_count, 'Regel', 'Regeln'), plural(list.item_count, 'Aufgabe', 'Aufgaben')]
   : [plural(list.word_count, 'Wort', 'Wörter')]);
 
+// Zieldatum einer Vokabelliste (z. B. der Vokabeltest): bis dahin, wie viele Wörter schon einmal gewusst wurden.
+// „Sicher“ ist bis zu einem Test oft nicht erreichbar, weil es Abstand zwischen den Wiederholungen braucht.
+function goalDateBlock(list, total, own) {
+  const today = new Date().toLocaleDateString('sv'); // JJJJ-MM-TT in Ortszeit
+  if (!list.goal_date || isGrammar(list) || list.goal_date < today) return null;
+  const when = new Date(`${list.goal_date}T12:00:00`).toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'numeric' });
+  // Lehrkraft: der eigene Lernstand sagt nichts über die Klasse – nur das Datum
+  if (own) return h('div', { class: 'chips' }, h('span', { class: 'chip' }, `Zieldatum ${when}`));
+  const known = Math.min(list.progress.known ?? 0, total);
+  return h('div', { class: 'progress goal-date' },
+    progressBar(known, total, `Schon gewusst bis ${when}`),
+    h('span', { class: 'small' }, list.goal_date === today
+      ? `Heute ist es so weit: ${known} von ${total} Wörtern schon gewusst.`
+      : `Ziel bis ${when}: ${known} von ${total} Wörtern schon gewusst.`));
+}
+
 function listCard(list, { own }) {
   const total = isGrammar(list) ? list.rule_count : list.word_count;
   const meta = [
@@ -411,6 +427,7 @@ function listCard(list, { own }) {
     own && list.copied_from ? h('p', { class: 'muted small' }, `Kopie von: ${list.copied_from}`) : null,
     own && list.shared ? h('div', { class: 'chips' }, h('span', { class: 'chip shared' }, 'Für Kolleg:innen freigegeben')) : null,
     list.progress.due ? h('div', { class: 'chips' }, h('span', { class: 'chip due' }, `${list.progress.due} heute fällig`)) : null,
+    goalDateBlock(list, total, own),
     own && list.groups?.length
       ? h('div', { class: 'chips' }, list.groups.map((g) => h('span', { class: 'chip' }, g.name)))
       : own ? h('p', { class: 'warn small' }, 'Noch keiner Gruppe zugewiesen') : null,
@@ -574,6 +591,7 @@ async function renderEditor(id, loaded = null) {
     h('option', { value: '', selected: !list.grade }, 'Bitte wählen …'),
     GRADES.map((g) => h('option', { value: String(g), selected: list.grade === g }, `Jahrgang ${g}`)));
   const subject = h('select', {}, Object.entries(SUBJECTS).map(([value, text]) => h('option', { value, selected: value === (list.subject || DEFAULT_SUBJECT) }, text)));
+  const goalDate = h('input', { type: 'date', value: list.goal_date ?? '' });
   const langB = languageSelect(list.lang_b, langTag);
   // Welche Seite gelernt wird (die Fremdsprache, bei DaZ Deutsch). Ohne eigene Wahl folgt sie den Sprachen.
   const learnSel = h('select', {}, h('option', { value: 'a' }), h('option', { value: 'b' }));
@@ -853,6 +871,7 @@ async function renderEditor(id, loaded = null) {
       learn_side: sameLanguage(currentLangs()) ? 'a' : learnSel.value,
       grade: Number(grade.value) || null,
       subject: subject.value,
+      goal_date: goalDate.value || null,
       mode: selectedMode(),
       case_sensitive: caseSens.checked,
       accent_sensitive: accentSens.checked,
@@ -894,6 +913,7 @@ async function renderEditor(id, loaded = null) {
       h('p', { class: 'small muted' }, 'Deutschunterricht und andere Fächer (Biologie, Geschichte …): auf beiden Seiten Deutsch – Seite A ist dann der Begriff, Seite B die Bedeutung.'),
       h('div', { class: 'row2' }, field('Fach', subject, 'Hilft Kolleg:innen beim Finden geteilter Listen.'), field('Jahrgangsstufe', grade, 'Für welchen Jahrgang ist die Liste?')),
       learnField,
+      field('Zieldatum (freiwillig)', goalDate, 'Zum Beispiel der Vokabeltest. Bis dahin sehen Schüler:innen, wie viele Wörter sie schon einmal gewusst haben.'),
     ),
     h('div', { class: 'panel' },
       h('h2', {}, 'Abfrage'),

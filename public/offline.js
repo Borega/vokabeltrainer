@@ -34,15 +34,17 @@ export function mergeProgress(local = [], server = [], pendingKeys = new Set(), 
 export function summarize(progress = [], until = new Date(), unit = 'word_id') {
   const seen = new Set();
   const safe = new Set();
+  const known = new Set();
   let due = 0;
   let last = null;
   for (const p of progress) {
     seen.add(p[unit]);
     if (p.box >= SAFE_LEVEL) safe.add(p[unit]);
+    if (p.right > 0) known.add(p[unit]);
     if (p.due && new Date(p.due) <= until) due++;
     if (p.last_seen && (!last || p.last_seen > last)) last = p.last_seen;
   }
-  return { seen: seen.size, safe: safe.size, due, last_seen: last };
+  return { seen: seen.size, safe: safe.size, known: known.size, due, last_seen: last };
 }
 
 export function newId() {
