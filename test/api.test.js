@@ -1076,6 +1076,9 @@ test('Lernserie: zählt nur Listen aus Gruppen, in denen sie an ist', async () =
   assert.equal(streak.body.enabled, true, 'Gruppe S5a ist an');
   assert.equal(streak.body.today.remaining, 0);
   assert.equal(a.words.length, 3);
+  // Die Lernrunde zeigt das Tagesziel nur bei Listen, die zählen
+  assert.ok(streak.body.lists.includes(a.listId));
+  assert.ok(!streak.body.lists.includes(listB.body.id));
 });
 
 test('Lernserie: für die ganze Schule abschaltbar (GAMIFICATION=false)', async () => {

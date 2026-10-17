@@ -281,6 +281,7 @@ async function download() {
 let syncing = null;
 let syncAgain = false;
 const progressListeners = new Set(); // Lernansicht: neuen Stand vom Server übernehmen
+let lastStreak = null; // Lernserie nach der letzten Übertragung (für die Bilanz einer Runde)
 
 function syncNow() {
   if (!me) return Promise.resolve();
@@ -313,6 +314,7 @@ async function pushAnswers() {
     renderNet();
     const res = await request('POST', '/results', { results: batch });
     await store.done(batch.map((e) => e.id));
+    if (res.streak) lastStreak = res.streak;
     const reward = [res.streak?.reached && reachedText(res.streak), badgeText(res.badges)].filter(Boolean).join(' ');
     if (reward) toast(reward);
     const pendingFor = await pendingKeys(); // was inzwischen neu beantwortet wurde
@@ -1218,6 +1220,26 @@ async function renderLearn(id) {
       return ok ? (milestone(combo + 1) ? `${combo + 1} richtig in Folge!` : 'Richtig!') : wrongText;
     }
 
+    // Tagesziel: wie beim Server zählen nur die ersten Antworten auf Einträge, die heute fällig sind,
+    // und nur in Listen mit Lernserie. Ohne Internet (oder schon erledigt) bleibt die Anzeige weg.
+    const untilToday = endOfToday();
+    const dueAtStart = new Set(cards
+      .filter((c) => { const p = progress.get(key(c.word.id, c.dir)); return p?.due && new Date(p.due) <= untilToday; })
+      .map((c) => key(c.word.id, c.dir)));
+    let dueAnswered = 0;
+    let toGoal = null; // fehlende Antworten bis zum Tagesziel beim Start der Runde
+    const goalLine = h('p', { class: 'goal small muted center', hidden: true });
+    const goalLeft = () => toGoal - dueAnswered;
+    function showGoal() {
+      goalLine.hidden = toGoal == null;
+      goalLine.textContent = goalLeft() > 0 ? `Tagesziel: noch ${goalLeft()}` : 'Tagesziel geschafft';
+    }
+    const countsHere = (s) => !!s?.enabled && !!s.lists?.includes(list.id);
+    request('GET', '/streak').then((s) => {
+      if (countsHere(s) && !s.today.done && s.today.remaining > 0) toGoal = Math.min(s.today.remaining, s.goal - s.today.answers);
+      showGoal();
+    }).catch(() => {});
+
     const options = { caseSensitive: list.case_sensitive, accentSensitive: list.accent_sensitive, literalParens: FORMULA_SUBJECTS.includes(list.subject) };
 
     // Nur die erste Antwort zählt für die Planung. Nicht (sicher) gewusste Wörter kommen
@@ -1225,6 +1247,10 @@ async function renderLearn(id) {
     function answered(card, grade, correct) {
       if (!card.retry) {
         record(card, grade, correct);
+        if (dueAtStart.has(key(card.word.id, card.dir))) {
+          dueAnswered++;
+          showGoal();
+        }
         done++;
         if (correct) right++;
         else wrongWords.push(card);
@@ -1249,7 +1275,7 @@ async function renderLearn(id) {
         comboChip,
         h('span', { class: 'small muted' }, `${Math.min(done + 1, total)} / ${total}`),
       );
-      const show = (...content) => view(h('section', { class: 'round' }, header,
+      const show = (...content) => view(h('section', { class: 'round' }, header, goalLine,
         card.retry ? h('p', { class: 'retry small' }, 'Wiederholung') : null, ...content));
       const render = { intro: showIntro, flip: showFlip, choice: showChoice }[card.exercise] ?? showTyping;
       render(card, show);
@@ -1499,6 +1525,13 @@ async function renderLearn(id) {
       const pct = total ? Math.round((right / total) * 100) : 0;
       const secs = Math.round((Date.now() - started) / 1000);
       const tile = (value, label) => h('div', { class: 'tile' }, h('strong', {}, value), h('span', { class: 'small muted' }, label));
+      // Tagesziel: erst die Schätzung auf dem Gerät, nach der Übertragung mit der Serie vom Server
+      const goalResult = h('p', { class: 'goal-result' });
+      if (toGoal != null) {
+        goalResult.textContent = goalLeft() > 0 ? `Noch ${goalLeft()} fällige bis zum Tagesziel.` : 'Tagesziel erreicht.';
+        // erst warten, bis die letzte Antwort auf dem Gerät liegt – sonst überträgt syncNow ohne sie
+        writes.then(() => syncNow()).then(() => { if (countsHere(lastStreak) && lastStreak.today.done) goalResult.textContent = reachedText(lastStreak); }).catch(() => {});
+      }
       const outlook = h('p', { class: 'small muted' });
       const remaining = h('div', {});
       view(h('section', { class: 'panel result' },
@@ -1507,6 +1540,7 @@ async function renderLearn(id) {
           tile(`${right}/${total}`, `auf Anhieb richtig · ${pct} %`),
           tile(String(bestCombo), 'beste Serie'),
           tile(`${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`, 'Minuten')),
+        goalResult,
         outlook,
         wrongWords.length
           ? h('div', {}, h('h2', {}, 'Noch üben'),

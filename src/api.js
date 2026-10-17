@@ -468,6 +468,8 @@ export function apiRouter(db, config) {
       today: { done: !!row?.done, answers: row?.answers ?? 0, remaining: dueUntilEndOf(userId, today) },
       week: weekOf(rows, today),
       badges: { earned: q.earnedBadges.all(userId).length, total: BADGES.length },
+      // Listen, deren Antworten fürs Tagesziel zählen (die Lernrunde zeigt das Ziel nur dort)
+      lists: q.streakListIds.all({ u: userId }).map((l) => l.id),
     };
   }
 
