@@ -380,6 +380,11 @@ input.example.gap-missing { border-color: var(--wrong); }
 .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: .75rem; margin: 1rem 0; }
 .summary .tile { display: flex; flex-direction: column; gap: .2rem; padding: .8rem .5rem; background: var(--chip); border-radius: 12px; }
 .summary .tile strong { white-space: nowrap; font-size: 1.6rem; color: var(--moss); font-variant-numeric: tabular-nums; }
+.group-row { display: flex; flex-direction: column; gap: .3rem; padding: .35rem 0; }
+.goal-field { display: flex; align-items: center; flex-wrap: wrap; gap: .25rem .5rem; padding-left: 1.6rem; }
+.goal-field input { width: 7.5rem; }
+.class-goal .progress + .progress { margin-top: .6rem; }
+.week-review { margin: .25rem 0 0; }
 .chip.combo { background: var(--right-bg); color: var(--right); white-space: nowrap; }
 .chip.combo.milestone, .celebrate { animation: cheer .6s ease-out; }
 .celebrate { box-shadow: 0 0 0 4px color-mix(in srgb, var(--right) 35%, transparent); }

@@ -15,7 +15,7 @@ import * as store from './store.js';
 import * as FSRS from './vendor/ts-fsrs.js';
 import { exportGroupsCsv, groupPanels, historyPanel, levelChip, pct, sortableTable, statTiles } from './stats-ui.js';
 import { badgePage, badgeText } from './badges-ui.js';
-import { groupSwitches, reachedText, streakPanel } from './streak-ui.js';
+import { classGoalPanel, groupSwitches, reachedText, streakPanel } from './streak-ui.js';
 import {
   endOfToday, field, fill, formatDate, formatDue, groupPicker, h, icon, languageSelect, pref, progressBar, segmented, shuffle, toast, view,
 } from './ui.js';
@@ -435,7 +435,7 @@ async function renderHome() {
       // Die Lernserie ist eine Zugabe: Fehlt sie, bleibt die Startseite wie sie ist
       [data, streak] = await Promise.all([
         api('GET', `/lists?due_until=${encodeURIComponent(endOfToday().toISOString())}`),
-        request('GET', '/streak?review=1').catch(() => null),
+        request('GET', '/streak?home=1').catch(() => null),
       ]);
     } catch (err) {
       if (!(err instanceof OfflineError)) throw err;
@@ -481,6 +481,7 @@ function renderHomeLists({ own, assigned }, { offline = false, note = null, stre
   }
   // Lehrkräfte, die nur Listen anlegen, sehen die Serie nicht, solange sie selbst nichts üben
   if (streak?.enabled && (!me.isTeacher || streak.total || streak.today.remaining)) sections.push(streakPanel(streak));
+  if (streak?.classGoals?.length) sections.push(classGoalPanel(streak.classGoals));
   if (me.isTeacher && !offline) {
     sections.push(
       h('section', {},
@@ -512,6 +513,15 @@ function renderHomeLists({ own, assigned }, { offline = false, note = null, stre
         await api('PUT', '/group-settings', { group_id: group.id, gamification: enabled });
         group.gamification = enabled;
         toast(enabled ? 'Lernserie und Abzeichen für diese Gruppe eingeschaltet.' : 'Lernserie und Abzeichen für diese Gruppe ausgeschaltet.');
+      } catch (err) {
+        toast(err.message, 'error');
+        throw err;
+      }
+    }, async (group, goal) => {
+      try {
+        await api('PUT', '/group-settings', { group_id: group.id, class_goal: goal });
+        group.classGoal = goal;
+        toast(goal ? `Klassenziel für ${group.name}: ${goal} Wörter sicher.` : `Kein Klassenziel mehr für ${group.name}.`);
       } catch (err) {
         toast(err.message, 'error');
         throw err;

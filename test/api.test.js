@@ -239,7 +239,7 @@ test('Migration 4 baut die Listentabelle neu auf, ohne Wörter zu verlieren', as
     const old = new DatabaseSync(join(dir, 'vokabeltrainer.sqlite'));
     old.exec(`PRAGMA foreign_keys = OFF;
       DROP TABLE lists; DROP TABLE words; DROP TABLE review_log; DROP TABLE device_tokens;
-      DROP TABLE grammar_log; DROP TABLE rule_progress; DROP TABLE items; DROP TABLE rules;
+      DROP TABLE grammar_log; DROP TABLE rule_progress; DROP TABLE items; DROP TABLE rules; DROP TABLE group_settings;
       CREATE TABLE lists (id INTEGER PRIMARY KEY, owner_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
         title TEXT NOT NULL, lang_a TEXT NOT NULL DEFAULT '', lang_b TEXT NOT NULL DEFAULT '',
         mode TEXT NOT NULL DEFAULT 'flip' CHECK (mode IN ('flip', 'type')), case_sensitive INTEGER NOT NULL DEFAULT 0,
@@ -894,7 +894,7 @@ test('Grammatik-Auswertung: Gruppen, schwierige Regeln, häufige Fehler ohne Nam
   assert.equal((await teacher('POST', `/lists/${vocab}/feedback`, { item_id: 1, answer: 'x', text: 'y' })).status, 400);
 });
 
-test('Migration 9 bis 14: Stand 8 → aktuell, Vokabellisten bleiben unverändert', async () => {
+test('Migration 9 bis 15: Stand 8 → aktuell, Vokabellisten bleiben unverändert', async () => {
   const { MIGRATIONS, openDb } = await import('../src/db.js');
   const { mkdtempSync, rmSync } = await import('node:fs');
   const { tmpdir } = await import('node:os');
@@ -907,6 +907,7 @@ test('Migration 9 bis 14: Stand 8 → aktuell, Vokabellisten bleiben unveränder
     const old = new DatabaseSync(join(dir, 'vokabeltrainer.sqlite'));
     old.exec(`PRAGMA foreign_keys = OFF;
       DROP TABLE grammar_log; DROP TABLE rule_progress; DROP TABLE items; DROP TABLE rules;
+      DROP TABLE group_settings;
       ALTER TABLE lists DROP COLUMN kind;
       ALTER TABLE lists DROP COLUMN learn_side;
       DROP INDEX lists_template;
@@ -1035,6 +1036,35 @@ test('Lernserie: Obergrenze – 25 Antworten genügen, auch wenn mehr fällig is
   assert.equal((await student('GET', '/streak')).body.today.done, true);
 });
 
+test('Klassenziel: Summe sicherer Wörter der Gruppe, erst ab fünf Schüler:innen, ohne Namen', async () => {
+  const { teacher, student, words, answer, send, groupId } = await streakSetup('Ziel', 'Klasse Ziel');
+  for (let i = 1; i <= 3; i++) await login(`Schüler Ziel ${i}`, { groups: 'Klasse Ziel' });
+
+  assert.equal((await teacher('PUT', '/group-settings', { group_id: groupId, class_goal: 0 })).status, 400);
+  assert.equal((await teacher('PUT', '/group-settings', { group_id: groupId, class_goal: 'viel' })).status, 400);
+  assert.equal((await student('PUT', '/group-settings', { group_id: groupId, class_goal: 10 })).status, 403);
+  const put = await teacher('PUT', '/group-settings', { group_id: groupId, class_goal: 10 });
+  assert.deepEqual(put.body, { group_id: groupId, gamification: true, class_goal: 10 });
+
+  const at = new Date().toISOString();
+  await send([answer(words[0], at, 'good'), answer(words[1], at, 'good')]);
+  db.prepare("UPDATE progress SET box = 3 WHERE user_id = (SELECT id FROM users WHERE name = 'Schüler Ziel')").run();
+
+  assert.deepEqual((await student('GET', '/streak?home=1')).body.classGoals, [], 'vier Schüler:innen: zu wenige');
+  await login('Schüler Ziel 4', { groups: 'Klasse Ziel' });
+  assert.deepEqual((await student('GET', '/streak?home=1')).body.classGoals, [{ group: 'Klasse Ziel', goal: 10, safe: 2 }]);
+  assert.equal((await student('GET', '/streak')).body.classGoals, undefined, 'nicht bei jeder Übertragung');
+
+  const mine = (await teacher('GET', '/me')).body.groups.find((g) => g.id === groupId);
+  assert.deepEqual([mine.classGoal, mine.classSafe, mine.classSize], [10, 2, 5]);
+
+  // Schaltet die Lehrkraft die Lernserie ab, verschwindet auch das Klassenziel; null entfernt es
+  await teacher('PUT', '/group-settings', { group_id: groupId, gamification: false });
+  assert.deepEqual((await student('GET', '/streak?home=1')).body, { enabled: false });
+  await teacher('PUT', '/group-settings', { group_id: groupId, gamification: true, class_goal: null });
+  assert.deepEqual((await student('GET', '/streak?home=1')).body.classGoals, []);
+});
+
 test('Lernserie: pro Gruppe abschaltbar, nur durch Lehrkräfte der Gruppe', async () => {
   const { teacher, student, words, answer, send, groupId } = await streakSetup('Serie4', 'Klasse S4');
   const other = await login('Lehrkraft fremd', { teacher: true, groups: 'Klasse X' });
@@ -1078,7 +1108,7 @@ test('Lernserie: zählt nur Listen aus Gruppen, in denen sie an ist', async () =
   assert.equal(a.words.length, 3);
   // Wochenrückblick nur auf Wunsch (Startseite), nicht bei jeder Übertragung
   assert.equal(streak.body.review, undefined);
-  const withReview = (await student('GET', '/streak?review=1')).body.review;
+  const withReview = (await student('GET', '/streak?home=1')).body.review;
   assert.deepEqual(Object.keys(withReview).sort(), ['days', 'last', 'safeRules', 'safeWords']);
   // Die Lernrunde zeigt das Tagesziel nur bei Listen, die zählen
   assert.ok(streak.body.lists.includes(a.listId));

@@ -11,6 +11,8 @@ import { ttsFor } from './tts.js';
 
 // Ab dieser Stufe gilt ein Wort als „sicher“ (0 = neu … 5, siehe scheduler.js).
 export const SAFE_BOX = SAFE_LEVEL;
+// Klassenziel erst ab so vielen Schüler:innen in der Gruppe
+export const MIN_CLASS = 5;
 const MAX_WORDS = 2000;
 const DAY = 24 * 60 * 60 * 1000;
 const HISTORY_WEEKS = 8;
@@ -374,12 +376,28 @@ export function apiRouter(db, config) {
          done = excluded.done, next_due = excluded.next_due`,
     ),
     groupFlags: db.prepare(
-      `SELECT ug.group_id AS id, ug.group_name AS name, COALESCE(gs.gamification, 1) AS enabled
+      `SELECT ug.group_id AS id, ug.group_name AS name, COALESCE(gs.gamification, 1) AS enabled, gs.class_goal
        FROM user_groups ug LEFT JOIN group_settings gs ON gs.group_id = ug.group_id WHERE ug.user_id = ?`,
     ),
     setGroupSetting: db.prepare(
       `INSERT INTO group_settings (group_id, gamification) VALUES (?, ?)
        ON CONFLICT(group_id) DO UPDATE SET gamification = excluded.gamification`,
+    ),
+    setClassGoal: db.prepare(
+      `INSERT INTO group_settings (group_id, class_goal) VALUES (?, ?)
+       ON CONFLICT(group_id) DO UPDATE SET class_goal = excluded.class_goal`,
+    ),
+    // Klassenziel: sichere Wörter aller Schüler:innen der Gruppe in Listen, die der Gruppe zugewiesen sind
+    classSafe: db.prepare(
+      `SELECT COUNT(*) AS n FROM (SELECT DISTINCT p.user_id, p.word_id FROM progress p
+         JOIN words w ON w.id = p.word_id
+         JOIN list_groups lg ON lg.list_id = w.list_id AND lg.group_id = :g
+         JOIN user_groups ug ON ug.user_id = p.user_id AND ug.group_id = :g
+         JOIN users u ON u.id = p.user_id AND u.is_teacher = 0
+         WHERE p.box >= ${SAFE_BOX})`,
+    ),
+    classSize: db.prepare(
+      `SELECT COUNT(*) AS n FROM user_groups ug JOIN users u ON u.id = ug.user_id AND u.is_teacher = 0 WHERE ug.group_id = ?`,
     ),
     getProgress: db.prepare('SELECT * FROM progress WHERE user_id = ? AND word_id = ? AND direction = ?'),
     putProgress: db.prepare(
@@ -429,7 +447,15 @@ export function apiRouter(db, config) {
   const isShownGroup = (g) => !config.hiddenGroups.includes(g.id.toLowerCase()) && !config.hiddenGroups.includes(g.name.toLowerCase());
 
   function teacherGroups(userId) {
-    return q.groupFlags.all(userId).filter(isShownGroup).map((g) => ({ id: g.id, name: g.name, gamification: !!g.enabled }));
+    return q.groupFlags.all(userId).filter(isShownGroup).map((g) => ({ id: g.id, name: g.name, gamification: !!g.enabled, classGoal: g.class_goal }));
+  }
+
+  // Klassenziele der Gruppen einer Person: nur mit Lernserie, gesetztem Ziel und genug Schüler:innen, damit sich aus
+  // der Summe nicht ablesen lässt, wie weit eine einzelne Person ist. Keine Namen, keine Reihenfolge.
+  function classGoals(userId) {
+    return teacherGroups(userId)
+      .filter((g) => g.gamification && g.classGoal && q.classSize.get(g.id).n >= MIN_CLASS)
+      .map((g) => ({ group: g.name, goal: g.classGoal, safe: q.classSafe.get({ g: g.id }).n }));
   }
 
   // ---------- Lernserie ----------
@@ -465,7 +491,7 @@ export function apiRouter(db, config) {
   }
 
   // Für die Startseite: Serie, Lerntage, Tagesziel und die Woche
-  function streakSummary(userId, { withReview = false } = {}) {
+  function streakSummary(userId, { forHome = false } = {}) {
     if (!streakEnabled(userId)) return { enabled: false };
     const stored = q.learningDays.all(userId);
     const rows = stored.map((r) => ({ day: r.day, done: !!r.done, had_due: !!r.had_due, next_due: r.next_due }));
@@ -480,8 +506,9 @@ export function apiRouter(db, config) {
       badges: { earned: q.earnedBadges.all(userId).length, total: BADGES.length },
       // Listen, deren Antworten fürs Tagesziel zählen (die Lernrunde zeigt das Ziel nur dort)
       lists: q.streakListIds.all({ u: userId }).map((l) => l.id),
-      // nur für die Startseite: Das Nachspielen des Verlaufs muss nicht bei jeder Übertragung sein
-      review: withReview ? weekReview({
+      // nur für die Startseite: Verlauf nachspielen und Klassen zählen muss nicht bei jeder Übertragung sein
+      classGoals: forHome ? classGoals(userId) : undefined,
+      review: forHome ? weekReview({
         days: rows.filter((r) => r.done).map((r) => r.day),
         words: q.wordLog.all({ u: userId }),
         rules: q.ruleLog.all({ u: userId }),
@@ -535,10 +562,13 @@ export function apiRouter(db, config) {
     device: !!req.session.data.device,
     remember: config.rememberDays > 0,
     gamification: config.gamification !== false,
-    groups: req.user.isTeacher ? teacherGroups(req.user.id) : [],
+    // Lehrkräfte sehen beim Klassenziel, wie weit die Gruppe ist (nur die Summe)
+    groups: req.user.isTeacher
+      ? teacherGroups(req.user.id).map((g) => ({ ...g, classSafe: q.classSafe.get({ g: g.id }).n, classSize: q.classSize.get(g.id).n }))
+      : [],
   })));
 
-  router.get('/streak', wrap((req) => streakSummary(req.user.id, { withReview: req.query.review === '1' })));
+  router.get('/streak', wrap((req) => streakSummary(req.user.id, { forHome: req.query.home === '1' })));
 
   // Sammlung: erreichte Abzeichen und der Fortschritt zu den übrigen
   router.get('/badges', wrap((req) => {
@@ -547,14 +577,25 @@ export function apiRouter(db, config) {
     return { enabled: true, badges: collection(badgeStats(req.user.id), earned) };
   }));
 
-  // Lernserie für eine Gruppe ein- oder ausschalten (nur Lehrkräfte, die der Gruppe angehören)
+  // Lernserie für eine Gruppe ein- oder ausschalten und das Klassenziel setzen (nur Lehrkräfte, die der Gruppe
+  // angehören). class_goal: Anzahl sicherer Wörter oder null (kein Klassenziel).
   router.put('/group-settings', wrap((req) => {
     requireTeacher(req);
     const id = typeof req.body?.group_id === 'string' ? req.body.group_id : '';
     if (!teacherGroups(req.user.id).some((g) => g.id === id)) throw new HttpError(403, 'Diese Gruppe gehört nicht zu dir.');
-    if (typeof req.body.gamification !== 'boolean') throw new HttpError(400, 'Ungültige Daten.');
-    q.setGroupSetting.run(id, req.body.gamification ? 1 : 0);
-    return { group_id: id, gamification: req.body.gamification };
+    const { gamification, class_goal: goal } = req.body;
+    const hasGoal = 'class_goal' in req.body;
+    if (gamification === undefined && !hasGoal) throw new HttpError(400, 'Ungültige Daten.');
+    if (gamification !== undefined && typeof gamification !== 'boolean') throw new HttpError(400, 'Ungültige Daten.');
+    if (hasGoal && goal !== null && !(Number.isInteger(goal) && goal >= 1 && goal <= 1000000)) {
+      throw new HttpError(400, 'Das Klassenziel muss eine Zahl zwischen 1 und 1 000 000 sein.');
+    }
+    transaction(db, () => {
+      if (gamification !== undefined) q.setGroupSetting.run(id, gamification ? 1 : 0);
+      if (hasGoal) q.setClassGoal.run(id, goal);
+    });
+    const saved = teacherGroups(req.user.id).find((g) => g.id === id);
+    return { group_id: id, gamification: saved.gamification, class_goal: saved.classGoal };
   }));
 
   // ?due_until=<ISO-Zeitpunkt>: bis wann ein Wort als „heute fällig“ zählt (Ende des lokalen Tages im Browser)
