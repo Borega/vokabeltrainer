@@ -6,6 +6,8 @@ const TZ = 'Europe/Berlin';
 const done = (day, next_due = null) => ({ day, done: true, had_due: true, next_due });
 const partial = (day, next_due) => ({ day, done: false, had_due: true, next_due });
 const free = (day, next_due = null) => ({ day, done: false, had_due: false, next_due });
+// Serie ohne den überbrückten Tag (der hat eigene Tests)
+const streak = (...args) => { const { current, best, total } = computeStreak(...args); return { current, best, total }; };
 
 test('Kalendertag in der Schulzeitzone, auch kurz vor und nach Mitternacht', () => {
   assert.equal(localDay(Date.parse('2026-10-01T21:59:59Z'), TZ), '2026-10-01'); // 23:59:59 MESZ
@@ -28,28 +30,28 @@ test('Tagesbeginn und -ende, auch an Tagen mit Zeitumstellung', () => {
 });
 
 test('ohne Lerntage: keine Serie', () => {
-  assert.deepEqual(computeStreak([], '2026-10-01', TZ), { current: 0, best: 0, total: 0 });
+  assert.deepEqual(streak([], '2026-10-01', TZ), { current: 0, best: 0, total: 0 });
 });
 
 test('aufeinanderfolgende Tage zählen; heute ohne Antwort bricht die Serie nicht', () => {
   const rows = [done('2026-09-29', '2026-09-30T08:00:00Z'), done('2026-09-30', '2026-10-01T08:00:00Z')];
-  assert.deepEqual(computeStreak(rows, '2026-09-30', TZ), { current: 2, best: 2, total: 2 });
-  assert.deepEqual(computeStreak(rows, '2026-10-01', TZ), { current: 2, best: 2, total: 2 });
+  assert.deepEqual(streak(rows, '2026-09-30', TZ), { current: 2, best: 2, total: 2 });
+  assert.deepEqual(streak(rows, '2026-10-01', TZ), { current: 2, best: 2, total: 2 });
 });
 
 test('Tage ohne Fälliges sind frei: sie zählen nicht, brechen aber nicht', () => {
   // Montag alles erledigt, das nächste ist erst am Donnerstag fällig
   const rows = [done('2026-09-28', '2026-10-01T06:00:00Z'), done('2026-10-01')];
-  assert.deepEqual(computeStreak(rows, '2026-10-01', TZ), { current: 2, best: 2, total: 2 });
+  assert.deepEqual(streak(rows, '2026-10-01', TZ), { current: 2, best: 2, total: 2 });
 });
 
 test('war etwas fällig und nichts getan, ist der Tag verpasst: ein Tag wird überbrückt, zwei in der Woche brechen', () => {
   // Fällig ab 1.10., dort nichts getan, am 2.10. wieder gelernt: der 1.10. wird überbrückt
   const one = [done('2026-09-29', '2026-10-01T06:00:00Z'), done('2026-10-02')];
-  assert.deepEqual(computeStreak(one, '2026-10-02', TZ), { current: 2, best: 2, total: 2 });
+  assert.deepEqual(streak(one, '2026-10-02', TZ), { current: 2, best: 2, total: 2 });
   const two = [done('2026-09-29', '2026-09-30T06:00:00Z'), done('2026-10-03')];
   // Fällig ab 30.9.: 30.9. überbrückt, 1.10. innerhalb von 7 Tagen: Bruch
-  assert.deepEqual(computeStreak(two, '2026-10-03', TZ), { current: 1, best: 1, total: 2 });
+  assert.deepEqual(streak(two, '2026-10-03', TZ), { current: 1, best: 1, total: 2 });
 });
 
 test('Überbrückung wieder frei, wenn sie 7 Tage zurückliegt', () => {
@@ -58,27 +60,27 @@ test('Überbrückung wieder frei, wenn sie 7 Tage zurückliegt', () => {
   for (let day = '2026-10-01'; day <= '2026-10-12'; day = addDays(day, 1)) {
     if (day !== '2026-10-03' && day !== '2026-10-10') rows.push(done(day, `${addDays(day, 1)}T06:00:00Z`));
   }
-  assert.deepEqual(computeStreak(rows, '2026-10-12', TZ), { current: 10, best: 10, total: 10 });
+  assert.deepEqual(streak(rows, '2026-10-12', TZ), { current: 10, best: 10, total: 10 });
 });
 
 test('angefangen, aber nicht geschafft, zählt als verpasst; heute noch nicht', () => {
   const rows = [done('2026-10-01', '2026-10-02T06:00:00Z'), partial('2026-10-02', '2026-10-02T09:00:00Z'), partial('2026-10-03', '2026-10-03T09:00:00Z')];
   // 2.10. überbrückt, 3.10. ist heute und noch offen
-  assert.deepEqual(computeStreak(rows, '2026-10-03', TZ), { current: 1, best: 1, total: 1 });
+  assert.deepEqual(streak(rows, '2026-10-03', TZ), { current: 1, best: 1, total: 1 });
   // am 4.10. ist der 3.10. der zweite verpasste Tag in der Woche
-  assert.deepEqual(computeStreak(rows, '2026-10-04', TZ), { current: 0, best: 1, total: 1 });
+  assert.deepEqual(streak(rows, '2026-10-04', TZ), { current: 0, best: 1, total: 1 });
 });
 
 test('Üben an einem freien Tag zählt nicht und bricht nicht', () => {
   const rows = [done('2026-10-01', '2026-10-05T06:00:00Z'), free('2026-10-02', '2026-10-05T06:00:00Z')];
-  assert.deepEqual(computeStreak(rows, '2026-10-04', TZ), { current: 1, best: 1, total: 1 });
+  assert.deepEqual(streak(rows, '2026-10-04', TZ), { current: 1, best: 1, total: 1 });
 });
 
 test('beste Serie bleibt nach einem Abbruch, Lerntage insgesamt auch', () => {
   const rows = [];
   for (const day of ['2026-09-01', '2026-09-02', '2026-09-03', '2026-09-04']) rows.push(done(day, `${addDays(day, 1)}T06:00:00Z`));
   rows.push(done('2026-09-20', '2026-09-21T06:00:00Z'));
-  const s = computeStreak(rows, '2026-09-20', TZ);
+  const s = streak(rows, '2026-09-20', TZ);
   assert.deepEqual(s, { current: 1, best: 4, total: 5 });
 });
 
@@ -91,4 +93,18 @@ test('Woche: Montag bis Sonntag mit erledigten Tagen und heute', () => {
   assert.deepEqual(week.map((d) => d.future), [false, false, false, false, true, true, true]);
   // Sonntag gehört zur Woche davor
   assert.equal(weekOf([], '2026-10-04')[0].day, '2026-09-28');
+});
+
+test('überbrückter Tag ist sichtbar, bis die Überbrückung wieder frei ist', () => {
+  const one = [done('2026-09-29', '2026-10-01T06:00:00Z'), done('2026-10-02', '2026-10-03T06:00:00Z')];
+  assert.equal(computeStreak(one, '2026-10-02', TZ).bridged, '2026-10-01');
+  // 7 Tage nach dem 1.10. wäre ein verpasster Tag wieder überbrückt
+  const daily = [...one];
+  for (let day = '2026-10-03'; day <= '2026-10-08'; day = addDays(day, 1)) daily.push(done(day, `${addDays(day, 1)}T06:00:00Z`));
+  assert.equal(computeStreak(daily, '2026-10-06', TZ).bridged, '2026-10-01');
+  assert.equal(computeStreak(daily, '2026-10-07', TZ).bridged, null);
+  assert.equal(computeStreak([done('2026-10-01')], '2026-10-01', TZ).bridged, null);
+  // nach einem Abbruch gibt es nichts zu schützen
+  const broken = [done('2026-09-29', '2026-09-30T06:00:00Z'), partial('2026-10-03', '2026-10-03T09:00:00Z')];
+  assert.equal(computeStreak(broken, '2026-10-04', TZ).bridged, null);
 });

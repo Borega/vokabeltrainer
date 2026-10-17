@@ -21,6 +21,14 @@ export function reachedText(streak) {
   return streak.current > 1 ? `Tagesziel erreicht – ${tage(streak.current)} in Folge.` : 'Tagesziel erreicht.';
 }
 
+// Die Nachsicht sichtbar machen: Ein verpasster Tag soll nicht wie das Ende der Serie wirken
+const weekdayDate = (day) => new Date(`${day}T12:00:00Z`).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'numeric', timeZone: 'UTC' });
+function graceLine({ current, bridged }) {
+  if (bridged) return `Am ${weekdayDate(bridged)} blieb etwas liegen – der Tag wurde überbrückt, deine Serie läuft weiter.`;
+  if (current > 0) return 'Fehlt mal ein Tag, wird er überbrückt: einer pro Woche.';
+  return null;
+}
+
 export function streakPanel(streak) {
   const dots = streak.week.map((d, i) => h('li', {
     class: `day${d.done ? ' done' : ''}${d.today ? ' today' : ''}${d.future ? ' future' : ''}`,
@@ -31,6 +39,7 @@ export function streakPanel(streak) {
       h('h2', {}, streak.current > 1 ? `${tage(streak.current)} in Folge` : 'Lernserie'),
       h('p', { class: 'small muted' }, todayLine(streak))),
     h('ol', { class: 'week', 'aria-label': 'Diese Woche' }, dots),
+    graceLine(streak) ? h('p', { class: 'small muted grace' }, graceLine(streak)) : null,
     h('div', { class: 'streak-foot' },
       h('p', { class: 'small muted' },
         `Lerntage insgesamt: ${streak.total}`,

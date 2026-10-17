@@ -54,15 +54,17 @@ export const endOfDay = (day, timeZone) => startOfDay(addDays(day, 1), timeZone)
 //   next_due  wann nach der letzten Antwort des Tages wieder etwas fällig wird
 // Tage ohne Zeile sind frei, solange nichts fällig war (vor dem next_due der letzten Zeile), sonst verpasst.
 // Verpasste Tage bricht die Serie, außer einem pro GRACE_SPAN Tage. Der heutige Tag bricht nie.
-// Ergebnis: aktuelle Serie, beste Serie, Lerntage insgesamt (nie zurückgesetzt).
+// Ergebnis: aktuelle Serie, beste Serie, Lerntage insgesamt (nie zurückgesetzt) und bridged: der überbrückte Tag,
+// solange die Überbrückung noch nicht wieder frei ist (sonst null).
 export function computeStreak(rows, today, timeZone) {
   const total = rows.filter((r) => r.done).length;
-  if (!rows.length) return { current: 0, best: 0, total };
+  if (!rows.length) return { current: 0, best: 0, total, bridged: null };
   const byDay = new Map(rows.map((r) => [r.day, r]));
   let current = 0;
   let best = 0;
   let freeUntil = NEVER;
   let lastBridged = -Infinity;
+  let bridgedDay = null;
   let index = 0;
   for (let day = rows[0].day; day <= today; day = addDays(day, 1), index++) {
     const row = byDay.get(day);
@@ -75,12 +77,15 @@ export function computeStreak(rows, today, timeZone) {
     if (free || day === today) continue;
     if (index - lastBridged >= GRACE_SPAN) {
       lastBridged = index;
+      bridgedDay = day;
     } else {
       current = 0;
       lastBridged = -Infinity;
     }
   }
-  return { current, best, total };
+  // index steht jetzt auf morgen: Wäre morgen verpasst, würde er noch überbrückt?
+  const bridged = current > 0 && index - lastBridged < GRACE_SPAN ? bridgedDay : null;
+  return { current, best, total, bridged };
 }
 
 // Montag bis Sonntag der Woche von today, jeweils mit erledigt/heute/kommt noch
