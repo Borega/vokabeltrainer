@@ -1201,6 +1201,22 @@ async function renderLearn(id) {
     let done = 0;
     let right = 0;
     const wrongWords = [];
+    // Richtige Antworten in Folge (auch Wiederholungen); alle fünf gibt es einen kleinen Jubel
+    let combo = 0;
+    let bestCombo = 0;
+    const started = Date.now();
+    const milestone = (n) => n >= 5 && n % 5 === 0;
+    const comboChip = h('span', { class: 'chip combo', title: 'Richtig in Folge' });
+    function showCombo(n, cheer = false) {
+      comboChip.hidden = n < 2;
+      comboChip.textContent = `${n} in Folge`;
+      comboChip.classList.toggle('milestone', cheer && milestone(n));
+    }
+    // Rückmeldung zur Antwort; der Zähler oben zählt gleich mit
+    function verdict(ok, wrongText) {
+      showCombo(ok ? combo + 1 : 0, true);
+      return ok ? (milestone(combo + 1) ? `${combo + 1} richtig in Folge!` : 'Richtig!') : wrongText;
+    }
 
     const options = { caseSensitive: list.case_sensitive, accentSensitive: list.accent_sensitive, literalParens: FORMULA_SUBJECTS.includes(list.subject) };
 
@@ -1213,6 +1229,8 @@ async function renderLearn(id) {
         if (correct) right++;
         else wrongWords.push(card);
       }
+      combo = correct ? combo + 1 : 0;
+      bestCombo = Math.max(bestCombo, combo);
       if (!correct && card.retry < 3) {
         const at = Math.min(queue.length, 2 + Math.floor(Math.random() * 3));
         queue.splice(at, 0, { ...card, retry: card.retry + 1 });
@@ -1223,10 +1241,12 @@ async function renderLearn(id) {
       stopSpeaking();
       const card = queue.shift();
       if (!card) return finish();
+      showCombo(combo);
       card.exercise ??= chooseExercise(card);
       const header = h('div', { class: 'round-head' },
         h('button', { class: 'btn ghost small', onclick: () => { if (confirm('Runde abbrechen?')) { cleanupKeys(); stopSpeaking(); setupView(); } } }, 'Beenden'),
         progressBar(done, total, 'Fortschritt der Runde'),
+        comboChip,
         h('span', { class: 'small muted' }, `${Math.min(done + 1, total)} / ${total}`),
       );
       const show = (...content) => view(h('section', { class: 'round' }, header,
@@ -1338,8 +1358,9 @@ async function renderLearn(id) {
           else if (j === i) b.classList.add('is-wrong');
         });
         box.classList.add(ok ? 'is-right' : 'is-wrong');
+        if (ok && milestone(combo + 1)) box.classList.add('celebrate');
         fill(feedback,
-          h('strong', {}, ok ? 'Richtig!' : 'Leider falsch.'),
+          h('strong', {}, verdict(ok, 'Leider falsch.')),
           ok ? null : h('span', {}, ' Lösung: ', h('b', {}, card.word[to])),
           speakBtn(to, card.word[to]),
           details(card.word));
@@ -1442,8 +1463,9 @@ async function renderLearn(id) {
           if (heard) heard.hidden = false;
           const ok = result === 'correct';
           form.classList.add(ok ? 'is-right' : 'is-wrong');
+          if (ok && milestone(combo + 1)) form.classList.add('celebrate');
           fill(feedback,
-            h('strong', {}, ok ? 'Richtig!' : result === 'almost' ? 'Fast!' : 'Leider falsch.'),
+            h('strong', {}, verdict(ok, result === 'almost' ? 'Fast!' : 'Leider falsch.')),
             result === 'almost'
               ? h('span', {}, { accents: ' Achte auf Akzente und Sonderzeichen.', case: ' Achte auf Groß- und Kleinschreibung.' }[almostReason(input.value, solution, checkOptions)] ?? ' Kleiner Tippfehler.')
               : null,
@@ -1475,11 +1497,16 @@ async function renderLearn(id) {
     async function finish() {
       cleanupKeys();
       const pct = total ? Math.round((right / total) * 100) : 0;
+      const secs = Math.round((Date.now() - started) / 1000);
+      const tile = (value, label) => h('div', { class: 'tile' }, h('strong', {}, value), h('span', { class: 'small muted' }, label));
       const outlook = h('p', { class: 'small muted' });
       const remaining = h('div', {});
       view(h('section', { class: 'panel result' },
         h('h1', {}, pct === 100 ? 'Perfekt!' : pct >= 70 ? 'Gut gemacht!' : 'Weiter üben!'),
-        h('p', { class: 'score' }, `${right} von ${total} beim ersten Versuch richtig (${pct} %)`),
+        h('div', { class: 'summary' },
+          tile(`${right}/${total}`, `auf Anhieb richtig · ${pct} %`),
+          tile(String(bestCombo), 'beste Serie'),
+          tile(`${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`, 'Minuten')),
         outlook,
         wrongWords.length
           ? h('div', {}, h('h2', {}, 'Noch üben'),

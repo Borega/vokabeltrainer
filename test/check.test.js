@@ -41,6 +41,13 @@ test('Wer die Klammern mitschreibt, hat auch recht', () => {
   assert.equal(almostReason('Hund (m)', 'Hund (m)', lenient), null);
 });
 
+test('Rückmeldung aus dem Unterricht: ganze Lösung mit anderer Endungsschreibweise abgetippt', () => {
+  const solution = 'höchste(r,s); stärkste(r,s)';
+  for (const input of ['Höchste (r/s); stärkste (r/s)', 'höchste (r, s)', 'stärkste(r/s)', 'höchste', 'stärkste; höchste'])
+    assert.equal(checkAnswer(input, solution, { caseSensitive: false, accentSensitive: true }), 'correct', input);
+  assert.notEqual(checkAnswer('höchste; schnellste', solution, lenient), 'correct', 'jede Alternative muss stimmen');
+});
+
 test('Rückmeldung aus dem Unterricht: „to fight (irr)“ samt Klammern ist richtig', () => {
   for (const input of ['to fight (irr)', 'to fight irr', 'to fight', 'fight', 'fight (irr)']) {
     assert.equal(checkAnswer(input, 'to fight (irr)', { caseSensitive: false, accentSensitive: true, bareInfinitive: true }), 'correct', input);

@@ -146,8 +146,12 @@ export function variants(solution, { literalParens = false, bareInfinitive = fal
 // ("go (to school)"), meint dieselben Wörter: Dann fallen die Klammerzeichen weg – aber nur beim Vergleich mit
 // Alternativen, die selbst optionale Klammern haben. Sonst zählt die Eingabe, wie sie ist ("2 * (3 + 4)" ist nicht
 // "2 * 3 + 4", auch nicht neben der Alternative "go (home)").
+// Endungsangaben schreibt jeder anders: "höchste(r,s)", "höchste (r/s)", "höchste ( r, s )" meinen dasselbe
+const sameEndings = (s) => s.replace(/\s*\(\s*(\p{L}+(?:\s*[,/]\s*\p{L}+)*)\s*\)/gu, (_, inner) => `(${inner.replace(/\s*[,/]\s*/g, ',')})`);
+
 function candidates(input, solution, { literalParens = false, bareInfinitive = false } = {}) {
   const found = [{ input, expected: variants(solution, { literalParens, bareInfinitive }) }];
+  if (!literalParens) found.push({ input: sameEndings(input), expected: found[0].expected.map(sameEndings) });
   const optional = alternatives(solution).filter((alt) => optionalGroups(alt, literalParens).length);
   if (optional.length) {
     found.push({ input: input.replace(/[()]/g, ' '), expected: clean(optional.flatMap((alt) => altVariants(alt, { literalParens, bareInfinitive }))) });
@@ -180,6 +184,9 @@ export function almostReason(input, solution, options = {}) {
 
 // Ergebnis: 'correct' | 'almost' (kleiner Tippfehler, zählt als falsch) | 'wrong'
 export function checkAnswer(input, solution, options = {}) {
+  // Wer mehrere Alternativen mit ";" aufzählt ("höchste; stärkste"), hat recht, wenn jede davon stimmt
+  const parts = alternatives(input);
+  if (parts.length > 1 && parts.every((p) => checkAnswer(p, solution, options) === 'correct')) return 'correct';
   const results = candidates(input, solution, options).map((c) => checkForm(c.input, c.expected, options));
   return ['correct', 'almost'].find((r) => results.includes(r)) ?? 'wrong';
 }
