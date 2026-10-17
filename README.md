@@ -583,14 +583,14 @@ zu `huggingface.co`); danach liegen sie im Volume `piper-voices`. Im Betrieb bra
 Arbeitsspeicher. Der Dienst hat keine Anmeldung und ist deshalb **nicht** nach außen veröffentlicht (kein `ports`).
 
 **Stimmen ändern:** In `TTS_VOICES` stehen die Stimmen, Komma-getrennt, z. B.
-`de_DE-thorsten-high,en_GB-alba-medium,fr_FR-siwis-medium,es_ES-davefx-medium`. Wer weitere Sprachen oder
+`de_DE-thorsten-high,en_GB-cori-high,fr_FR-siwis-medium,es_ES-davefx-medium`. Wer weitere Sprachen oder
 Stimmen will, findet die Namen in [piper-voices](https://huggingface.co/rhasspy/piper-voices) (Qualität `low`, `medium`,
 `high`; mehr Qualität heißt mehr Speicher und Rechenzeit). Die Variable gilt für App und Piper gemeinsam.
 Nach einer Änderung den Stack neu starten.
 
 **Lizenzen der Stimmen:** Jede Stimme hat eine eigene Lizenz (steht in ihrer `MODEL_CARD` im Repository
 `piper-voices`). Die Standardauswahl nutzt nur Stimmen mit CC0, gemeinfrei, Apache 2.0 oder CC BY – bei CC BY
-(`en_GB-alba`, `fr_FR-siwis`, `it_IT-serena`) bitte die Quelle nennen. Vorsicht bei anderen Stimmen: Einige sind nur
+(`fr_FR-siwis`, `it_IT-serena`) bitte die Quelle nennen. Vorsicht bei anderen Stimmen: Einige sind nur
 nichtkommerziell oder mit Auflagen (z. B. `en_US-ryan`, `en_US-hfc_*`, `tr_TR-dfki`, `en_US-lessac`). Piper selbst
 steht unter GPL-3.0; es läuft als eigener Container und wird nur über HTTP angesprochen.
 

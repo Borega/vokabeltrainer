@@ -10,7 +10,7 @@
 
 # Stimmen für die Aussprache (Piper): Die App fragt nur nach diesen, der Piper-Dienst lädt sie beim ersten Start.
 # Namen und Sprachen: https://huggingface.co/rhasspy/piper-voices – mehr im README unter „Bessere Stimmen“.
-x-tts-voices: &tts-voices ${TTS_VOICES:-de_DE-thorsten-high,en_GB-alba-medium,en_GB-cori-high,en_US-kristin-medium,en_US-john-medium,fr_FR-siwis-medium,es_ES-davefx-medium,it_IT-serena-medium,nl_NL-pim-medium,ru_RU-denis-medium,uk_UA-tetiana-high,pl_PL-gosia-medium}
+x-tts-voices: &tts-voices ${TTS_VOICES:-de_DE-thorsten-high,en_GB-cori-high,en_US-kristin-medium,en_US-john-medium,fr_FR-siwis-medium,es_ES-davefx-medium,it_IT-serena-medium,nl_NL-pim-medium,ru_RU-denis-medium,uk_UA-tetiana-high,pl_PL-gosia-medium}
 
 services:
   vokabeltrainer:

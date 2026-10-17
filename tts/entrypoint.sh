@@ -1,5 +1,5 @@
 #!/bin/sh
-# Lädt beim ersten Start die Stimmen aus PIPER_VOICES (Komma-getrennt, z. B. de_DE-thorsten-high,en_GB-alba-medium)
+# Lädt beim ersten Start die Stimmen aus PIPER_VOICES (Komma-getrennt, z. B. de_DE-thorsten-high,en_GB-cori-high)
 # und startet den HTTP-Server von Piper. Schlägt ein Download fehl, bricht der Start ab und Docker versucht es erneut:
 # Piper würde eine fehlende Stimme sonst stillschweigend durch die erste ersetzen.
 set -eu
