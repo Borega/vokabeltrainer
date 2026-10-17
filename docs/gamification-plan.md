@@ -1,6 +1,7 @@
 # Plan: Lernserie und Abzeichen
 
-Stand: 01.10.2026 · Status: **Schritt 1 und 2 umgesetzt** (Lerntage, Tagesziel, Serie, Schalter pro Gruppe und Schule; Abzeichen), Schritt 3 (Klassenziel) offen
+Stand: 17.10.2026 · Status: **Schritt 1 bis 3 umgesetzt** (Lerntage, Tagesziel, Serie, Schalter pro Gruppe und Schule; Abzeichen;
+Klassenziel, dazu Rückmeldung in der Runde, Wochenrückblick, Zieldatum und kurze Runde)
 
 Der Vokabeltrainer soll um spielerische Elemente ergänzt werden: eine Lernserie (Streak), Abzeichen und
 eine Tagesanzeige. Dieses Dokument fasst zusammen, was die Forschung zu Gamification im Unterricht sagt,
@@ -142,6 +143,36 @@ Tag ein Punkt in einer Wochenzeile (Anknüpfung an den Terrakotta-Punkt im App-S
 - Oberfläche: `public/badges-ui.js`, Seite `#/badges`; ein Schalter pro Gruppe für Lernserie **und** Abzeichen.
 - Sicher wird ein Wort erst nach mehreren Antworten an verschiedenen Tagen (Stabilität ≥ 14 Tage): ein einzelnes „leicht“
   genügt nicht. Rückdatierte Antworten reichen dafür auch nicht, denn eine Antwort zählt nie vor der letzten bekannten.
+
+### Umsetzung Schritt 3: dranbleiben
+
+Anlass (10/2026): Rückmeldung aus dem Unterricht, die positive Rückmeldung in der Runde sei zu schwach. Umgesetzt im
+Rahmen der Leitlinien; was vom ersten Vorschlag abweicht, steht unter „Abweichung vom Vorschlag“.
+
+- **In der Runde:** Zähler „N in Folge“ für richtige Antworten, alle fünf ein kurzer Hinweis (eine Skalierung, kein
+  Konfetti, ohne Bewegung bei `prefers-reduced-motion`). Bilanz am Ende: auf Anhieb richtig, beste Serie in der Runde,
+  Dauer. Darunter „Tagesziel: noch N“ (gezählt wie auf dem Server: erste Antworten auf heute Fälliges in Listen mit
+  Lernserie; `GET /api/streak` liefert dafür `lists`) und nach der Übertragung „Tagesziel erreicht – N Tage in Folge“.
+- **Nachsicht sichtbar:** `computeStreak` liefert `bridged`, den überbrückten Tag, solange die Überbrückung nicht wieder
+  frei ist. Die Startseite sagt dann, dass die Serie weiterläuft (Leitlinie 4).
+- **Wochenrückblick** (`src/week.js`): „Diese Woche: 3 Lerntage, 5 Wörter sicher dazu.“ Die Zunahme sicherer Wörter und
+  Regeln wird aus dem Stabilitätsverlauf (`review_log`, `grammar_log`) nachgespielt, nie unter 0. Die letzte Woche steht
+  nur daneben, wenn diese mindestens so gut ist. Nur mit `GET /api/streak?home=1` (Startseite), nicht bei jeder Übertragung.
+- **Klassenziel:** Migration 15 `group_settings.class_goal`. Lehrkräfte setzen ein Ziel pro Gruppe und sehen den Stand.
+  Schüler:innen sehen einen gemeinsamen Balken: sichere Wörter aller Schüler:innen der Gruppe in den Listen der Gruppe.
+  Ohne Namen, ohne Rangliste, erst ab fünf Schüler:innen (`MIN_CLASS`, damit sich niemand einzeln herausrechnen lässt),
+  nur mit eingeschalteter Lernserie.
+- **Zieldatum einer Liste:** Migration 15 `lists.goal_date`, z. B. der Vokabeltest. Bis dahin zeigt die Karte „Ziel bis
+  Do., 22.10.: 8 von 12 Wörtern schon gewusst“. Kopien übernehmen das Datum nicht.
+- **Kurze Runde:** „2 Minuten“ bei der Anzahl, Fälliges zuerst; nach Ablauf endet die Runde mit der beantworteten Karte.
+
+**Abweichung vom Vorschlag:**
+- Klassenziel zählt **sichere Wörter**, nicht geübte (Leitlinie 1: nicht Menge), und ist fortlaufend statt wöchentlich.
+- Zieldatum zählt **„schon gewusst“** statt „sicher“: Sicher wird ein Wort erst nach Wiederholungen an verschiedenen
+  Tagen (Stabilität ≥ 14 Tage) und wäre bis zu einem Test meist nicht erreichbar. **Kein Abzeichen** fürs Fertigwerden
+  (Deci et al.: Belohnungen fürs Fertigwerden d = −0,36); „Liste gemeistert“ deckt Können schon ab.
+- Kurze Runde **ohne Bestwert und ohne Countdown**: Antworten pro zwei Minuten wären ein Tempowert (Leitlinien 1 und 3).
+- Push-Erinnerungen bleiben weg (siehe „Bewusst nicht umgesetzt“).
 
 ### Reihenfolge
 
