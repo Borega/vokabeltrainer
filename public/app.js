@@ -15,7 +15,7 @@ import * as store from './store.js';
 import * as FSRS from './vendor/ts-fsrs.js';
 import { exportGroupsCsv, groupPanels, historyPanel, levelChip, pct, sortableTable, statTiles } from './stats-ui.js';
 import { badgePage, badgeText } from './badges-ui.js';
-import { groupSwitches, reachedText, streakPanel } from './streak-ui.js';
+import { classGoalPanel, groupSwitches, reachedText, streakPanel } from './streak-ui.js';
 import {
   endOfToday, field, fill, formatDate, formatDue, groupPicker, h, icon, languageSelect, pref, progressBar, segmented, shuffle, toast, view,
 } from './ui.js';
@@ -281,6 +281,7 @@ async function download() {
 let syncing = null;
 let syncAgain = false;
 const progressListeners = new Set(); // Lernansicht: neuen Stand vom Server übernehmen
+let lastStreak = null; // Lernserie nach der letzten Übertragung (für die Bilanz einer Runde)
 
 function syncNow() {
   if (!me) return Promise.resolve();
@@ -313,6 +314,8 @@ async function pushAnswers() {
     renderNet();
     const res = await request('POST', '/results', { results: batch });
     await store.done(batch.map((e) => e.id));
+    // mit der Person gemerkt: Auf geteilten Geräten soll niemand die Serie eines anderen sehen
+    if (res.streak) lastStreak = { ...res.streak, user: me.id };
     const reward = [res.streak?.reached && reachedText(res.streak), badgeText(res.badges)].filter(Boolean).join(' ');
     if (reward) toast(reward);
     const pendingFor = await pendingKeys(); // was inzwischen neu beantwortet wurde
@@ -390,6 +393,22 @@ const sizeParts = (list) => (isGrammar(list)
   ? [plural(list.rule_count, 'Regel', 'Regeln'), plural(list.item_count, 'Aufgabe', 'Aufgaben')]
   : [plural(list.word_count, 'Wort', 'Wörter')]);
 
+// Zieldatum einer Vokabelliste (z. B. der Vokabeltest): bis dahin, wie viele Wörter schon einmal gewusst wurden.
+// „Sicher“ ist bis zu einem Test oft nicht erreichbar, weil es Abstand zwischen den Wiederholungen braucht.
+function goalDateBlock(list, total, own) {
+  const today = new Date().toLocaleDateString('sv'); // JJJJ-MM-TT in Ortszeit
+  if (!list.goal_date || isGrammar(list) || list.goal_date < today) return null;
+  const when = new Date(`${list.goal_date}T12:00:00`).toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'numeric' });
+  // Lehrkraft: der eigene Lernstand sagt nichts über die Klasse – nur das Datum
+  if (own) return h('div', { class: 'chips' }, h('span', { class: 'chip' }, `Zieldatum ${when}`));
+  const known = Math.min(list.progress.known ?? 0, total);
+  return h('div', { class: 'progress goal-date' },
+    progressBar(known, total, `Schon gewusst bis ${when}`),
+    h('span', { class: 'small' }, list.goal_date === today
+      ? `Heute ist es so weit: ${known} von ${total} Wörtern schon gewusst.`
+      : `Ziel bis ${when}: ${known} von ${total} Wörtern schon gewusst.`));
+}
+
 function listCard(list, { own }) {
   const total = isGrammar(list) ? list.rule_count : list.word_count;
   const meta = [
@@ -409,6 +428,7 @@ function listCard(list, { own }) {
     own && list.copied_from ? h('p', { class: 'muted small' }, `Kopie von: ${list.copied_from}`) : null,
     own && list.shared ? h('div', { class: 'chips' }, h('span', { class: 'chip shared' }, 'Für Kolleg:innen freigegeben')) : null,
     list.progress.due ? h('div', { class: 'chips' }, h('span', { class: 'chip due' }, `${list.progress.due} heute fällig`)) : null,
+    goalDateBlock(list, total, own),
     own && list.groups?.length
       ? h('div', { class: 'chips' }, list.groups.map((g) => h('span', { class: 'chip' }, g.name)))
       : own ? h('p', { class: 'warn small' }, 'Noch keiner Gruppe zugewiesen') : null,
@@ -433,7 +453,7 @@ async function renderHome() {
       // Die Lernserie ist eine Zugabe: Fehlt sie, bleibt die Startseite wie sie ist
       [data, streak] = await Promise.all([
         api('GET', `/lists?due_until=${encodeURIComponent(endOfToday().toISOString())}`),
-        request('GET', '/streak').catch(() => null),
+        request('GET', '/streak?home=1').catch(() => null),
       ]);
     } catch (err) {
       if (!(err instanceof OfflineError)) throw err;
@@ -479,6 +499,8 @@ function renderHomeLists({ own, assigned }, { offline = false, note = null, stre
   }
   // Lehrkräfte, die nur Listen anlegen, sehen die Serie nicht, solange sie selbst nichts üben
   if (streak?.enabled && (!me.isTeacher || streak.total || streak.today.remaining)) sections.push(streakPanel(streak));
+  // Lehrkräfte sehen den Stand bei den Gruppen-Einstellungen; der Balken hier spricht Schüler:innen an
+  if (!me.isTeacher && streak?.classGoals?.length) sections.push(classGoalPanel(streak.classGoals));
   if (me.isTeacher && !offline) {
     sections.push(
       h('section', {},
@@ -510,6 +532,15 @@ function renderHomeLists({ own, assigned }, { offline = false, note = null, stre
         await api('PUT', '/group-settings', { group_id: group.id, gamification: enabled });
         group.gamification = enabled;
         toast(enabled ? 'Lernserie und Abzeichen für diese Gruppe eingeschaltet.' : 'Lernserie und Abzeichen für diese Gruppe ausgeschaltet.');
+      } catch (err) {
+        toast(err.message, 'error');
+        throw err;
+      }
+    }, async (group, goal) => {
+      try {
+        await api('PUT', '/group-settings', { group_id: group.id, class_goal: goal });
+        group.classGoal = goal;
+        toast(goal ? `Klassenziel für ${group.name}: ${goal} Wörter sicher.` : `Kein Klassenziel mehr für ${group.name}.`);
       } catch (err) {
         toast(err.message, 'error');
         throw err;
@@ -562,6 +593,7 @@ async function renderEditor(id, loaded = null) {
     h('option', { value: '', selected: !list.grade }, 'Bitte wählen …'),
     GRADES.map((g) => h('option', { value: String(g), selected: list.grade === g }, `Jahrgang ${g}`)));
   const subject = h('select', {}, Object.entries(SUBJECTS).map(([value, text]) => h('option', { value, selected: value === (list.subject || DEFAULT_SUBJECT) }, text)));
+  const goalDate = h('input', { type: 'date', value: list.goal_date ?? '' });
   const langB = languageSelect(list.lang_b, langTag);
   // Welche Seite gelernt wird (die Fremdsprache, bei DaZ Deutsch). Ohne eigene Wahl folgt sie den Sprachen.
   const learnSel = h('select', {}, h('option', { value: 'a' }), h('option', { value: 'b' }));
@@ -841,6 +873,7 @@ async function renderEditor(id, loaded = null) {
       learn_side: sameLanguage(currentLangs()) ? 'a' : learnSel.value,
       grade: Number(grade.value) || null,
       subject: subject.value,
+      goal_date: goalDate.value || null,
       mode: selectedMode(),
       case_sensitive: caseSens.checked,
       accent_sensitive: accentSens.checked,
@@ -882,6 +915,7 @@ async function renderEditor(id, loaded = null) {
       h('p', { class: 'small muted' }, 'Deutschunterricht und andere Fächer (Biologie, Geschichte …): auf beiden Seiten Deutsch – Seite A ist dann der Begriff, Seite B die Bedeutung.'),
       h('div', { class: 'row2' }, field('Fach', subject, 'Hilft Kolleg:innen beim Finden geteilter Listen.'), field('Jahrgangsstufe', grade, 'Für welchen Jahrgang ist die Liste?')),
       learnField,
+      field('Zieldatum (freiwillig)', goalDate, 'Zum Beispiel der Vokabeltest. Bis dahin sehen Schüler:innen, wie viele Wörter sie schon einmal gewusst haben.'),
     ),
     h('div', { class: 'panel' },
       h('h2', {}, 'Abfrage'),
@@ -1032,11 +1066,17 @@ async function renderLearn(id) {
     return dates.length ? new Date(Math.min(...dates)) : null;
   }
 
+  // Kurze Runde: begrenzt durch die Zeit statt durch die Anzahl
+  const QUICK_SECONDS = 120;
+  const unlimited = () => size === 'all' || size === 'quick';
+
   function pickDue() {
-    const n = size === 'all' ? Infinity : Number(size);
+    const n = unlimited() ? Infinity : Number(size);
     const cards = dueItems().slice(0, n);
     const used = new Set(cards.map((c) => c.word.id));
     const fresh = shuffle(newItems().filter((c) => !used.has(c.word.id)));
+    // Kurze Runde: erst alles Fällige, dann Neues – sonst füllen neue Wörter die zwei Minuten
+    if (size === 'quick') return [...shuffle(cards), ...fresh];
     cards.push(...fresh.slice(0, Math.max(0, n - cards.length)));
     return shuffle(cards);
   }
@@ -1047,7 +1087,7 @@ async function renderLearn(id) {
       return { word: w, dir, box: progress.get(key(w.id, dir))?.box ?? 0, rnd: Math.random() };
     });
     cards.sort((x, y) => x.box - y.box || x.rnd - y.rnd);
-    const n = size === 'all' ? cards.length : Number(size);
+    const n = unlimited() ? cards.length : Number(size);
     return shuffle(cards.slice(0, n));
   }
 
@@ -1095,7 +1135,8 @@ async function renderLearn(id) {
           ]
         : null,
       h('h2', {}, 'Wie viele Wörter?'),
-      segmented('Anzahl', [['10', '10'], ['20', '20'], ['all', `Alle${mode === 'free' ? ` (${list.words.length})` : ''}`]], size, (s) => { size = s; setupView(); }),
+      segmented('Anzahl', [['10', '10'], ['20', '20'], ['all', `Alle${mode === 'free' ? ` (${list.words.length})` : ''}`], ['quick', '2 Minuten']], size, (s) => { size = s; setupView(); }),
+      size === 'quick' ? h('p', { class: 'small muted' }, 'Eine kurze Runde für zwischendurch: Nach zwei Minuten ist Schluss, sobald die Karte beantwortet ist.') : null,
       nothingToDo
         ? h('p', { class: 'done-today' }, 'Für heute ist alles erledigt.',
             next ? h('span', { class: 'small muted' }, ` Nächste Wiederholung: ${formatDue(next)}.`) : null)
@@ -1103,7 +1144,7 @@ async function renderLearn(id) {
       h('div', { class: 'actions' },
         nothingToDo
           ? h('button', { class: 'btn primary big', onclick: () => { mode = 'free'; setupView(); } }, 'Trotzdem frei üben')
-          : h('button', { class: 'btn primary big', onclick: () => startRound(pick()) }, 'Los geht’s'),
+          : h('button', { class: 'btn primary big', onclick: () => startRound(pick(), { seconds: size === 'quick' ? QUICK_SECONDS : null }) }, 'Los geht’s'),
         list.progress.length ? h('button', { class: 'btn ghost', onclick: resetProgress, disabled: !online }, 'Lernstand zurücksetzen') : null,
         list.can_copy && !list.is_owner ? h('button', { class: 'btn', onclick: () => copyList(list) }, 'In meine Listen kopieren') : null,
       ),
@@ -1194,13 +1235,15 @@ async function renderLearn(id) {
     });
   }
 
-  function startRound(cards) {
+  // seconds: kurze Runde – nach Ablauf endet sie, sobald die aktuelle Karte beantwortet ist
+  function startRound(cards, { seconds = null } = {}) {
     if (!cards.length) return setupView();
     const queue = cards.map((c) => ({ word: c.word, dir: c.dir, retry: 0 }));
     const total = cards.length;
     let done = 0;
     let right = 0;
     const wrongWords = [];
+    const answeredCards = []; // in einer kurzen Runde bleiben Karten unbeantwortet
     // Richtige Antworten in Folge (auch Wiederholungen); alle fünf gibt es einen kleinen Jubel
     let combo = 0;
     let bestCombo = 0;
@@ -1218,13 +1261,38 @@ async function renderLearn(id) {
       return ok ? (milestone(combo + 1) ? `${combo + 1} richtig in Folge!` : 'Richtig!') : wrongText;
     }
 
+    // Tagesziel: wie beim Server zählen nur die ersten Antworten auf Einträge, die heute fällig sind,
+    // und nur in Listen mit Lernserie. Ohne Internet (oder schon erledigt) bleibt die Anzeige weg.
+    const untilToday = endOfToday();
+    const dueAtStart = new Set(cards
+      .filter((c) => { const p = progress.get(key(c.word.id, c.dir)); return p?.due && new Date(p.due) <= untilToday; })
+      .map((c) => key(c.word.id, c.dir)));
+    let dueAnswered = 0;
+    let toGoal = null; // fehlende Antworten bis zum Tagesziel beim Start der Runde
+    const goalLine = h('p', { class: 'goal small muted center', hidden: true });
+    const goalLeft = () => toGoal - dueAnswered;
+    function showGoal() {
+      goalLine.hidden = toGoal == null;
+      goalLine.textContent = goalLeft() > 0 ? `Tagesziel: noch ${goalLeft()}` : 'Tagesziel geschafft';
+    }
+    const countsHere = (s) => !!s?.enabled && !!s.lists?.includes(list.id);
+    request('GET', '/streak').then((s) => {
+      if (countsHere(s) && !s.today.done && s.today.remaining > 0) toGoal = Math.min(s.today.remaining, s.goal - s.today.answers);
+      showGoal();
+    }).catch(() => {});
+
     const options = { caseSensitive: list.case_sensitive, accentSensitive: list.accent_sensitive, literalParens: FORMULA_SUBJECTS.includes(list.subject) };
 
     // Nur die erste Antwort zählt für die Planung. Nicht (sicher) gewusste Wörter kommen
     // nach 3–5 Karten erneut, bis sie einmal richtig sind (höchstens dreimal).
     function answered(card, grade, correct) {
       if (!card.retry) {
+        answeredCards.push(card);
         record(card, grade, correct);
+        if (dueAtStart.has(key(card.word.id, card.dir))) {
+          dueAnswered++;
+          showGoal();
+        }
         done++;
         if (correct) right++;
         else wrongWords.push(card);
@@ -1239,17 +1307,21 @@ async function renderLearn(id) {
 
     function next() {
       stopSpeaking();
+      if (seconds && Date.now() - started >= seconds * 1000) return finish();
       const card = queue.shift();
       if (!card) return finish();
       showCombo(combo);
       card.exercise ??= chooseExercise(card);
       const header = h('div', { class: 'round-head' },
         h('button', { class: 'btn ghost small', onclick: () => { if (confirm('Runde abbrechen?')) { cleanupKeys(); stopSpeaking(); setupView(); } } }, 'Beenden'),
-        progressBar(done, total, 'Fortschritt der Runde'),
+        // Kurze Runde ohne sichtbare Uhr: kein Zeitdruck (DESIGN.md), sie endet einfach nach zwei Minuten
+        seconds
+          ? h('span', { class: 'small muted quick-label' }, 'Kurze Runde')
+          : progressBar(done, total, 'Fortschritt der Runde'),
         comboChip,
-        h('span', { class: 'small muted' }, `${Math.min(done + 1, total)} / ${total}`),
+        h('span', { class: 'small muted' }, seconds ? `Karte ${done + 1}` : `${Math.min(done + 1, total)} / ${total}`),
       );
-      const show = (...content) => view(h('section', { class: 'round' }, header,
+      const show = (...content) => view(h('section', { class: 'round' }, header, goalLine,
         card.retry ? h('p', { class: 'retry small' }, 'Wiederholung') : null, ...content));
       const render = { intro: showIntro, flip: showFlip, choice: showChoice }[card.exercise] ?? showTyping;
       render(card, show);
@@ -1496,17 +1568,29 @@ async function renderLearn(id) {
 
     async function finish() {
       cleanupKeys();
-      const pct = total ? Math.round((right / total) * 100) : 0;
+      // done statt total: Eine kurze Runde endet, bevor alle Karten dran waren
+      const pct = done ? Math.round((right / done) * 100) : 0;
       const secs = Math.round((Date.now() - started) / 1000);
       const tile = (value, label) => h('div', { class: 'tile' }, h('strong', {}, value), h('span', { class: 'small muted' }, label));
+      // Tagesziel: erst die Schätzung auf dem Gerät, nach der Übertragung mit der Serie vom Server
+      const goalResult = h('p', { class: 'goal-result' });
+      if (toGoal != null) {
+        goalResult.textContent = goalLeft() > 0 ? `Noch ${goalLeft()} fällige bis zum Tagesziel.` : 'Tagesziel erreicht.';
+        // erst warten, bis die letzte Antwort auf dem Gerät liegt – sonst überträgt syncNow ohne sie
+        writes.then(() => syncNow()).then(() => {
+          const s = lastStreak?.user === me.id ? lastStreak : null;
+          if (countsHere(s) && s.today.done) goalResult.textContent = reachedText(s);
+        }).catch(() => {});
+      }
       const outlook = h('p', { class: 'small muted' });
       const remaining = h('div', {});
       view(h('section', { class: 'panel result' },
         h('h1', {}, pct === 100 ? 'Perfekt!' : pct >= 70 ? 'Gut gemacht!' : 'Weiter üben!'),
         h('div', { class: 'summary' },
-          tile(`${right}/${total}`, `auf Anhieb richtig · ${pct} %`),
+          tile(`${right}/${done}`, `auf Anhieb richtig · ${pct} %`),
           tile(String(bestCombo), 'beste Serie'),
           tile(`${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`, 'Minuten')),
+        goalResult,
         outlook,
         wrongWords.length
           ? h('div', {}, h('h2', {}, 'Noch üben'),
@@ -1521,7 +1605,7 @@ async function renderLearn(id) {
       ));
       // Wann kommen die Wörter dieser Runde wieder? (schon auf dem Gerät verplant)
       const buckets = { morgen: 0, 'in 2–7 Tagen': 0, 'in 1–4 Wochen': 0, später: 0 };
-      for (const c of cards) {
+      for (const c of answeredCards) {
         const p = progress.get(key(c.word.id, c.dir));
         if (!p?.due) continue;
         const d = (new Date(p.due) - Date.now()) / 86400000;
@@ -1532,7 +1616,7 @@ async function renderLearn(id) {
       const left = dueItems().length + newItems().length;
       if (left) {
         fill(remaining, h('p', {}, `Heute noch fällig oder neu: ${left}`),
-          h('button', { class: 'btn primary', onclick: () => { mode = 'due'; startRound(pickDue()); } }, 'Weiterlernen'));
+          h('button', { class: 'btn primary', onclick: () => { mode = 'due'; startRound(pickDue(), { seconds }); } }, seconds ? 'Noch eine kurze Runde' : 'Weiterlernen'));
       }
     }
 

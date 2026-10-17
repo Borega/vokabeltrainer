@@ -41,14 +41,14 @@ test('Abgleich: Server gewinnt, außer zum Wort wartet noch eine Antwort auf dem
   assert.deepEqual(boxes(mergeProgress(local, server, pending, new Set([1, 2, 3]))), { '1:ab': 2, '2:ab': 3, '3:ba': 1 });
 });
 
-test('Kennzahlen wie auf dem Server: geübt, sicher, fällig', () => {
+test('Kennzahlen wie auf dem Server: geübt, sicher, schon gewusst, fällig', () => {
   const progress = [
-    { word_id: 1, direction: 'ab', box: 3, due: day(10), last_seen: day(0) },
-    { word_id: 1, direction: 'ba', box: 1, due: day(1), last_seen: day(1) },
-    { word_id: 2, direction: 'ab', box: 0, due: day(0), last_seen: day(0) },
+    { word_id: 1, direction: 'ab', box: 3, right: 2, due: day(10), last_seen: day(0) },
+    { word_id: 1, direction: 'ba', box: 1, right: 0, due: day(1), last_seen: day(1) },
+    { word_id: 2, direction: 'ab', box: 0, right: 0, due: day(0), last_seen: day(0) },
   ];
-  assert.deepEqual(summarize(progress, new Date(day(1))), { seen: 2, safe: 1, due: 2, last_seen: day(1) });
-  assert.deepEqual(summarize([], new Date()), { seen: 0, safe: 0, due: 0, last_seen: null });
+  assert.deepEqual(summarize(progress, new Date(day(1))), { seen: 2, safe: 1, known: 1, due: 2, last_seen: day(1) });
+  assert.deepEqual(summarize([], new Date()), { seen: 0, safe: 0, known: 0, due: 0, last_seen: null });
 });
 
 test('IDs für Antworten sind eindeutig', () => {
@@ -119,6 +119,6 @@ test('Kennzahlen für Grammatiklisten zählen Regeln', () => {
     { rule_id: 2, box: 1, due: day(1), last_seen: day(1) },
     { rule_id: 3, box: 1, due: day(0), last_seen: day(0) },
   ];
-  assert.deepEqual(summarize(progress, new Date(day(1)), 'rule_id'), { seen: 3, safe: 1, due: 2, last_seen: day(1) });
+  assert.deepEqual(summarize(progress, new Date(day(1)), 'rule_id'), { seen: 3, safe: 1, known: 0, due: 2, last_seen: day(1) });
   assert.equal(summarize(progress, new Date(day(1))).seen, 1, 'ohne Angabe zählt word_id: Regelzeilen haben keine');
 });

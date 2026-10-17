@@ -6,10 +6,13 @@ import { LIMITS, parseItem, roundGrade, validateRules } from '../public/grammar.
 import { DEFAULT_SUBJECT, SUBJECTS } from '../public/listfilter.js';
 import { BADGES, LONG_RECALL_DAYS, collection, newlyEarned, titleOf } from './badges.js';
 import { DAILY_GOAL, computeStreak, endOfDay, localDay, weekOf } from './streak.js';
+import { weekReview } from './week.js';
 import { ttsFor } from './tts.js';
 
 // Ab dieser Stufe gilt ein Wort als „sicher“ (0 = neu … 5, siehe scheduler.js).
 export const SAFE_BOX = SAFE_LEVEL;
+// Klassenziel erst ab so vielen Schüler:innen in der Gruppe
+export const MIN_CLASS = 5;
 const MAX_WORDS = 2000;
 const DAY = 24 * 60 * 60 * 1000;
 const HISTORY_WEEKS = 8;
@@ -59,6 +62,15 @@ function parseGrade(rawGrade) {
 function parseSubject(raw) {
   if (raw == null || raw === '') return null;
   if (typeof raw !== 'string' || !Object.hasOwn(SUBJECTS, raw)) throw new HttpError(400, 'Ungültiges Fach.');
+  return raw;
+}
+
+// Zieldatum einer Liste ('JJJJ-MM-TT') oder null
+function parseGoalDate(raw) {
+  if (raw == null || raw === '') return null;
+  const valid = typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw)
+    && new Date(`${raw}T00:00:00Z`).toISOString().startsWith(raw);
+  if (!valid) throw new HttpError(400, 'Ungültiges Zieldatum.');
   return raw;
 }
 
@@ -141,6 +153,7 @@ function parseListBody(body) {
     allow_mode_switch: body.allow_mode_switch === false ? 0 : 1,
     // Ohne Angabe (ältere Clients) bleibt es bei der Schätzung im Browser
     learn_side: ['a', 'b'].includes(body.learn_side) ? body.learn_side : '',
+    goal_date: parseGoalDate(body.goal_date),
     words,
   };
 }
@@ -164,6 +177,7 @@ function listJson(row) {
     shared: !!row.shared,
     copied_from: row.copied_from || '',
     template: !!row.template,
+    goal_date: row.goal_date ?? null,
     updated_at: row.updated_at,
   };
 }
@@ -246,6 +260,7 @@ export function apiRouter(db, config) {
     myProgressSummary: db.prepare(
       `SELECT w.list_id, COUNT(DISTINCT p.word_id) AS seen,
          COUNT(DISTINCT CASE WHEN p.box >= ${SAFE_BOX} THEN p.word_id END) AS safe,
+         COUNT(DISTINCT CASE WHEN p.right > 0 THEN p.word_id END) AS known,
          COUNT(CASE WHEN p.due <= ? THEN 1 END) AS due,
          MAX(p.last_seen) AS last_seen
        FROM progress p JOIN words w ON w.id = p.word_id
@@ -350,6 +365,15 @@ export function apiRouter(db, config) {
              AND NOT EXISTS (SELECT 1 FROM rules r WHERE r.list_id = l.id AND NOT EXISTS
                (SELECT 1 FROM rule_progress p WHERE p.rule_id = r.id AND p.user_id = :u AND p.box >= ${SAFE_BOX}))))) AS listsMastered`,
     ),
+    // Wochenrückblick: Verlauf der Stabilität, nur aus Listen mit Lernserie (siehe week.js)
+    wordLog: db.prepare(
+      `SELECT word_id AS unit, direction AS part, stability, at FROM review_log
+       WHERE user_id = :u AND word_id IN (SELECT id FROM words WHERE list_id IN (${STREAK_LISTS})) ORDER BY at`,
+    ),
+    ruleLog: db.prepare(
+      `SELECT rule_id AS unit, '' AS part, stability, at FROM grammar_log
+       WHERE user_id = :u AND stability IS NOT NULL AND rule_id IN (SELECT id FROM rules WHERE list_id IN (${STREAK_LISTS})) ORDER BY at`,
+    ),
     earnedBadges: db.prepare('SELECT badge, earned_at FROM badges_earned WHERE user_id = ?'),
     addBadge: db.prepare('INSERT OR IGNORE INTO badges_earned (user_id, badge, earned_at) VALUES (?, ?, ?)'),
     doneDays: db.prepare('SELECT COUNT(*) AS n FROM learning_days WHERE user_id = ? AND done = 1'),
@@ -364,12 +388,28 @@ export function apiRouter(db, config) {
          done = excluded.done, next_due = excluded.next_due`,
     ),
     groupFlags: db.prepare(
-      `SELECT ug.group_id AS id, ug.group_name AS name, COALESCE(gs.gamification, 1) AS enabled
+      `SELECT ug.group_id AS id, ug.group_name AS name, COALESCE(gs.gamification, 1) AS enabled, gs.class_goal
        FROM user_groups ug LEFT JOIN group_settings gs ON gs.group_id = ug.group_id WHERE ug.user_id = ?`,
     ),
     setGroupSetting: db.prepare(
       `INSERT INTO group_settings (group_id, gamification) VALUES (?, ?)
        ON CONFLICT(group_id) DO UPDATE SET gamification = excluded.gamification`,
+    ),
+    setClassGoal: db.prepare(
+      `INSERT INTO group_settings (group_id, class_goal) VALUES (?, ?)
+       ON CONFLICT(group_id) DO UPDATE SET class_goal = excluded.class_goal`,
+    ),
+    // Klassenziel: sichere Wörter aller Schüler:innen der Gruppe in Listen, die der Gruppe zugewiesen sind
+    classSafe: db.prepare(
+      `SELECT COUNT(*) AS n FROM (SELECT DISTINCT p.user_id, p.word_id FROM progress p
+         JOIN words w ON w.id = p.word_id
+         JOIN list_groups lg ON lg.list_id = w.list_id AND lg.group_id = :g
+         JOIN user_groups ug ON ug.user_id = p.user_id AND ug.group_id = :g
+         JOIN users u ON u.id = p.user_id AND u.is_teacher = 0
+         WHERE p.box >= ${SAFE_BOX})`,
+    ),
+    classSize: db.prepare(
+      `SELECT COUNT(*) AS n FROM user_groups ug JOIN users u ON u.id = ug.user_id AND u.is_teacher = 0 WHERE ug.group_id = ?`,
     ),
     getProgress: db.prepare('SELECT * FROM progress WHERE user_id = ? AND word_id = ? AND direction = ?'),
     putProgress: db.prepare(
@@ -419,7 +459,15 @@ export function apiRouter(db, config) {
   const isShownGroup = (g) => !config.hiddenGroups.includes(g.id.toLowerCase()) && !config.hiddenGroups.includes(g.name.toLowerCase());
 
   function teacherGroups(userId) {
-    return q.groupFlags.all(userId).filter(isShownGroup).map((g) => ({ id: g.id, name: g.name, gamification: !!g.enabled }));
+    return q.groupFlags.all(userId).filter(isShownGroup).map((g) => ({ id: g.id, name: g.name, gamification: !!g.enabled, classGoal: g.class_goal }));
+  }
+
+  // Klassenziele der Gruppen einer Person: nur mit Lernserie, gesetztem Ziel und genug Schüler:innen, damit sich aus
+  // der Summe nicht ablesen lässt, wie weit eine einzelne Person ist. Keine Namen, keine Reihenfolge.
+  function classGoals(userId) {
+    return teacherGroups(userId)
+      .filter((g) => g.gamification && g.classGoal && q.classSize.get(g.id).n >= MIN_CLASS)
+      .map((g) => ({ group: g.name, goal: g.classGoal, safe: q.classSafe.get({ g: g.id }).n }));
   }
 
   // ---------- Lernserie ----------
@@ -455,7 +503,7 @@ export function apiRouter(db, config) {
   }
 
   // Für die Startseite: Serie, Lerntage, Tagesziel und die Woche
-  function streakSummary(userId) {
+  function streakSummary(userId, { forHome = false } = {}) {
     if (!streakEnabled(userId)) return { enabled: false };
     const stored = q.learningDays.all(userId);
     const rows = stored.map((r) => ({ day: r.day, done: !!r.done, had_due: !!r.had_due, next_due: r.next_due }));
@@ -468,6 +516,15 @@ export function apiRouter(db, config) {
       today: { done: !!row?.done, answers: row?.answers ?? 0, remaining: dueUntilEndOf(userId, today) },
       week: weekOf(rows, today),
       badges: { earned: q.earnedBadges.all(userId).length, total: BADGES.length },
+      // Listen, deren Antworten fürs Tagesziel zählen (die Lernrunde zeigt das Ziel nur dort)
+      lists: q.streakListIds.all({ u: userId }).map((l) => l.id),
+      // nur für die Startseite: Verlauf nachspielen und Klassen zählen muss nicht bei jeder Übertragung sein
+      classGoals: forHome ? classGoals(userId) : undefined,
+      review: forHome ? weekReview({
+        days: rows.filter((r) => r.done).map((r) => r.day),
+        words: q.wordLog.all({ u: userId }),
+        rules: q.ruleLog.all({ u: userId }),
+      }, today, Date.now(), timezone) : undefined,
     };
   }
 
@@ -517,10 +574,13 @@ export function apiRouter(db, config) {
     device: !!req.session.data.device,
     remember: config.rememberDays > 0,
     gamification: config.gamification !== false,
-    groups: req.user.isTeacher ? teacherGroups(req.user.id) : [],
+    // Lehrkräfte sehen beim Klassenziel, wie weit die Gruppe ist (nur die Summe)
+    groups: req.user.isTeacher
+      ? teacherGroups(req.user.id).map((g) => ({ ...g, classSafe: q.classSafe.get({ g: g.id }).n, classSize: q.classSize.get(g.id).n }))
+      : [],
   })));
 
-  router.get('/streak', wrap((req) => streakSummary(req.user.id)));
+  router.get('/streak', wrap((req) => streakSummary(req.user.id, { forHome: req.query.home === '1' })));
 
   // Sammlung: erreichte Abzeichen und der Fortschritt zu den übrigen
   router.get('/badges', wrap((req) => {
@@ -529,14 +589,25 @@ export function apiRouter(db, config) {
     return { enabled: true, badges: collection(badgeStats(req.user.id), earned) };
   }));
 
-  // Lernserie für eine Gruppe ein- oder ausschalten (nur Lehrkräfte, die der Gruppe angehören)
+  // Lernserie für eine Gruppe ein- oder ausschalten und das Klassenziel setzen (nur Lehrkräfte, die der Gruppe
+  // angehören). class_goal: Anzahl sicherer Wörter oder null (kein Klassenziel).
   router.put('/group-settings', wrap((req) => {
     requireTeacher(req);
     const id = typeof req.body?.group_id === 'string' ? req.body.group_id : '';
     if (!teacherGroups(req.user.id).some((g) => g.id === id)) throw new HttpError(403, 'Diese Gruppe gehört nicht zu dir.');
-    if (typeof req.body.gamification !== 'boolean') throw new HttpError(400, 'Ungültige Daten.');
-    q.setGroupSetting.run(id, req.body.gamification ? 1 : 0);
-    return { group_id: id, gamification: req.body.gamification };
+    const { gamification, class_goal: goal } = req.body;
+    const hasGoal = 'class_goal' in req.body;
+    if (gamification === undefined && !hasGoal) throw new HttpError(400, 'Ungültige Daten.');
+    if (gamification !== undefined && typeof gamification !== 'boolean') throw new HttpError(400, 'Ungültige Daten.');
+    if (hasGoal && goal !== null && !(Number.isInteger(goal) && goal >= 1 && goal <= 1000000)) {
+      throw new HttpError(400, 'Das Klassenziel muss eine Zahl zwischen 1 und 1 000 000 sein.');
+    }
+    transaction(db, () => {
+      if (gamification !== undefined) q.setGroupSetting.run(id, gamification ? 1 : 0);
+      if (hasGoal) q.setClassGoal.run(id, goal);
+    });
+    const saved = teacherGroups(req.user.id).find((g) => g.id === id);
+    return { group_id: id, gamification: saved.gamification, class_goal: saved.classGoal };
   }));
 
   // ?due_until=<ISO-Zeitpunkt>: bis wann ein Wort als „heute fällig“ zählt (Ende des lokalen Tages im Browser)
@@ -553,7 +624,8 @@ export function apiRouter(db, config) {
         word_count: row.word_count,
         rule_count: row.rule_count,
         item_count: row.item_count,
-        progress: { seen: s?.seen ?? 0, safe: s?.safe ?? 0, due: s?.due ?? 0, last_seen: s?.last_seen ?? null },
+        // known: schon einmal gewusst (für das Zieldatum einer Liste; „sicher“ ist bis zu einem Test oft nicht erreichbar)
+        progress: { seen: s?.seen ?? 0, safe: s?.safe ?? 0, known: s?.known ?? 0, due: s?.due ?? 0, last_seen: s?.last_seen ?? null },
       };
     };
     const own = req.user.isTeacher
@@ -628,9 +700,10 @@ export function apiRouter(db, config) {
     const ts = now();
     db.prepare(
       `UPDATE lists SET title = ?, lang_a = ?, lang_b = ?, learn_side = ?, mode = ?, case_sensitive = ?, accent_sensitive = ?,
-         direction = ?, allow_switch = ?, allow_mode_switch = ?, grade = ?, subject = COALESCE(?, subject), shared = ?, updated_at = ? WHERE id = ?`,
+         direction = ?, allow_switch = ?, allow_mode_switch = ?, grade = ?, subject = COALESCE(?, subject), shared = ?,
+         goal_date = ?, updated_at = ? WHERE id = ?`,
     ).run(data.title, data.lang_a, data.lang_b, data.learn_side, data.mode, data.case_sensitive, data.accent_sensitive,
-      data.direction, data.allow_switch, data.allow_mode_switch, data.grade, data.subject, data.shared, ts, listId);
+      data.direction, data.allow_switch, data.allow_mode_switch, data.grade, data.subject, data.shared, data.goal_date ?? null, ts, listId);
 
     if (data.kind === 'grammar') writeRules(db, listId, data.rules);
     else writeWords(listId, data.words);

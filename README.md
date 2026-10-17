@@ -311,7 +311,8 @@ Die Gestaltung folgt dem Forschungsstand zum Grammatiklernen; die ausführliche 
 | Abrufen statt Nachlesen (Roediger & Karpicke 2006) | Regel vor der Antwort zählt als Hilfe |
 
 **Bewusst nicht vorgesehen:** Vokabeln und Grammatik in einer Liste (zwei Listen derselben Lektion lassen sich
-gemeinsam zuweisen), Tempo-Runden mit Zeitdruck sowie KI zum Prüfen oder Erzeugen von Aufgaben in der App selbst.
+gemeinsam zuweisen), Tempo-Runden mit Zeitdruck (die [kurze Runde](#dranbleiben) begrenzt nur die Dauer, ohne
+sichtbare Uhr und ohne Wertung) sowie KI zum Prüfen oder Erzeugen von Aufgaben in der App selbst.
 
 **Literatur (Grammatik)**
 - Bird, S. (2010). Effects of distributed practice on the acquisition of second language English syntax. *Applied Psycholinguistics, 31*, 635–650.
@@ -334,7 +335,8 @@ gemeinsam zuweisen), Tempo-Runden mit Zeitdruck sowie KI zum Prüfen oder Erzeug
 
 Ein Punkt pro Tag, an dem das **Tagesziel** erreicht ist, dazu die Serie („3 Tage in Folge“), die beste Serie und die
 **Lerntage insgesamt** (diese Zahl wird nie zurückgesetzt). Es gibt keine Bestenliste, keine Punkte und keine
-Vergleiche: Die Anzeige sieht nur die Schüler:in selbst. Die Lehrkraft-Auswertung ändert sich nicht.
+Vergleiche: Die Anzeige sieht nur die Schüler:in selbst (einzige gemeinsame Zahl ist das [Klassenziel](#dranbleiben),
+eine Summe ohne Namen). Die Lehrkraft-Auswertung ändert sich nicht.
 
 - **Tagesziel:** alles erledigen, was „heute fällig“ ist. Ist mehr als 25 fällig (z. B. nach den Ferien), genügt es,
   25 fällige Einträge zu beantworten. Neue Wörter, Üben ohne Fälliges und Antworten aus Listen von Gruppen ohne Lernserie
@@ -342,7 +344,8 @@ Vergleiche: Die Anzeige sieht nur die Schüler:in selbst. Die Lehrkraft-Auswertu
 - **Tage ohne Fälliges** sind frei: Sie zählen nicht und unterbrechen die Serie nicht. Üben an so einem Tag ändert
   daran nichts. Das ist wichtig, weil die Planung Wörter oft für mehrere Tage nicht fällig macht.
 - **Nachsicht:** Ein verpasster Tag wird automatisch überbrückt, wenn in den 6 Tagen davor keiner überbrückt wurde.
-  Zwei verpasste Tage in einer Woche beenden die Serie. Die beste Serie und die Lerntage bleiben.
+  Zwei verpasste Tage in einer Woche beenden die Serie. Die beste Serie und die Lerntage bleiben. Die Startseite sagt,
+  wenn ein Tag überbrückt wurde und die Serie deshalb weiterläuft.
 - **Offline gelernt:** Antworten tragen ihren Zeitpunkt; beim Übertragen werden die betroffenen Tage nachgetragen.
   Die Tage einer Übertragung werden nacheinander ausgewertet; für vergangene Tage gilt: erledigt, wenn bis zum
   Tagesende nichts mehr fällig ist oder die Obergrenze erreicht wurde (siehe `src/api.js`, `recordLearningDay`).
@@ -352,6 +355,23 @@ Vergleiche: Die Anzeige sieht nur die Schüler:in selbst. Die Lehrkraft-Auswertu
 - **Zeitzone:** Wann ein Tag beginnt und endet, bestimmt `TIMEZONE` (Standard `Europe/Berlin`).
 
 Die Herleitung aus der Forschung steht in [docs/gamification-plan.md](docs/gamification-plan.md).
+
+## Dranbleiben
+
+Kleine Rückmeldungen, die ans Lernen gebunden sind und nichts vergleichen (siehe
+[docs/gamification-plan.md](docs/gamification-plan.md), Schritt 3):
+
+- **In der Runde:** „N in Folge“ zählt richtige Antworten, alle fünf kommt ein kurzer Hinweis. Darunter „Tagesziel: noch N“
+  (nur mit Internet und in Listen mit Lernserie). Am Ende eine Bilanz: auf Anhieb richtig, beste Serie, Dauer, Tagesziel.
+- **Kurze Runde:** „2 Minuten“ bei der Anzahl. Fälliges zuerst; nach zwei Minuten endet die Runde mit der beantworteten
+  Karte. Ohne sichtbare Uhr und ohne Bestwert – es geht ums Anfangen, nicht ums Tempo.
+- **Wochenrückblick** auf der Startseite: „Diese Woche: 3 Lerntage, 5 Wörter sicher dazu.“ Die letzte Woche steht nur
+  daneben, wenn diese mindestens so gut ist.
+- **Klassenziel:** Lehrkräfte setzen pro Gruppe ein Ziel („500 Wörter sicher“, Abschnitt „Lernserie und Abzeichen“).
+  Die Gruppe sieht einen gemeinsamen Balken: die Summe der sicheren Wörter aller Schüler:innen in den Listen der Gruppe.
+  Ohne Namen und ohne Reihenfolge, erst ab fünf Schüler:innen, nur mit eingeschalteter Lernserie.
+- **Zieldatum einer Liste** (z. B. der Vokabeltest, im Editor): Bis dahin zeigt die Karte, wie viele Wörter schon einmal
+  gewusst wurden. „Sicher“ wäre bis zu einem Test oft nicht erreichbar.
 
 ## Abzeichen
 
@@ -709,7 +729,10 @@ Gespeichert werden nur:
   die übrigen Lernstandsdaten; sie wird wie diese gelöscht (`RETENTION_DAYS`, Zurücksetzen durch die Schüler:innen).
   Die Fehlerliste der Lehrkraft zeigt nur Anzahlen je Antwort, in der Einzelansicht einer Person auch deren Antworten.
 - für die Lernserie je Schüler:in und Tag mit Antworten: Anzahl der beantworteten fälligen Einträge, ob etwas fällig war, ob das Tagesziel
-  erreicht wurde und wann danach wieder etwas fällig wird (keine Inhalte); pro Gruppe die Einstellung, ob die Lernserie an ist
+  erreicht wurde und wann danach wieder etwas fällig wird (keine Inhalte); pro Gruppe die Einstellung, ob die Lernserie an ist,
+  und das Klassenziel (eine Zahl). Angezeigt wird der Gruppe davon nur die Summe sicherer Wörter aller Schüler:innen,
+  ohne Namen und erst ab fünf Schüler:innen; ihr Stand wird bei Bedarf aus dem Lernstand gerechnet, nicht gespeichert
+- je Liste ein freiwilliges Zieldatum der Lehrkraft
 - je Schüler:in die erreichten Abzeichen mit Zeitpunkt (der Fortschritt dahin wird bei Bedarf aus dem Lernstand gerechnet)
 - bei „Angemeldet bleiben“: ein Geräteschlüssel (in der Datenbank nur als Hash), der nach `REMEMBER_DAYS` Tagen
   oder beim Abmelden verfällt

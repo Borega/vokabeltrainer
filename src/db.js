@@ -270,6 +270,10 @@ export const MIGRATIONS = [
   // 14: Fach einer Liste (Schlüssel aus SUBJECTS in public/listfilter.js), zum Filtern der geteilten Listen.
   //     Bestehende Listen sind Sprachlisten.
   `ALTER TABLE lists ADD COLUMN subject TEXT NOT NULL DEFAULT 'sprachen';`,
+  // 15: Klassenziel (siehe docs/gamification-plan.md, Schritt 3): so viele sichere Wörter will die Gruppe gemeinsam
+  //     erreichen. Leer: kein Klassenziel. goal_date: Zieldatum einer Liste ('JJJJ-MM-TT', z. B. der Vokabeltest).
+  `ALTER TABLE group_settings ADD COLUMN class_goal INTEGER;
+   ALTER TABLE lists ADD COLUMN goal_date TEXT;`,
 ];
 
 function migrate(db) {
