@@ -266,9 +266,9 @@ Weich und flach. Karten und Panels haben keinen Rand; sie heben sich durch die h
 ### Named Rules
 **The Soft-Not-Heavy Rule.** Eine Fläche hebt sich durch Farbe und den einen weichen Schatten ab. Kein Element bekommt einen stärkeren Schatten, einen Rahmen oder einen Verlauf, um „wichtiger“ zu wirken – Gewicht entsteht durch die Oliv-Fläche.
 
-**The Answer-Colors-The-Card Rule.** Nach einer Antwort färbt sich der Rand der Übungskarte (2 px, vorher transparent) grün, rot oder ockerfarben; Eingabe- und Antwortfelder nehmen die zugehörige Fläche an. Das ist die Rückmeldung zu einer einzelnen Antwort; darüber hinaus gibt es nur die Lernserie und die Abzeichen (siehe The Quiet Reward Rule).
+**The Answer-Colors-The-Card Rule.** Nach einer Antwort färbt sich der Rand der Übungskarte (2 px, vorher transparent) grün, rot oder ockerfarben; Eingabe- und Antwortfelder nehmen die zugehörige Fläche an. Das ist die Rückmeldung zu einer einzelnen Antwort; darüber hinaus gibt es in der Runde nur den Chip „N in Folge“ (alle fünf ein kurzer Hinweis, eine Skalierung von 0,6 s, ohne Bewegung bei `prefers-reduced-motion`) und die Bilanz am Ende, sonst die Lernserie und die Abzeichen (siehe The Quiet Reward Rule).
 
-**The Quiet Reward Rule.** Lernserie und Abzeichen bleiben leise und privat: ein Satz, ein Punkt, eine Meldung – nie ein Dialog, Ton, Konfetti oder ein Zähler, den andere sehen. Sie hängen am Können (sicher gewusst, Tagesziel erreicht), nicht an Menge oder Anmelden; ein verpasster Tag wird abgefedert und nie als Verlust inszeniert. Verborgene Abzeichen verraten nichts, bis man sie hat.
+**The Quiet Reward Rule.** Lernserie und Abzeichen bleiben leise und privat: ein Satz, ein Punkt, eine Meldung – nie ein Dialog, Ton, Konfetti oder ein Zähler, den andere sehen. Einzige gemeinsame Zahl ist das Klassenziel: eine Summe der Gruppe als ein Balken, ohne Namen und ohne Reihenfolge. Sie hängen am Können (sicher gewusst, Tagesziel erreicht), nicht an Menge oder Anmelden; ein verpasster Tag wird abgefedert und nie als Verlust inszeniert. Verborgene Abzeichen verraten nichts, bis man sie hat.
 
 ## Shapes
 
@@ -351,7 +351,7 @@ Dichte Formulare in Panels; Werkzeugleiste klebt unter der Kopfzeile; Grammatik-
 - **Do** kurze, direkte deutsche Sätze schreiben und gendergerecht mit Doppelpunkt („Schüler:innen“).
 
 ### Don't:
-- **Don't** Punkte, Level, Ranglisten, Vergleiche mit anderen, Konfetti, Münzen oder einen Shop und Zeitdruck einführen (Tempo-Runden sind ausgeschlossen). Bewusste Ausnahmen, klein und pro Gruppe abschaltbar: die Lernserie und Abzeichen fürs Können (siehe The Quiet Reward Rule).
+- **Don't** Punkte, Level, Ranglisten, Vergleiche mit anderen, Konfetti, Münzen oder einen Shop und Zeitdruck einführen (Tempo-Runden und sichtbare Uhren sind ausgeschlossen; die kurze Runde begrenzt nur die Dauer, ohne Uhr und ohne Wertung). Bewusste Ausnahmen, klein und pro Gruppe abschaltbar: die Lernserie und Abzeichen fürs Können (siehe The Quiet Reward Rule).
 - **Don't** einen zweiten Akzent neben Terrakotta einführen; Grün, Ton-Rot, Ocker bleiben der Bewertung vorbehalten, Moos dem Gewicht.
 - **Don't** Terrakotta für Fehler oder Warnungen verwenden – es ist zu nah an Ton-Rot.
 - **Don't** Rahmen um Karten, stärkere Schatten, Verläufe, Glas-Effekte oder farbige Seitenstreifen nutzen, um etwas wichtiger zu machen.

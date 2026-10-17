@@ -115,8 +115,11 @@ Tag ein Punkt in einer Wochenzeile (Anknüpfung an den Terrakotta-Punkt im App-S
 - **Abzeichen:** Tabelle `badges_earned(user_id, badge, earned_at)`. Neue Abzeichen kommen in der Antwort von
   `/results` zurück; bei Offline-Antworten erscheint der Hinweis beim Übertragen.
 - **Schalter:** Spalte oder Tabelle pro Gruppe, abgefragt wie die Gruppenzuweisung der Listen.
-- **Datenschutz:** nur eigene Daten, nur für die Schüler:in sichtbar. Die Lehrkraft-Auswertung bleibt wie sie ist.
-  Lerntage und Abzeichen gehören zum Konto (`ON DELETE CASCADE`).
+- **Datenschutz:** Serie, Lerntage, Abzeichen und Wochenrückblick sind eigene Daten, nur für die Schüler:in sichtbar. Die
+  Lehrkraft-Auswertung bleibt wie sie ist. Lerntage und Abzeichen gehören zum Konto (`ON DELETE CASCADE`). Einzige
+  Ausnahme ist das Klassenziel (Schritt 3): Es zeigt der Gruppe **nur eine Summe** (sichere Wörter aller Schüler:innen
+  der Gruppe), ohne Namen und ohne Reihenfolge, erst ab fünf Schüler:innen (`MIN_CLASS`) und nur in Gruppen mit
+  eingeschalteter Lernserie, für die eine Lehrkraft ein Ziel gesetzt hat.
 - **Oberfläche:** Serie neben „Heute fällig“ auf der Startseite, Sammlungsseite für Abzeichen. Gestaltung nach
   DESIGN.md: SVG statt Emoji, `prefers-reduced-motion` beachten, Texte kurz und sachlich.
 - **Tests:** Serienlogik als reine Funktion (wie `schedule.js`), Tests mit `node:test`.
@@ -171,7 +174,8 @@ Rahmen der Leitlinien; was vom ersten Vorschlag abweicht, steht unter „Abweich
 - Zieldatum zählt **„schon gewusst“** statt „sicher“: Sicher wird ein Wort erst nach Wiederholungen an verschiedenen
   Tagen (Stabilität ≥ 14 Tage) und wäre bis zu einem Test meist nicht erreichbar. **Kein Abzeichen** fürs Fertigwerden
   (Deci et al.: Belohnungen fürs Fertigwerden d = −0,36); „Liste gemeistert“ deckt Können schon ab.
-- Kurze Runde **ohne Bestwert und ohne Countdown**: Antworten pro zwei Minuten wären ein Tempowert (Leitlinien 1 und 3).
+- Kurze Runde **ohne Bestwert und ohne sichtbare Uhr**: Antworten pro zwei Minuten wären ein Tempowert, eine laufende
+  Uhr wäre Zeitdruck (Leitlinien 1 und 3, DESIGN.md). Die Runde endet einfach nach zwei Minuten.
 - Push-Erinnerungen bleiben weg (siehe „Bewusst nicht umgesetzt“).
 
 ### Reihenfolge

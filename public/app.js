@@ -314,7 +314,8 @@ async function pushAnswers() {
     renderNet();
     const res = await request('POST', '/results', { results: batch });
     await store.done(batch.map((e) => e.id));
-    if (res.streak) lastStreak = res.streak;
+    // mit der Person gemerkt: Auf geteilten Geräten soll niemand die Serie eines anderen sehen
+    if (res.streak) lastStreak = { ...res.streak, user: me.id };
     const reward = [res.streak?.reached && reachedText(res.streak), badgeText(res.badges)].filter(Boolean).join(' ');
     if (reward) toast(reward);
     const pendingFor = await pendingKeys(); // was inzwischen neu beantwortet wurde
@@ -498,7 +499,8 @@ function renderHomeLists({ own, assigned }, { offline = false, note = null, stre
   }
   // Lehrkräfte, die nur Listen anlegen, sehen die Serie nicht, solange sie selbst nichts üben
   if (streak?.enabled && (!me.isTeacher || streak.total || streak.today.remaining)) sections.push(streakPanel(streak));
-  if (streak?.classGoals?.length) sections.push(classGoalPanel(streak.classGoals));
+  // Lehrkräfte sehen den Stand bei den Gruppen-Einstellungen; der Balken hier spricht Schüler:innen an
+  if (!me.isTeacher && streak?.classGoals?.length) sections.push(classGoalPanel(streak.classGoals));
   if (me.isTeacher && !offline) {
     sections.push(
       h('section', {},
@@ -1073,6 +1075,8 @@ async function renderLearn(id) {
     const cards = dueItems().slice(0, n);
     const used = new Set(cards.map((c) => c.word.id));
     const fresh = shuffle(newItems().filter((c) => !used.has(c.word.id)));
+    // Kurze Runde: erst alles Fällige, dann Neues – sonst füllen neue Wörter die zwei Minuten
+    if (size === 'quick') return [...shuffle(cards), ...fresh];
     cards.push(...fresh.slice(0, Math.max(0, n - cards.length)));
     return shuffle(cards);
   }
@@ -1310,8 +1314,9 @@ async function renderLearn(id) {
       card.exercise ??= chooseExercise(card);
       const header = h('div', { class: 'round-head' },
         h('button', { class: 'btn ghost small', onclick: () => { if (confirm('Runde abbrechen?')) { cleanupKeys(); stopSpeaking(); setupView(); } } }, 'Beenden'),
+        // Kurze Runde ohne sichtbare Uhr: kein Zeitdruck (DESIGN.md), sie endet einfach nach zwei Minuten
         seconds
-          ? progressBar(Math.min(Date.now() - started, seconds * 1000), seconds * 1000, 'Zeit der kurzen Runde')
+          ? h('span', { class: 'small muted quick-label' }, 'Kurze Runde')
           : progressBar(done, total, 'Fortschritt der Runde'),
         comboChip,
         h('span', { class: 'small muted' }, seconds ? `Karte ${done + 1}` : `${Math.min(done + 1, total)} / ${total}`),
@@ -1572,7 +1577,10 @@ async function renderLearn(id) {
       if (toGoal != null) {
         goalResult.textContent = goalLeft() > 0 ? `Noch ${goalLeft()} fällige bis zum Tagesziel.` : 'Tagesziel erreicht.';
         // erst warten, bis die letzte Antwort auf dem Gerät liegt – sonst überträgt syncNow ohne sie
-        writes.then(() => syncNow()).then(() => { if (countsHere(lastStreak) && lastStreak.today.done) goalResult.textContent = reachedText(lastStreak); }).catch(() => {});
+        writes.then(() => syncNow()).then(() => {
+          const s = lastStreak?.user === me.id ? lastStreak : null;
+          if (countsHere(s) && s.today.done) goalResult.textContent = reachedText(s);
+        }).catch(() => {});
       }
       const outlook = h('p', { class: 'small muted' });
       const remaining = h('div', {});
