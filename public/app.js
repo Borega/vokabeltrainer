@@ -1034,8 +1034,12 @@ async function renderLearn(id) {
     return dates.length ? new Date(Math.min(...dates)) : null;
   }
 
+  // Kurze Runde: begrenzt durch die Zeit statt durch die Anzahl
+  const QUICK_SECONDS = 120;
+  const unlimited = () => size === 'all' || size === 'quick';
+
   function pickDue() {
-    const n = size === 'all' ? Infinity : Number(size);
+    const n = unlimited() ? Infinity : Number(size);
     const cards = dueItems().slice(0, n);
     const used = new Set(cards.map((c) => c.word.id));
     const fresh = shuffle(newItems().filter((c) => !used.has(c.word.id)));
@@ -1049,7 +1053,7 @@ async function renderLearn(id) {
       return { word: w, dir, box: progress.get(key(w.id, dir))?.box ?? 0, rnd: Math.random() };
     });
     cards.sort((x, y) => x.box - y.box || x.rnd - y.rnd);
-    const n = size === 'all' ? cards.length : Number(size);
+    const n = unlimited() ? cards.length : Number(size);
     return shuffle(cards.slice(0, n));
   }
 
@@ -1097,7 +1101,8 @@ async function renderLearn(id) {
           ]
         : null,
       h('h2', {}, 'Wie viele Wörter?'),
-      segmented('Anzahl', [['10', '10'], ['20', '20'], ['all', `Alle${mode === 'free' ? ` (${list.words.length})` : ''}`]], size, (s) => { size = s; setupView(); }),
+      segmented('Anzahl', [['10', '10'], ['20', '20'], ['all', `Alle${mode === 'free' ? ` (${list.words.length})` : ''}`], ['quick', '2 Minuten']], size, (s) => { size = s; setupView(); }),
+      size === 'quick' ? h('p', { class: 'small muted' }, 'Eine kurze Runde für zwischendurch: Nach zwei Minuten ist Schluss, sobald die Karte beantwortet ist.') : null,
       nothingToDo
         ? h('p', { class: 'done-today' }, 'Für heute ist alles erledigt.',
             next ? h('span', { class: 'small muted' }, ` Nächste Wiederholung: ${formatDue(next)}.`) : null)
@@ -1105,7 +1110,7 @@ async function renderLearn(id) {
       h('div', { class: 'actions' },
         nothingToDo
           ? h('button', { class: 'btn primary big', onclick: () => { mode = 'free'; setupView(); } }, 'Trotzdem frei üben')
-          : h('button', { class: 'btn primary big', onclick: () => startRound(pick()) }, 'Los geht’s'),
+          : h('button', { class: 'btn primary big', onclick: () => startRound(pick(), { seconds: size === 'quick' ? QUICK_SECONDS : null }) }, 'Los geht’s'),
         list.progress.length ? h('button', { class: 'btn ghost', onclick: resetProgress, disabled: !online }, 'Lernstand zurücksetzen') : null,
         list.can_copy && !list.is_owner ? h('button', { class: 'btn', onclick: () => copyList(list) }, 'In meine Listen kopieren') : null,
       ),
@@ -1196,13 +1201,15 @@ async function renderLearn(id) {
     });
   }
 
-  function startRound(cards) {
+  // seconds: kurze Runde – nach Ablauf endet sie, sobald die aktuelle Karte beantwortet ist
+  function startRound(cards, { seconds = null } = {}) {
     if (!cards.length) return setupView();
     const queue = cards.map((c) => ({ word: c.word, dir: c.dir, retry: 0 }));
     const total = cards.length;
     let done = 0;
     let right = 0;
     const wrongWords = [];
+    const answeredCards = []; // in einer kurzen Runde bleiben Karten unbeantwortet
     // Richtige Antworten in Folge (auch Wiederholungen); alle fünf gibt es einen kleinen Jubel
     let combo = 0;
     let bestCombo = 0;
@@ -1246,6 +1253,7 @@ async function renderLearn(id) {
     // nach 3–5 Karten erneut, bis sie einmal richtig sind (höchstens dreimal).
     function answered(card, grade, correct) {
       if (!card.retry) {
+        answeredCards.push(card);
         record(card, grade, correct);
         if (dueAtStart.has(key(card.word.id, card.dir))) {
           dueAnswered++;
@@ -1265,15 +1273,18 @@ async function renderLearn(id) {
 
     function next() {
       stopSpeaking();
+      if (seconds && Date.now() - started >= seconds * 1000) return finish();
       const card = queue.shift();
       if (!card) return finish();
       showCombo(combo);
       card.exercise ??= chooseExercise(card);
       const header = h('div', { class: 'round-head' },
         h('button', { class: 'btn ghost small', onclick: () => { if (confirm('Runde abbrechen?')) { cleanupKeys(); stopSpeaking(); setupView(); } } }, 'Beenden'),
-        progressBar(done, total, 'Fortschritt der Runde'),
+        seconds
+          ? progressBar(Math.min(Date.now() - started, seconds * 1000), seconds * 1000, 'Zeit der kurzen Runde')
+          : progressBar(done, total, 'Fortschritt der Runde'),
         comboChip,
-        h('span', { class: 'small muted' }, `${Math.min(done + 1, total)} / ${total}`),
+        h('span', { class: 'small muted' }, seconds ? `Karte ${done + 1}` : `${Math.min(done + 1, total)} / ${total}`),
       );
       const show = (...content) => view(h('section', { class: 'round' }, header, goalLine,
         card.retry ? h('p', { class: 'retry small' }, 'Wiederholung') : null, ...content));
@@ -1522,7 +1533,8 @@ async function renderLearn(id) {
 
     async function finish() {
       cleanupKeys();
-      const pct = total ? Math.round((right / total) * 100) : 0;
+      // done statt total: Eine kurze Runde endet, bevor alle Karten dran waren
+      const pct = done ? Math.round((right / done) * 100) : 0;
       const secs = Math.round((Date.now() - started) / 1000);
       const tile = (value, label) => h('div', { class: 'tile' }, h('strong', {}, value), h('span', { class: 'small muted' }, label));
       // Tagesziel: erst die Schätzung auf dem Gerät, nach der Übertragung mit der Serie vom Server
@@ -1537,7 +1549,7 @@ async function renderLearn(id) {
       view(h('section', { class: 'panel result' },
         h('h1', {}, pct === 100 ? 'Perfekt!' : pct >= 70 ? 'Gut gemacht!' : 'Weiter üben!'),
         h('div', { class: 'summary' },
-          tile(`${right}/${total}`, `auf Anhieb richtig · ${pct} %`),
+          tile(`${right}/${done}`, `auf Anhieb richtig · ${pct} %`),
           tile(String(bestCombo), 'beste Serie'),
           tile(`${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`, 'Minuten')),
         goalResult,
@@ -1555,7 +1567,7 @@ async function renderLearn(id) {
       ));
       // Wann kommen die Wörter dieser Runde wieder? (schon auf dem Gerät verplant)
       const buckets = { morgen: 0, 'in 2–7 Tagen': 0, 'in 1–4 Wochen': 0, später: 0 };
-      for (const c of cards) {
+      for (const c of answeredCards) {
         const p = progress.get(key(c.word.id, c.dir));
         if (!p?.due) continue;
         const d = (new Date(p.due) - Date.now()) / 86400000;
@@ -1566,7 +1578,7 @@ async function renderLearn(id) {
       const left = dueItems().length + newItems().length;
       if (left) {
         fill(remaining, h('p', {}, `Heute noch fällig oder neu: ${left}`),
-          h('button', { class: 'btn primary', onclick: () => { mode = 'due'; startRound(pickDue()); } }, 'Weiterlernen'));
+          h('button', { class: 'btn primary', onclick: () => { mode = 'due'; startRound(pickDue(), { seconds }); } }, seconds ? 'Noch eine kurze Runde' : 'Weiterlernen'));
       }
     }
 
